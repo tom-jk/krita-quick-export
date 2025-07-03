@@ -1,8 +1,8 @@
-from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout,
+from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate,
-                             QSizePolicy, QWidget, QLineEdit)
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFontMetrics
+                             QSizePolicy, QWidget, QLineEdit, QMessageBox)
+from PyQt5.QtCore import Qt, QRegExp
+from PyQt5.QtGui import QFontMetrics, QRegExpValidator
 from pathlib import Path
 from krita import InfoObject, ManagedColor
 import krita
@@ -63,17 +63,26 @@ class MyTreeWidget(QTreeWidget):
     def _on_item_btn_export_clicked(self, checked, doc, filename):
         #print("I, button of", filename, "was clicked!", checked, self.sender().objectName())
         print(f"Clicked export for {doc['path']}")
+        self.sender().setText("Exporting...")
         
         exportParameters = InfoObject()
         exportParameters.setProperty("alpha", True if doc["alpha"] == "true" else False)
         exportParameters.setProperty("compression", int(doc["compression"]))
         exportParameters.setProperty("indexed", True)
         
+        export_path = doc["path"].with_name(doc["output"])
+        
         doc["document"].setBatchmode(True)
-        result = doc["document"].exportImage(str(doc["path"].with_name(doc["output"])), exportParameters)
-        if result == False:
-            
+        doc["document"].waitForDone()
+        result = doc["document"].exportImage(str(export_path), exportParameters)
         doc["document"].setBatchmode(False)
+        
+        if result == False:
+            self.sender().setText("Export failed!")
+            sbar.showMessage(f"Export failed")
+        else:
+            self.sender().setText("Done!")
+            sbar.showMessage(f"Exported to '{str(export_path)}'")
     
     def _on_item_btn_forget_clicked(self, checked, doc, filename):
         # TODO: can't actually delete settings from kritarc with python api.
@@ -99,7 +108,7 @@ class MyTreeWidget(QTreeWidget):
         default_string = "alpha=false,compression=9,output="+doc["path"].with_suffix(".png").name
         settings_string = app.readSetting("TomJK_QuickExport", str(doc["path"]), default_string) or default_string
         #print(f"{settings_string=}")
-        settings = [[y.strip() for y in x.split('=')] for x in settings_string.split(',')]
+        settings = [[y.strip() for y in x.split('=', 1)] for x in settings_string.split(',')]
         for kvpair in settings:
             if kvpair[0] not in ("alpha", "compression", "output"):
                 print(f"unrecognised parameter name '{kvpair[0]}'")
@@ -118,7 +127,9 @@ class MyTreeWidget(QTreeWidget):
         self.setHeaderLabels(["Filename", "Export to", "", "Compression", "btn"])
         self.headerItem().setIcon(self.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
-        self.documents = [{"document":doc, "path":Path(doc.fileName())} for doc in app.documents()]
+        self.documents = [{"document":doc, "path":Path(doc.fileName())} for doc in app.documents() if doc.fileName()!=""]
+        
+        filename_regex = QRegExp("^[^<>:;,?\"*|/]+$")
         
         longest_output = ""
         for doc in self.documents:
@@ -138,6 +149,10 @@ class MyTreeWidget(QTreeWidget):
             item.setText(self.SOURCE_FILENAME_COLUMN, file_path.name)
             
             output_edit = QLineEdit(doc["output"])
+            
+            input_validator = QRegExpValidator(filename_regex, output_edit)
+            output_edit.setValidator(input_validator)
+            
             text = longest_output + "PAD"
             fm = QFontMetrics(output_edit.font())
             pixelsWide = fm.width(text)
@@ -193,10 +208,15 @@ class MyTreeWidget(QTreeWidget):
         self.setItemDelegateForColumn(self.SOURCE_FILENAME_COLUMN, ned)
         self.setItemDelegateForColumn(self.STORE_ALPHA_COLUMN, ned)
 
-layout = QHBoxLayout()
+layout = QVBoxLayout()
 
 tree = MyTreeWidget()
 layout.addWidget(tree)
+
+from PyQt5.QtWidgets import QStatusBar
+sbar = QStatusBar()
+sbar.showMessage("Ready.")
+layout.addWidget(sbar)
 
 # create dialog  and show it
 newDialog = QDialog() 
