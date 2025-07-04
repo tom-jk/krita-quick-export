@@ -1,3 +1,5 @@
+![krita_quickexport_githubimage0](https://github.com/user-attachments/assets/d1c9205f-518a-423a-90d4-5683f8cee8ca)
+
 Work-in-progress.
 
 Open quickexport/QuickExport/dialog.py in Krita with Scripter or Ten Scripts (under Tools->Scripts).
