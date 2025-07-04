@@ -1,21 +1,23 @@
 # SPDX-License-Identifier: CC0-1.0
 
 from PyQt5.QtCore import QAbstractItemModel, QModelIndex, Qt
+from PyQt5.QtWidgets import QCheckBox
 from PyQt5.QtGui import QPixmap
 from . import filtermanagertreeitem
+from krita import Swatch, QDoubleSpinBox
 
 
 class FilterManagerTreeModel(QAbstractItemModel):
 
     TYPE_COLUMN = 1
-    NODE_COLUMN = 3
-    DOCUMENT_COLUMN = 4
+    NODE_COLUMN = 7
+    DOCUMENT_COLUMN = 8
 
     def __init__(self, uiFilterManager, parent=None):
         super(FilterManagerTreeModel, self).__init__(parent)
 
         self.rootItem = filtermanagertreeitem.FilterManagerTreeItem(
-            (i18n("Name"), i18n("Type"), i18n("Thumbnail")))
+            (i18n("Name"), i18n("Type"), i18n("Thumbnail"), i18n("Export To"), i18n("Store Alpha"), i18n("Transparency Colour"), i18n("Compression")))
         self.uiFilterManager = uiFilterManager
         self._loadTreeModel(self.rootItem)
 
@@ -96,11 +98,15 @@ class FilterManagerTreeModel(QAbstractItemModel):
         return None
 
     def _loadTreeModel(self, parent):
+        self.spinners = []
         for index, document in enumerate(self.uiFilterManager.documents):
             rootNode = document.rootNode()
+            spinbox = QDoubleSpinBox()
+            self.spinners.append(spinbox)
             columnData = (document.fileName(),
                           "Document",
                           QPixmap.fromImage(document.thumbnail(30, 30)),
+                          "export to name", QCheckBox(), Swatch(), spinbox,
                           rootNode, index)
             item = filtermanagertreeitem.FilterManagerTreeItem(
                 columnData, parent)
@@ -114,9 +120,12 @@ class FilterManagerTreeModel(QAbstractItemModel):
         for node in nodes:
             nodeName = node.name()
             nodeType = node.type()
+            if nodeType != "filelayer":
+                continue
             columnData = ("Unnamed" if nodeName == '' else nodeName,
                           "Untyped" if nodeType == '' else nodeType,
                           QPixmap.fromImage(node.thumbnail(30, 30)),
+                          "a", "b", "c", "d",
                           node, documentIndex)
             item = filtermanagertreeitem.FilterManagerTreeItem(
                 columnData, parent)

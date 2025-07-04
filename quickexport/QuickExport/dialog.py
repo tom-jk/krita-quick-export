@@ -129,6 +129,7 @@ class MyTreeWidget(QTreeWidget):
         self.items = []
         self.documents = [{"document":doc, "path":Path(doc.fileName())} for doc in app.documents() if doc.fileName()!=""]
         
+        # TODO: still need to ensure output filename ends with ".png".
         filename_regex = QRegExp("^[^<>:;,?\"*|/]+$")
         
         longest_output = ""
