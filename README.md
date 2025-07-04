@@ -25,4 +25,3 @@ Missing/To-Do:
 - can't automatically export a chain of dependent images (eg. when exporting a texture atlas, first update file layers)
 - can't manage settings for images not currently open in Krita
 - can't sort or group list of images, or hide those not intended for export
-- no thumbnail for images

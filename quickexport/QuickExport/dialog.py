@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate,
                              QSizePolicy, QWidget, QLineEdit, QMessageBox)
 from PyQt5.QtCore import Qt, QRegExp
-from PyQt5.QtGui import QFontMetrics, QRegExpValidator
+from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap
 from pathlib import Path
 from krita import InfoObject, ManagedColor
 import krita
@@ -49,11 +49,12 @@ class MyButton(QPushButton):
 
 class MyTreeWidget(QTreeWidget):
     
-    SOURCE_FILENAME_COLUMN = 0
-    OUTPUT_FILENAME_COLUMN = 1
-    STORE_ALPHA_COLUMN = 2
-    COMPRESSION_COLUMN = 3
-    BUTTONS_COLUMN = 4
+    THUMBNAIL_COLUMN = 0
+    SOURCE_FILENAME_COLUMN = 1
+    OUTPUT_FILENAME_COLUMN = 2
+    STORE_ALPHA_COLUMN = 3
+    COMPRESSION_COLUMN = 4
+    BUTTONS_COLUMN = 5
     
     def _on_output_lineedit_editing_finished(self, doc, lineedit):
         doc["output"] = lineedit.text()
@@ -123,8 +124,8 @@ class MyTreeWidget(QTreeWidget):
         super().__init__(parent)
         app = krita.Krita.instance()
         
-        self.setColumnCount(5)
-        self.setHeaderLabels(["Filename", "Export to", "", "Compression", "btn"])
+        self.setColumnCount(6)
+        self.setHeaderLabels(["", "Filename", "Export to", "", "Compression", "btn"])
         self.headerItem().setIcon(self.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
         self.documents = [{"document":doc, "path":Path(doc.fileName())} for doc in app.documents() if doc.fileName()!=""]
@@ -146,6 +147,8 @@ class MyTreeWidget(QTreeWidget):
             
             item = QTreeWidgetItem(self)
             item.setFlags(item.flags() | Qt.ItemIsEditable)
+            
+            item.setIcon(self.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(doc["document"].thumbnail(64,64))))
             
             item.setText(self.SOURCE_FILENAME_COLUMN, file_path.name)
             
@@ -202,7 +205,7 @@ class MyTreeWidget(QTreeWidget):
             
             self.items.append(item)
         
-        for i in range(0, 5):
+        for i in range(0, 6):
             self.resizeColumnToContents(i)
             
         ned = NoEditDelegate()
