@@ -12,6 +12,7 @@ import xml
 exportParameters = InfoObject()
 
 app = Krita.instance()
+
 doc = app.activeDocument()
 #print(doc.name())
 exportConfig = app.readSetting("", "ExportConfiguration-image/png", "")
@@ -59,15 +60,13 @@ class MyTreeWidget(QTreeWidget):
     def _on_output_lineedit_editing_finished(self, doc, lineedit):
         doc["output"] = lineedit.text()
         print("_on_output_lineedit_changed ->", doc["output"])
-        self.write_settings_for_doc(doc)
     
     def _on_item_btn_export_clicked(self, checked, doc, filename):
-        #print("I, button of", filename, "was clicked!", checked, self.sender().objectName())
         print(f"Clicked export for {doc['path']}")
         self.sender().setText("Exporting...")
         
         exportParameters = InfoObject()
-        exportParameters.setProperty("alpha", True if doc["alpha"] == "true" else False)
+        exportParameters.setProperty("alpha", True if doc["alpha"] == True else False)
         exportParameters.setProperty("compression", int(doc["compression"]))
         exportParameters.setProperty("indexed", True)
         
@@ -85,74 +84,145 @@ class MyTreeWidget(QTreeWidget):
             self.sender().setText("Done!")
             sbar.showMessage(f"Exported to '{str(export_path)}'")
     
-    def _on_item_btn_forget_clicked(self, checked, doc, filename):
-        # TODO: can't actually delete settings from kritarc with python api.
-        #       possible workarounds: store each files settings with number index instead of file path,
-        #       or store all settings in a big string that can be edited freely.
-        #print("I, button of", filename, "was clicked!", checked, self.sender().objectName())
-        print(f"Clicked forget for {doc['path']}")
-        app.writeSetting("TomJK_QuickExport", str(doc["path"]), "")
+    def _on_item_btn_store_forget_clicked(self, checked, btn, doc, filename):
+        print(f"{btn=}")
+        if doc["store"] == False:
+            print("store doc with filename:", filename)
+            doc["store"] = True
+            btn.setIcon(app.icon('edit-delete'))
+        else:
+            print("forget doc with filename:", filename)
+            doc["store"] = False
+            btn.setIcon(app.icon('document-save'))
     
     def _on_alpha_checkbox_state_changed(self, state, doc):
-        print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName())
-        doc["alpha"] = "true" if state == Qt.Checked else "false"
-        self.write_settings_for_doc(doc)
+        print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
+        doc["alpha"] = True if state == Qt.Checked else False
     
     def _on_compression_slider_value_changed(self, value, doc, slider, label):
-        print("slider value changed ->", value, "for doc", doc["document"].fileName())
-        doc["compression"] = str(value)
-        self.write_settings_for_doc(doc)
+        print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
+        doc["compression"] = value
         label.setText(str(value))
     
-    def read_settings_for_doc(self, doc):
-        file_path = doc["path"]
-        default_string = "alpha=false,compression=9,output="+doc["path"].with_suffix(".png").name
-        settings_string = app.readSetting("TomJK_QuickExport", str(doc["path"]), default_string) or default_string
-        #print(f"{settings_string=}")
-        settings = [[y.strip() for y in x.split('=', 1)] for x in settings_string.split(',')]
-        for kvpair in settings:
-            if kvpair[0] not in ("alpha", "compression", "output"):
-                print(f"unrecognised parameter name '{kvpair[0]}'")
-                continue
-            doc[kvpair[0]] = kvpair[1]
+    def load_settings_from_config(self):
+        """
+        read in settings string from kritarc.
+        example: "path=a/b.kra,alpha=false,ouput=b.png;c/d.kra,alpha=true,output=e/f.png"
+        becomes: settings[{"document":<obj>, "store":True, "path":"a/b.kra", "alpha":False, "output":"b.png"}, {"document":<obj>, "store":True, "path":"c/d.kra", "alpha":True, "output":"d.png"}]
+        """
+        # TODO: will break if a filename contains a comma ',' char.
+        settings_string = app.readSetting("TomJK_QuickExport", "settings", "")
+        print(f"{settings_string=}")
+        
+        if settings_string != "":
+            settings_as_arrays = [[[y for y in kvpair.split('=', 1)] for kvpair in file.split(',')] for file in settings_string.split(';')]
+            print(f"{settings_as_arrays=}")
+            
+            print()
+            
+            for file_settings in settings_as_arrays:
+                print("found file settings", file_settings)
+                self.settings.append({"document":None, "store":True})
+                for kvpair in file_settings:
+                    if kvpair[0] == "path":
+                        self.settings[-1][kvpair[0]] = Path(kvpair[1])
+                        for d in app.documents():
+                            if d.fileName() == kvpair[1]:
+                                self.settings[-1]["document"] = d
+                                break
+                    elif kvpair[0] == "alpha":
+                        self.settings[-1][kvpair[0]] = True if kvpair[1] == "true" else False
+                    elif kvpair[0] == "compression":
+                        self.settings[-1][kvpair[0]] = int(kvpair[1])
+                    elif kvpair[0] == "output":
+                        self.settings[-1][kvpair[0]] = kvpair[1]
+                    else:
+                        print(f" unrecognised parameter name '{kvpair[0]}'")
+                        continue
+                    print(" found", kvpair)
+                print()
+
+            print(f"{self.settings=}")
+            print()
+            for s in self.settings:
+                print(s)
     
-    def write_settings_for_doc(self, doc):
-        file_path = doc["path"]
-        app.writeSetting("TomJK_QuickExport", str(file_path), f"alpha={doc['alpha']},compression={doc['compression']},output={doc['output']}")
+    def save_settings_to_config(self):
+        print("save_settings_to_config")
+        
+        save_strings = []
+        
+        for s in self.settings:
+            if s["store"] == False:
+                continue
+            
+            save_strings.append(f"path={str(s['path'])},alpha={'true' if s['alpha']==True else 'false'},compression={s['compression']},output={s['output']}")
+        
+        save_string = ";".join(save_strings)
+        print(f"{save_string=}")
+        app.writeSetting("TomJK_QuickExport", "settings", save_string)
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        app = krita.Krita.instance()
+        
+        self.settings = []
+        
+        self.load_settings_from_config()
+        
+        # add default settings for currently open documents that didn't have corresponding stored settings.
+        for doc in app.documents():
+            doc_is_in_settings = False
+            if doc.fileName() == "":
+                continue
+            
+            for s in self.settings:
+                if s["document"] == doc:
+                    doc_is_in_settings = True
+                    break
+            
+            if doc_is_in_settings:
+                continue
+            
+            path = Path(doc.fileName())
+            self.settings.append({"document":doc, "store":False, "path":path, "alpha":False, "compression":9, "output":path.with_suffix(".png").name})
+        
+        # TODO: detect if multiple documents have the same filepath.
+        # TODO: detect if multiple documents would export to the same output file.
+        
         
         self.setColumnCount(6)
         self.setHeaderLabels(["", "Filename", "Export to", "", "Compression", "btn"])
         self.headerItem().setIcon(self.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
-        self.documents = [{"document":doc, "path":Path(doc.fileName())} for doc in app.documents() if doc.fileName()!=""]
+        #self.documents = [{"document":doc, "path":Path(doc.fileName())} for doc in app.documents() if doc.fileName()!=""]
         
         # TODO: still need to ensure output filename ends with ".png".
         filename_regex = QRegExp("^[^<>:;,?\"*|/]+$")
         
         longest_output = ""
-        for doc in self.documents:
-            output = doc["path"].with_suffix(".png").name
+        for s in self.settings:
+            output = s["path"].with_suffix(".png").name
             if len(output) > len(longest_output):
                 longest_output = output
         
-        for doc in self.documents:
-            self.read_settings_for_doc(doc)
+        for s in self.settings:
+            #self.read_settings_for_doc(doc)
             #print(doc)
+            print(s)
             
-            file_path = doc["path"]
+            file_path = s["path"]
             
             item = QTreeWidgetItem(self)
             item.setFlags(item.flags() | Qt.ItemIsEditable)
             
-            item.setIcon(self.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(doc["document"].thumbnail(64,64))))
+            if s["document"] != None:
+                item.setIcon(self.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(s["document"].thumbnail(64,64))))
+            else:
+                item.setDisabled(True)
             
             item.setText(self.SOURCE_FILENAME_COLUMN, file_path.name)
             
-            output_edit = QLineEdit(doc["output"])
+            output_edit = QLineEdit(s["output"])
             
             input_validator = QRegExpValidator(filename_regex, output_edit)
             output_edit.setValidator(input_validator)
@@ -161,7 +231,7 @@ class MyTreeWidget(QTreeWidget):
             fm = QFontMetrics(output_edit.font())
             pixelsWide = fm.width(text)
             output_edit.setMinimumWidth(pixelsWide)
-            output_edit.editingFinished.connect(lambda d=doc, oe=output_edit: self._on_output_lineedit_editing_finished(d, oe))
+            output_edit.editingFinished.connect(lambda d=s, oe=output_edit: self._on_output_lineedit_editing_finished(d, oe))
             
             self.setItemWidget(item, self.OUTPUT_FILENAME_COLUMN, output_edit)
             
@@ -172,17 +242,18 @@ class MyTreeWidget(QTreeWidget):
                 }
                 """)
             
-            alpha_checkbox.setCheckState(Qt.Checked if doc["alpha"] == "true" else Qt.Unchecked)
-            alpha_checkbox.stateChanged.connect(lambda state, d=doc: self._on_alpha_checkbox_state_changed(state, d))
+            alpha_checkbox.setCheckState(Qt.Checked if s["alpha"] == True else Qt.Unchecked)
+            alpha_checkbox.stateChanged.connect(lambda state, d=s: self._on_alpha_checkbox_state_changed(state, d))
             self.setItemWidget(item, self.STORE_ALPHA_COLUMN, alpha_checkbox)
             
             compression_widget = QWidget()
             compression_layout = QHBoxLayout()
-            compression_slider = QSlider(Qt.Horizontal)
             compression_label = QLabel()
+            compression_slider = QSlider(Qt.Horizontal)
             compression_slider.setRange(1, 9)
-            compression_slider.valueChanged.connect(lambda value, d=doc, s=compression_slider, sl=compression_label: self._on_compression_slider_value_changed(value, d, s, sl))
-            compression_slider.setValue(int(doc["compression"]))
+            compression_slider.valueChanged.connect(lambda value, d=s, cs=compression_slider, cl=compression_label: self._on_compression_slider_value_changed(value, d, cs, cl))
+            compression_slider.setValue(s["compression"])
+            compression_label.setText(str(s["compression"]))
             compression_layout.addWidget(compression_slider)
             compression_layout.addWidget(compression_label)
             compression_widget.setLayout(compression_layout)
@@ -191,14 +262,14 @@ class MyTreeWidget(QTreeWidget):
             btns_widget = QWidget()
             btns_layout = QHBoxLayout()
             btns_export = QPushButton("Export now")
-            btns_export.clicked.connect(lambda checked, d=doc, fn=file_path.name: self._on_item_btn_export_clicked(checked, d, fn))
-            btns_forget = QPushButton("")
-            btns_forget.setIcon(app.icon('edit-delete'))
-            btns_forget.setEnabled(False)
-            btns_forget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
-            btns_forget.clicked.connect(lambda checked, d=doc, fn=file_path.name: self._on_item_btn_forget_clicked(checked, d, fn))
+            btns_export.clicked.connect(lambda checked, d=s, fn=file_path.name: self._on_item_btn_export_clicked(checked, d, fn))
+            btns_store_forget = QPushButton("")
+            btns_store_forget.setIcon(app.icon('edit-delete') if s["store"] else app.icon('document-save'))
+            #btns_store_forget.setEnabled(False)
+            btns_store_forget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+            btns_store_forget.clicked.connect(lambda checked, btn=btns_store_forget, d=s, fn=file_path.name: self._on_item_btn_store_forget_clicked(checked, btn, d, fn))
             btns_layout.addWidget(btns_export)
-            btns_layout.addWidget(btns_forget)
+            btns_layout.addWidget(btns_store_forget)
             btns_widget.setLayout(btns_layout)
             
             self.setItemWidget(item, self.BUTTONS_COLUMN, btns_widget)
@@ -216,6 +287,19 @@ layout = QVBoxLayout()
 
 tree = MyTreeWidget()
 layout.addWidget(tree)
+
+# TODO: make view of list filterable.
+buttons = QWidget()
+buttons_layout = QHBoxLayout()
+show_unstored_button = QCheckBox("Show unstored")
+show_unopened_button = QCheckBox("Show unopened")
+save_button = QPushButton("Save Settings")
+buttons_layout.addWidget(show_unstored_button)
+buttons_layout.addWidget(show_unopened_button)
+buttons_layout.addWidget(save_button)
+buttons.setLayout(buttons_layout)
+layout.addWidget(buttons)
+save_button.clicked.connect(tree.save_settings_to_config)
 
 from PyQt5.QtWidgets import QStatusBar
 sbar = QStatusBar()
