@@ -41,6 +41,15 @@ for child in root:
 #success = doc.exportImage("/home/thomas/Pictures/export_test.png")
 #print(success)
 
+class MyLineEdit(QLineEdit):
+    def focusInEvent(self, event):
+        self.setStyleSheet("")
+        super().focusInEvent(event)
+    
+    def focusOutEvent(self, event):
+        self.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
+        super().focusOutEvent(event)
+
 class NoEditDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         return None
@@ -267,7 +276,9 @@ class QETree(QTreeWidget):
             
             item.setText(QECols.SOURCE_FILENAME_COLUMN, file_path.name)
             
-            output_edit = QLineEdit(s["output"])
+            output_widget = QWidget()
+            output_layout = QHBoxLayout()
+            output_edit = MyLineEdit(s["output"])
             output_edit.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
             
             input_validator = QRegExpValidator(filename_regex, output_edit)
@@ -279,7 +290,10 @@ class QETree(QTreeWidget):
             output_edit.setMinimumWidth(pixelsWide)
             output_edit.editingFinished.connect(lambda d=s, oe=output_edit: self._on_output_lineedit_editing_finished(d, oe))
             
-            self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_edit)
+            output_layout.addWidget(output_edit)
+            output_widget.setLayout(output_layout)
+            
+            self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_widget)
             
             alpha_checkbox = QCheckBox()
             alpha_checkbox.setStyleSheet("""
