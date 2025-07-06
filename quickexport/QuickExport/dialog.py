@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
 from PyQt5.QtCore import Qt, QRegExp
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap
 from pathlib import Path
+from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
 
@@ -44,18 +45,16 @@ class NoEditDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         return None
 
-class MyButton(QPushButton):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-class MyTreeWidget(QTreeWidget):
-    
+class QECols(IntEnum):
     THUMBNAIL_COLUMN = 0
-    SOURCE_FILENAME_COLUMN = 1
-    OUTPUT_FILENAME_COLUMN = 2
-    STORE_ALPHA_COLUMN = 3
-    COMPRESSION_COLUMN = 4
-    BUTTONS_COLUMN = 5
+    SOURCE_FILENAME_COLUMN = auto()
+    OUTPUT_FILENAME_COLUMN = auto()
+    STORE_ALPHA_COLUMN = auto()
+    COMPRESSION_COLUMN = auto()
+    BUTTONS_COLUMN = auto()
+    COLUMN_COUNT = auto()
+
+class QETree(QTreeWidget):
     
     def _on_output_lineedit_editing_finished(self, doc, lineedit):
         doc["output"] = lineedit.text()
@@ -66,7 +65,7 @@ class MyTreeWidget(QTreeWidget):
         self.sender().setText("Exporting...")
         
         exportParameters = InfoObject()
-        exportParameters.setProperty("alpha", True if doc["alpha"] == True else False)
+        exportParameters.setProperty("alpha", doc["alpha"])
         exportParameters.setProperty("compression", int(doc["compression"]))
         exportParameters.setProperty("indexed", True)
         
@@ -77,16 +76,16 @@ class MyTreeWidget(QTreeWidget):
         result = doc["document"].exportImage(str(export_path), exportParameters)
         doc["document"].setBatchmode(False)
         
-        if result == False:
+        if not Result:
             self.sender().setText("Export failed!")
-            sbar.showMessage(f"Export failed")
+            sbar.showMessage(f"Export failed", 5000)
         else:
             self.sender().setText("Done!")
             sbar.showMessage(f"Exported to '{str(export_path)}'")
     
     def _on_item_btn_store_forget_clicked(self, checked, btn, doc, filename):
         print(f"{btn=}")
-        if doc["store"] == False:
+        if not doc["store"]:
             print("store doc with filename:", filename)
             doc["store"] = True
             btn.setIcon(app.icon('edit-delete'))
@@ -153,7 +152,7 @@ class MyTreeWidget(QTreeWidget):
         save_strings = []
         
         for s in self.settings:
-            if s["store"] == False:
+            if not s["store"]:
                 continue
             
             save_strings.append(f"path={str(s['path'])},alpha={'true' if s['alpha']==True else 'false'},compression={s['compression']},output={s['output']}")
@@ -193,11 +192,10 @@ class MyTreeWidget(QTreeWidget):
         # TODO: detect if multiple documents would export to the same output file.
         
         
-        self.setColumnCount(6)
+        self.setColumnCount(QECols.COLUMN_COUNT)
         self.setHeaderLabels(["", "Filename", "Export to", "", "Compression", "btn"])
-        self.headerItem().setIcon(self.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
+        self.headerItem().setIcon(QECols.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
-        #self.documents = [{"document":doc, "path":Path(doc.fileName())} for doc in app.documents() if doc.fileName()!=""]
         
         # TODO: still need to ensure output filename ends with ".png".
         filename_regex = QRegExp("^[^<>:;,?\"*|/]+$")
@@ -209,21 +207,17 @@ class MyTreeWidget(QTreeWidget):
                 longest_output = output
         
         for s in self.settings:
-            #self.read_settings_for_doc(doc)
-            #print(doc)
-            print(s)
-            
             file_path = s["path"]
             
             item = QTreeWidgetItem(self)
             item.setFlags(item.flags() | Qt.ItemIsEditable)
             
             if s["document"] != None:
-                item.setIcon(self.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(s["document"].thumbnail(64,64))))
+                item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(s["document"].thumbnail(64,64))))
             else:
                 item.setDisabled(True)
             
-            item.setText(self.SOURCE_FILENAME_COLUMN, file_path.name)
+            item.setText(QECols.SOURCE_FILENAME_COLUMN, file_path.name)
             
             output_edit = QLineEdit(s["output"])
             output_edit.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
@@ -237,7 +231,7 @@ class MyTreeWidget(QTreeWidget):
             output_edit.setMinimumWidth(pixelsWide)
             output_edit.editingFinished.connect(lambda d=s, oe=output_edit: self._on_output_lineedit_editing_finished(d, oe))
             
-            self.setItemWidget(item, self.OUTPUT_FILENAME_COLUMN, output_edit)
+            self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_edit)
             
             alpha_checkbox = QCheckBox()
             alpha_checkbox.setStyleSheet("""
@@ -246,7 +240,7 @@ class MyTreeWidget(QTreeWidget):
                 }
                 """)
             
-            alpha_checkbox.setCheckState(Qt.Checked if s["alpha"] == True else Qt.Unchecked)
+            alpha_checkbox.setCheckState(Qt.Checked if s["alpha"] else Qt.Unchecked)
             alpha_checkbox.stateChanged.connect(lambda state, d=s: self._on_alpha_checkbox_state_changed(state, d))
             alpha_checkbox_widget = QWidget()
             alpha_checkbox_layout = QHBoxLayout()
@@ -255,7 +249,7 @@ class MyTreeWidget(QTreeWidget):
             alpha_checkbox_layout.addStretch()
             alpha_checkbox_layout.setContentsMargins(0,0,0,0)
             alpha_checkbox_widget.setLayout(alpha_checkbox_layout)
-            self.setItemWidget(item, self.STORE_ALPHA_COLUMN, alpha_checkbox_widget)
+            self.setItemWidget(item, QECols.STORE_ALPHA_COLUMN, alpha_checkbox_widget)
             
             compression_widget = QWidget()
             compression_layout = QHBoxLayout()
@@ -268,7 +262,7 @@ class MyTreeWidget(QTreeWidget):
             compression_layout.addWidget(compression_slider)
             compression_layout.addWidget(compression_label)
             compression_widget.setLayout(compression_layout)
-            self.setItemWidget(item, self.COMPRESSION_COLUMN, compression_widget)
+            self.setItemWidget(item, QECols.COMPRESSION_COLUMN, compression_widget)
             
             btns_widget = QWidget()
             btns_layout = QHBoxLayout()
@@ -283,20 +277,20 @@ class MyTreeWidget(QTreeWidget):
             btns_layout.addWidget(btns_store_forget)
             btns_widget.setLayout(btns_layout)
             
-            self.setItemWidget(item, self.BUTTONS_COLUMN, btns_widget)
+            self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
             
             self.items.append(item)
         
-        for i in range(0, 6):
+        for i in range(0, QECols.COLUMN_COUNT):
             self.resizeColumnToContents(i)
             
         ned = NoEditDelegate()
-        self.setItemDelegateForColumn(self.SOURCE_FILENAME_COLUMN, ned)
-        self.setItemDelegateForColumn(self.STORE_ALPHA_COLUMN, ned)
+        self.setItemDelegateForColumn(QECols.SOURCE_FILENAME_COLUMN, ned)
+        self.setItemDelegateForColumn(QECols.STORE_ALPHA_COLUMN, ned)
 
 layout = QVBoxLayout()
 
-tree = MyTreeWidget()
+tree = QETree()
 layout.addWidget(tree)
 
 # TODO: make view of list filterable.
@@ -314,7 +308,8 @@ save_button.clicked.connect(tree.save_settings_to_config)
 
 from PyQt5.QtWidgets import QStatusBar
 sbar = QStatusBar()
-sbar.showMessage("Ready.")
+sbar_ready_label = QLabel(" Ready.") # extra space to align with showmessage.
+sbar.insertWidget(0, sbar_ready_label)
 layout.addWidget(sbar)
 
 # create dialog  and show it
