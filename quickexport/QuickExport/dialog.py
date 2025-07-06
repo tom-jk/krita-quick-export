@@ -101,7 +101,7 @@ class QETree(QTreeWidget):
         result = doc["document"].exportImage(str(export_path), exportParameters)
         doc["document"].setBatchmode(False)
         
-        if not Result:
+        if not result:
             self.sender().setText("Export failed!")
             sbar.showMessage(f"Export failed", 5000)
         else:
