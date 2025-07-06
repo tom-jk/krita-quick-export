@@ -57,6 +57,15 @@ class QECols(IntEnum):
     COLUMN_COUNT = auto()
 
 class QETree(QTreeWidget):
+    def refilter(self):
+        for index, s in enumerate(self.settings):
+            print(index, s["document"])
+            self.items[index].setHidden(
+                   (show_unstored_button.checkState() == Qt.Unchecked and s["store"] == False)
+                or (show_unopened_button.checkState() == Qt.Unchecked and s["document"] == None)
+                or (show_png_button.checkState() == Qt.Unchecked and s["path"].suffix == ".png")
+            )
+    
     def _on_btn_open_clicked(self, checked, btn, doc, item):
         print("_on_btn_open_clicked for", doc)
         print("opening doc")
@@ -189,7 +198,8 @@ class QETree(QTreeWidget):
         
         self.setIndentation(False)
         self.setAlternatingRowColors(True)
-        
+    
+    def setup(self):
         self.settings = []
         
         self.load_settings_from_config()
@@ -325,22 +335,52 @@ layout = QVBoxLayout()
 
 tree_is_ready = False
 tree = QETree()
+tree.setup()
 layout.addWidget(tree)
 tree_is_ready = True
 
-# TODO: make view of list filterable.
+def _on_show_unstored_button_clicked(checked):
+    app.writeSetting("TomJK_QuickExport", "show_unstored", "true" if checked else "false")
+    tree.refilter()
+
+def _on_show_unopened_button_clicked(checked):
+    app.writeSetting("TomJK_QuickExport", "show_unopened", "true" if checked else "false")
+    tree.refilter()
+
+def _on_show_png_button_clicked(checked):
+    app.writeSetting("TomJK_QuickExport", "show_png", "true" if checked else "false")
+    tree.refilter()
+
 buttons = QWidget()
 buttons_layout = QHBoxLayout()
+
 show_unstored_button = QCheckBox("Show unstored")
-show_unopened_button = QCheckBox("Show unopened")
-save_button = QPushButton("Save Settings")
+show_unstored_button.setToolTip("Enable this to pick the images you're interested in exporting, then disable it to hide the rest.")
+show_unstored_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unstored", "true") == "true" else Qt.Unchecked)
+show_unstored_button.clicked.connect(_on_show_unstored_button_clicked)
 buttons_layout.addWidget(show_unstored_button)
+
+show_unopened_button = QCheckBox("Show unopened")
+show_unopened_button.setToolTip("Enable this to show the export settings of every file - currently open or not - for which settings have been saved.")
+show_unopened_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unopened", "true") == "true" else Qt.Unchecked)
+show_unopened_button.clicked.connect(_on_show_unopened_button_clicked)
 buttons_layout.addWidget(show_unopened_button)
-buttons_layout.addWidget(save_button)
-buttons.setLayout(buttons_layout)
-layout.addWidget(buttons)
+
+show_png_button = QCheckBox("Show .png files")
+show_png_button.setToolTip("Enable this to show export settings for .png files. Disabled by default because it's kind of redundant.")
+show_png_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_png", "false") == "true" else Qt.Unchecked)
+show_png_button.clicked.connect(_on_show_png_button_clicked)
+buttons_layout.addWidget(show_png_button)
+
+save_button = QPushButton("Save Settings")
 save_button.setDisabled(True)
 save_button.clicked.connect(tree.save_settings_to_config)
+buttons_layout.addWidget(save_button)
+
+buttons.setLayout(buttons_layout)
+layout.addWidget(buttons)
+
+tree.refilter()
 
 from PyQt5.QtWidgets import QStatusBar
 sbar = QStatusBar()
