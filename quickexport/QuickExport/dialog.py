@@ -47,6 +47,7 @@ class NoEditDelegate(QStyledItemDelegate):
 
 class QECols(IntEnum):
     STORE_SETTINGS_COLUMN = 0
+    OPEN_FILE_COLUMN = auto()
     THUMBNAIL_COLUMN = auto()
     SOURCE_FILENAME_COLUMN = auto()
     OUTPUT_FILENAME_COLUMN = auto()
@@ -56,6 +57,19 @@ class QECols(IntEnum):
     COLUMN_COUNT = auto()
 
 class QETree(QTreeWidget):
+    def _on_btn_open_clicked(self, checked, btn, doc, item):
+        print("_on_btn_open_clicked for", doc)
+        print("opening doc")
+        new_doc = app.openDocument(str(doc['path']))
+        print("new_doc:", new_doc)
+        if new_doc == None:
+            sbar.showMessage(f"Couldn't open '{str(doc['path'])}'", 5000)
+            return
+        sbar.showMessage(f"Opened '{str(doc['path'])}'", 5000)
+        app.activeWindow().addView(new_doc)
+        item.setDisabled(False)
+        tree.setItemWidget(item, QECols.OPEN_FILE_COLUMN, None)
+        print("done")
     
     def _on_output_lineedit_editing_finished(self, doc, lineedit):
         doc["output"] = lineedit.text()
@@ -202,7 +216,7 @@ class QETree(QTreeWidget):
         
         
         self.setColumnCount(QECols.COLUMN_COUNT)
-        self.setHeaderLabels(["", "", "Filename", "Export to", "", "Compression", "btn"])
+        self.setHeaderLabels(["", "", "", "Filename", "Export to", "", "Compression", "btn"])
         self.headerItem().setIcon(QECols.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
         
@@ -230,8 +244,16 @@ class QETree(QTreeWidget):
             
             if s["document"] != None:
                 item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(s["document"].thumbnail(64,64))))
+                if s["document"] == app.activeDocument():
+                    item.setText(QECols.OPEN_FILE_COLUMN, "*")
+                    item.setTextAlignment(QECols.OPEN_FILE_COLUMN, Qt.AlignCenter)
             else:
                 item.setDisabled(True)
+                btn_open = QPushButton("")
+                btn_open.setIcon(app.icon('document-open'))
+                btn_open.setStyleSheet("QPushButton {border:none; background:transparent;}")
+                self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open)
+                btn_open.clicked.connect(lambda checked, b=btn_open, d=s, i=item: self._on_btn_open_clicked(checked, b, d, i))
             
             item.setText(QECols.SOURCE_FILENAME_COLUMN, file_path.name)
             
@@ -295,6 +317,7 @@ class QETree(QTreeWidget):
             self.resizeColumnToContents(i)
             
         ned = NoEditDelegate()
+        self.setItemDelegateForColumn(QECols.OPEN_FILE_COLUMN, ned)
         self.setItemDelegateForColumn(QECols.SOURCE_FILENAME_COLUMN, ned)
         self.setItemDelegateForColumn(QECols.STORE_ALPHA_COLUMN, ned)
 
