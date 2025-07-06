@@ -165,6 +165,9 @@ class MyTreeWidget(QTreeWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         
+        self.setIndentation(False)
+        self.setAlternatingRowColors(True)
+        
         self.settings = []
         
         self.load_settings_from_config()
@@ -223,6 +226,7 @@ class MyTreeWidget(QTreeWidget):
             item.setText(self.SOURCE_FILENAME_COLUMN, file_path.name)
             
             output_edit = QLineEdit(s["output"])
+            output_edit.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
             
             input_validator = QRegExpValidator(filename_regex, output_edit)
             output_edit.setValidator(input_validator)
@@ -244,7 +248,14 @@ class MyTreeWidget(QTreeWidget):
             
             alpha_checkbox.setCheckState(Qt.Checked if s["alpha"] == True else Qt.Unchecked)
             alpha_checkbox.stateChanged.connect(lambda state, d=s: self._on_alpha_checkbox_state_changed(state, d))
-            self.setItemWidget(item, self.STORE_ALPHA_COLUMN, alpha_checkbox)
+            alpha_checkbox_widget = QWidget()
+            alpha_checkbox_layout = QHBoxLayout()
+            alpha_checkbox_layout.addStretch()
+            alpha_checkbox_layout.addWidget(alpha_checkbox)
+            alpha_checkbox_layout.addStretch()
+            alpha_checkbox_layout.setContentsMargins(0,0,0,0)
+            alpha_checkbox_widget.setLayout(alpha_checkbox_layout)
+            self.setItemWidget(item, self.STORE_ALPHA_COLUMN, alpha_checkbox_widget)
             
             compression_widget = QWidget()
             compression_layout = QHBoxLayout()
