@@ -46,7 +46,8 @@ class NoEditDelegate(QStyledItemDelegate):
         return None
 
 class QECols(IntEnum):
-    THUMBNAIL_COLUMN = 0
+    STORE_SETTINGS_COLUMN = 0
+    THUMBNAIL_COLUMN = auto()
     SOURCE_FILENAME_COLUMN = auto()
     OUTPUT_FILENAME_COLUMN = auto()
     STORE_ALPHA_COLUMN = auto()
@@ -85,15 +86,7 @@ class QETree(QTreeWidget):
             sbar.showMessage(f"Exported to '{str(export_path)}'")
     
     def _on_item_btn_store_forget_clicked(self, checked, btn, doc, filename):
-        print(f"{btn=}")
-        if not doc["store"]:
-            print("store doc with filename:", filename)
-            doc["store"] = True
-            btn.setIcon(app.icon('edit-delete'))
-        else:
-            print("forget doc with filename:", filename)
-            doc["store"] = False
-            btn.setIcon(app.icon('document-save'))
+        doc["store"] = not doc["store"]
         self.set_settings_modified()
     
     def _on_alpha_checkbox_state_changed(self, state, doc):
@@ -209,7 +202,7 @@ class QETree(QTreeWidget):
         
         
         self.setColumnCount(QECols.COLUMN_COUNT)
-        self.setHeaderLabels(["", "Filename", "Export to", "", "Compression", "btn"])
+        self.setHeaderLabels(["", "", "Filename", "Export to", "", "Compression", "btn"])
         self.headerItem().setIcon(QECols.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
         
@@ -227,6 +220,13 @@ class QETree(QTreeWidget):
             
             item = QTreeWidgetItem(self)
             item.setFlags(item.flags() | Qt.ItemIsEditable)
+            
+            btn_store_forget = QPushButton("")
+            btn_store_forget.setCheckable(True)
+            btn_store_forget.setChecked(s["store"])
+            btn_store_forget.setIcon(app.icon('document-save'))
+            btn_store_forget.clicked.connect(lambda checked, btn=btn_store_forget, d=s, fn=file_path.name: self._on_item_btn_store_forget_clicked(checked, btn, d, fn))
+            self.setItemWidget(item, QECols.STORE_SETTINGS_COLUMN, btn_store_forget)
             
             if s["document"] != None:
                 item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(s["document"].thumbnail(64,64))))
@@ -284,13 +284,7 @@ class QETree(QTreeWidget):
             btns_layout = QHBoxLayout()
             btns_export = QPushButton("Export now")
             btns_export.clicked.connect(lambda checked, d=s, fn=file_path.name: self._on_item_btn_export_clicked(checked, d, fn))
-            btns_store_forget = QPushButton("")
-            btns_store_forget.setIcon(app.icon('edit-delete') if s["store"] else app.icon('document-save'))
-            #btns_store_forget.setEnabled(False)
-            btns_store_forget.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
-            btns_store_forget.clicked.connect(lambda checked, btn=btns_store_forget, d=s, fn=file_path.name: self._on_item_btn_store_forget_clicked(checked, btn, d, fn))
             btns_layout.addWidget(btns_export)
-            btns_layout.addWidget(btns_store_forget)
             btns_widget.setLayout(btns_layout)
             
             self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
