@@ -59,6 +59,7 @@ class QETree(QTreeWidget):
     def _on_output_lineedit_editing_finished(self, doc, lineedit):
         doc["output"] = lineedit.text()
         print("_on_output_lineedit_changed ->", doc["output"])
+        self.set_settings_modified()
     
     def _on_item_btn_export_clicked(self, checked, doc, filename):
         print(f"Clicked export for {doc['path']}")
@@ -93,15 +94,25 @@ class QETree(QTreeWidget):
             print("forget doc with filename:", filename)
             doc["store"] = False
             btn.setIcon(app.icon('document-save'))
+        self.set_settings_modified()
     
     def _on_alpha_checkbox_state_changed(self, state, doc):
         print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["alpha"] = True if state == Qt.Checked else False
+        self.set_settings_modified()
     
     def _on_compression_slider_value_changed(self, value, doc, slider, label):
         print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["compression"] = value
         label.setText(str(value))
+        self.set_settings_modified()
+    
+    def set_settings_modified(self):
+        if not tree_is_ready:
+            return
+        save_button.setText("Save Settings*")
+        save_button.setIcon(app.icon('warning'))
+        save_button.setDisabled(False)
     
     def load_settings_from_config(self):
         """
@@ -160,6 +171,11 @@ class QETree(QTreeWidget):
         save_string = ";".join(save_strings)
         print(f"{save_string=}")
         app.writeSetting("TomJK_QuickExport", "settings", save_string)
+        
+        save_button.setText("Save Settings")
+        save_button.setIcon(QIcon())
+        save_button.setDisabled(True)
+        sbar.showMessage("Settings saved.", 2500)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -290,8 +306,10 @@ class QETree(QTreeWidget):
 
 layout = QVBoxLayout()
 
+tree_is_ready = False
 tree = QETree()
 layout.addWidget(tree)
+tree_is_ready = True
 
 # TODO: make view of list filterable.
 buttons = QWidget()
@@ -304,6 +322,7 @@ buttons_layout.addWidget(show_unopened_button)
 buttons_layout.addWidget(save_button)
 buttons.setLayout(buttons_layout)
 layout.addWidget(buttons)
+save_button.setDisabled(True)
 save_button.clicked.connect(tree.save_settings_to_config)
 
 from PyQt5.QtWidgets import QStatusBar
