@@ -388,8 +388,24 @@ sbar_ready_label = QLabel(" Ready.") # extra space to align with showmessage.
 sbar.insertWidget(0, sbar_ready_label)
 layout.addWidget(sbar)
 
+class QEDialog(QDialog):
+    def closeEvent(self, event):
+        if save_button.isEnabled():
+            msgBox = QMessageBox(self)
+            msgBox.setText("There are unsaved changes to export settings.")
+            msgBox.setInformativeText("Do you want to save your changes?")
+            msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+            msgBox.setDefaultButton(QMessageBox.Save)
+            ret = msgBox.exec()
+            if ret == QMessageBox.Save:
+                tree.save_settings_to_config()
+            elif ret == QMessageBox.Cancel:
+                event.ignore()
+                return
+        event.accept()
+
 # create dialog  and show it
-newDialog = QDialog() 
+newDialog = QEDialog() 
 newDialog.setLayout(layout)
 newDialog.setWindowTitle("Quick Export")
 newDialog.resize(1024,640)
