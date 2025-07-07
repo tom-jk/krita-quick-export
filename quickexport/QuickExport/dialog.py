@@ -97,7 +97,7 @@ class QETree(QTreeWidget):
                 or (show_png_button.checkState() == Qt.Unchecked and s["path"].suffix == ".png")
             )
     
-    def _on_btn_open_clicked(self, checked, btn, doc, item):
+    def _on_btn_open_clicked(self, checked, btn, export_btn, doc, item):
         print("_on_btn_open_clicked for", doc)
         print("opening doc")
         new_doc = app.openDocument(str(doc['path']))
@@ -114,6 +114,7 @@ class QETree(QTreeWidget):
         item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(doc['doc_index']))
         new_doc.waitForDone()
         item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(new_doc.thumbnail(64,64))))
+        export_btn.setDisabled(False)
         print("done")
     
     def _on_output_lineedit_editing_finished(self, doc, lineedit, item):
@@ -291,6 +292,8 @@ class QETree(QTreeWidget):
             item = MyTreeWidgetItem(self)#QTreeWidgetItem(self)
             item.setFlags(item.flags() | Qt.ItemIsEditable)
             
+            btns_export = QPushButton("Export now")
+            
             btn_store_forget = QPushButton("")
             btn_store_forget.setCheckable(True)
             btn_store_forget.setChecked(s["store"])
@@ -310,7 +313,7 @@ class QETree(QTreeWidget):
                 btn_open.setIcon(app.icon('document-open'))
                 btn_open.setStyleSheet("QPushButton {border:none; background:transparent;}")
                 self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open)
-                btn_open.clicked.connect(lambda checked, b=btn_open, d=s, i=item: self._on_btn_open_clicked(checked, b, d, i))
+                btn_open.clicked.connect(lambda checked, b=btn_open, be=btns_export, d=s, i=item: self._on_btn_open_clicked(checked, b, be, d, i))
             
             item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(s["doc_index"]))
             
@@ -372,7 +375,7 @@ class QETree(QTreeWidget):
             
             btns_widget = QWidget()
             btns_layout = QHBoxLayout()
-            btns_export = QPushButton("Export now")
+            btns_export.setDisabled(s["document"] == None)
             btns_export.clicked.connect(lambda checked, d=s, fn=file_path.name: self._on_item_btn_export_clicked(checked, d, fn))
             btns_layout.addWidget(btns_export)
             btns_widget.setLayout(btns_layout)
