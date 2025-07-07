@@ -87,6 +87,7 @@ class QETree(QTreeWidget):
         app.activeWindow().addView(new_doc)
         item.setDisabled(False)
         tree.setItemWidget(item, QECols.OPEN_FILE_COLUMN, None)
+        doc['document'] = new_doc
         print("done")
     
     def _on_output_lineedit_editing_finished(self, doc, lineedit):
