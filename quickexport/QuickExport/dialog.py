@@ -453,6 +453,10 @@ sbar.insertWidget(0, sbar_ready_label)
 layout.addWidget(sbar)
 
 class QEDialog(QDialog):
+    def resizeEvent(self, event):
+        app.writeSetting("TomJK_QuickExport", "dialogWidth", str(event.size().width()))
+        app.writeSetting("TomJK_QuickExport", "dialogHeight", str(event.size().height()))
+    
     def closeEvent(self, event):
         if save_button.isEnabled():
             msgBox = QMessageBox(self)
@@ -472,5 +476,7 @@ class QEDialog(QDialog):
 newDialog = QEDialog() 
 newDialog.setLayout(layout)
 newDialog.setWindowTitle("Quick Export")
-newDialog.resize(1024,640)
+dialog_width = int(app.readSetting("TomJK_QuickExport", "dialogWidth", "1024"))
+dialog_height = int(app.readSetting("TomJK_QuickExport", "dialogHeight", "640"))
+newDialog.resize(dialog_width, dialog_height)
 newDialog.exec_() # show the dialog
