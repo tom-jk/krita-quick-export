@@ -88,6 +88,8 @@ class QETree(QTreeWidget):
         item.setDisabled(False)
         tree.setItemWidget(item, QECols.OPEN_FILE_COLUMN, None)
         doc['document'] = new_doc
+        new_doc.waitForDone()
+        item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(new_doc.thumbnail(64,64))))
         print("done")
     
     def _on_output_lineedit_editing_finished(self, doc, lineedit):
