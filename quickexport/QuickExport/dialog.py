@@ -146,7 +146,7 @@ class QETree(QTreeWidget):
             self.sender().setText("Done!")
             sbar.showMessage(f"Exported to '{str(export_path)}'")
     
-    def _on_item_btn_store_forget_clicked(self, checked, btn, doc, filename):
+    def _on_item_btn_store_forget_clicked(self, checked, btn, doc, filename, item):
         doc["store"] = not doc["store"]
         item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+doc["store"]))
         self.set_settings_modified()
@@ -298,7 +298,7 @@ class QETree(QTreeWidget):
             btn_store_forget.setCheckable(True)
             btn_store_forget.setChecked(s["store"])
             btn_store_forget.setIcon(app.icon('document-save'))
-            btn_store_forget.clicked.connect(lambda checked, btn=btn_store_forget, d=s, fn=file_path.name: self._on_item_btn_store_forget_clicked(checked, btn, d, fn))
+            btn_store_forget.clicked.connect(lambda checked, btn=btn_store_forget, d=s, fn=file_path.name, i=item: self._on_item_btn_store_forget_clicked(checked, btn, d, fn, i))
             self.setItemWidget(item, QECols.STORE_SETTINGS_COLUMN, btn_store_forget)
             item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+s["store"]))
             
