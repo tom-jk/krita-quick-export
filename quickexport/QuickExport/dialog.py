@@ -68,7 +68,7 @@ class QECols(IntEnum):
 class QETree(QTreeWidget):
     def refilter(self):
         for index, s in enumerate(self.settings):
-            print(index, s["document"])
+            #print(index, s["document"])
             self.items[index].setHidden(
                    (show_unstored_button.checkState() == Qt.Unchecked and s["store"] == False)
                 or (show_unopened_button.checkState() == Qt.Unchecked and s["document"] == None)
@@ -92,7 +92,7 @@ class QETree(QTreeWidget):
     
     def _on_output_lineedit_editing_finished(self, doc, lineedit):
         doc["output"] = lineedit.text()
-        print("_on_output_lineedit_changed ->", doc["output"])
+        #print("_on_output_lineedit_changed ->", doc["output"])
         self.set_settings_modified()
     
     def _on_item_btn_export_clicked(self, checked, doc, filename):
@@ -123,12 +123,12 @@ class QETree(QTreeWidget):
         self.set_settings_modified()
     
     def _on_alpha_checkbox_state_changed(self, state, doc):
-        print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
+        #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["alpha"] = True if state == Qt.Checked else False
         self.set_settings_modified()
     
     def _on_compression_slider_value_changed(self, value, doc, slider, label):
-        print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
+        #print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["compression"] = value
         label.setText(str(value))
         self.set_settings_modified()
@@ -148,16 +148,16 @@ class QETree(QTreeWidget):
         """
         # TODO: will break if a filename contains a comma ',' char.
         settings_string = app.readSetting("TomJK_QuickExport", "settings", "")
-        print(f"{settings_string=}")
+        #print(f"{settings_string=}")
         
         if settings_string != "":
             settings_as_arrays = [[[y for y in kvpair.split('=', 1)] for kvpair in file.split(',')] for file in settings_string.split(';')]
-            print(f"{settings_as_arrays=}")
+            #print(f"{settings_as_arrays=}")
             
-            print()
+            #print()
             
             for file_settings in settings_as_arrays:
-                print("found file settings", file_settings)
+                #print("found file settings", file_settings)
                 self.settings.append({"document":None, "store":True})
                 for kvpair in file_settings:
                     if kvpair[0] == "path":
@@ -175,13 +175,13 @@ class QETree(QTreeWidget):
                     else:
                         print(f" unrecognised parameter name '{kvpair[0]}'")
                         continue
-                    print(" found", kvpair)
-                print()
+                    #print(" found", kvpair)
+                #print()
 
-            print(f"{self.settings=}")
-            print()
+            #print(f"{self.settings=}")
+            #print()
             for s in self.settings:
-                print(s)
+                pass#print(s)
     
     def save_settings_to_config(self):
         print("save_settings_to_config")
