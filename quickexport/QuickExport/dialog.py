@@ -54,6 +54,24 @@ class NoEditDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         return None
 
+class MyTreeWidgetItem(QTreeWidgetItem):
+    def __lt__(self, other):
+        if not isinstance(other, MyTreeWidgetItem):
+            return super(MyTreeWidgetItem, self).__lt__(other)
+
+        tree = self.treeWidget()
+        column = tree.sortColumn() if tree else 0
+
+        return self.sortData(column) < other.sortData(column)
+    
+    def sortData(self, column):
+        d = self.data(column, QERoles.CustomSortRole)
+        if isinstance(d, str):
+            if d.isnumeric():
+                return int(d)
+            return d
+        return self.text(column)
+
 class QECols(IntEnum):
     STORE_SETTINGS_COLUMN = 0
     OPEN_FILE_COLUMN = auto()
@@ -64,6 +82,10 @@ class QECols(IntEnum):
     COMPRESSION_COLUMN = auto()
     BUTTONS_COLUMN = auto()
     COLUMN_COUNT = auto()
+
+class QERoles(IntEnum):
+    CustomSortRole = Qt.UserRole
+    #MoreRoles = auto()...
 
 class QETree(QTreeWidget):
     def refilter(self):
@@ -88,12 +110,15 @@ class QETree(QTreeWidget):
         item.setDisabled(False)
         tree.setItemWidget(item, QECols.OPEN_FILE_COLUMN, None)
         doc['document'] = new_doc
+        doc['doc_index'] = app.documents().index(new_doc)
+        item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(doc['doc_index']))
         new_doc.waitForDone()
         item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(new_doc.thumbnail(64,64))))
         print("done")
     
-    def _on_output_lineedit_editing_finished(self, doc, lineedit):
+    def _on_output_lineedit_editing_finished(self, doc, lineedit, item):
         doc["output"] = lineedit.text()
+        item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output"].lower())
         #print("_on_output_lineedit_changed ->", doc["output"])
         self.set_settings_modified()
     
@@ -122,16 +147,19 @@ class QETree(QTreeWidget):
     
     def _on_item_btn_store_forget_clicked(self, checked, btn, doc, filename):
         doc["store"] = not doc["store"]
+        item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+doc["store"]))
         self.set_settings_modified()
     
-    def _on_alpha_checkbox_state_changed(self, state, doc):
+    def _on_alpha_checkbox_state_changed(self, state, doc, item):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["alpha"] = True if state == Qt.Checked else False
+        item.setData(QECols.STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["alpha"]))
         self.set_settings_modified()
     
-    def _on_compression_slider_value_changed(self, value, doc, slider, label):
+    def _on_compression_slider_value_changed(self, value, doc, slider, label, item):
         #print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["compression"] = value
+        item.setData(QECols.COMPRESSION_COLUMN, QERoles.CustomSortRole, str(doc["compression"]))
         label.setText(str(value))
         self.set_settings_modified()
     
@@ -160,13 +188,14 @@ class QETree(QTreeWidget):
             
             for file_settings in settings_as_arrays:
                 #print("found file settings", file_settings)
-                self.settings.append({"document":None, "store":True})
+                self.settings.append({"document":None, "doc_index":1024, "store":True})
                 for kvpair in file_settings:
                     if kvpair[0] == "path":
                         self.settings[-1][kvpair[0]] = Path(kvpair[1])
-                        for d in app.documents():
+                        for i, d in enumerate(app.documents()):
                             if d.fileName() == kvpair[1]:
                                 self.settings[-1]["document"] = d
+                                self.settings[-1]["doc_index"] = i
                                 break
                     elif kvpair[0] == "alpha":
                         self.settings[-1][kvpair[0]] = True if kvpair[1] == "true" else False
@@ -210,6 +239,8 @@ class QETree(QTreeWidget):
         
         self.setIndentation(False)
         self.setAlternatingRowColors(True)
+        from PyQt5.QtCore import QItemSelectionModel
+        self.setSelectionMode(QTreeWidget.NoSelection)
     
     def setup(self):
         self.settings = []
@@ -217,7 +248,7 @@ class QETree(QTreeWidget):
         self.load_settings_from_config()
         
         # add default settings for currently open documents that didn't have corresponding stored settings.
-        for doc in app.documents():
+        for i, doc in enumerate(app.documents()):
             doc_is_in_settings = False
             if doc.fileName() == "":
                 continue
@@ -231,7 +262,10 @@ class QETree(QTreeWidget):
                 continue
             
             path = Path(doc.fileName())
-            self.settings.append({"document":doc, "store":False, "path":path, "alpha":False, "compression":9, "output":path.with_suffix(".png").name})
+            self.settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":False, "compression":9, "output":path.with_suffix(".png").name})
+        
+        for s in self.settings:
+            print(s)
         
         # TODO: detect if multiple documents have the same filepath.
         # TODO: detect if multiple documents would export to the same output file.
@@ -254,7 +288,7 @@ class QETree(QTreeWidget):
         for s in self.settings:
             file_path = s["path"]
             
-            item = QTreeWidgetItem(self)
+            item = MyTreeWidgetItem(self)#QTreeWidgetItem(self)
             item.setFlags(item.flags() | Qt.ItemIsEditable)
             
             btn_store_forget = QPushButton("")
@@ -263,6 +297,7 @@ class QETree(QTreeWidget):
             btn_store_forget.setIcon(app.icon('document-save'))
             btn_store_forget.clicked.connect(lambda checked, btn=btn_store_forget, d=s, fn=file_path.name: self._on_item_btn_store_forget_clicked(checked, btn, d, fn))
             self.setItemWidget(item, QECols.STORE_SETTINGS_COLUMN, btn_store_forget)
+            item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+s["store"]))
             
             if s["document"] != None:
                 item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(s["document"].thumbnail(64,64))))
@@ -276,6 +311,8 @@ class QETree(QTreeWidget):
                 btn_open.setStyleSheet("QPushButton {border:none; background:transparent;}")
                 self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open)
                 btn_open.clicked.connect(lambda checked, b=btn_open, d=s, i=item: self._on_btn_open_clicked(checked, b, d, i))
+            
+            item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(s["doc_index"]))
             
             item.setText(QECols.SOURCE_FILENAME_COLUMN, file_path.name)
             
@@ -291,12 +328,13 @@ class QETree(QTreeWidget):
             fm = QFontMetrics(output_edit.font())
             pixelsWide = fm.width(text)
             output_edit.setMinimumWidth(pixelsWide)
-            output_edit.editingFinished.connect(lambda d=s, oe=output_edit: self._on_output_lineedit_editing_finished(d, oe))
+            output_edit.editingFinished.connect(lambda d=s, oe=output_edit, i=item: self._on_output_lineedit_editing_finished(d, oe, i))
             
             output_layout.addWidget(output_edit)
             output_widget.setLayout(output_layout)
             
             self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_widget)
+            item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output"].lower())
             
             alpha_checkbox = QCheckBox()
             alpha_checkbox.setStyleSheet("""
@@ -306,7 +344,7 @@ class QETree(QTreeWidget):
                 """)
             
             alpha_checkbox.setCheckState(Qt.Checked if s["alpha"] else Qt.Unchecked)
-            alpha_checkbox.stateChanged.connect(lambda state, d=s: self._on_alpha_checkbox_state_changed(state, d))
+            alpha_checkbox.stateChanged.connect(lambda state, d=s, i=item: self._on_alpha_checkbox_state_changed(state, d, i))
             alpha_checkbox_widget = QWidget()
             alpha_checkbox_layout = QHBoxLayout()
             alpha_checkbox_layout.addStretch()
@@ -315,19 +353,21 @@ class QETree(QTreeWidget):
             alpha_checkbox_layout.setContentsMargins(0,0,0,0)
             alpha_checkbox_widget.setLayout(alpha_checkbox_layout)
             self.setItemWidget(item, QECols.STORE_ALPHA_COLUMN, alpha_checkbox_widget)
+            item.setData(QECols.STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+s["alpha"]))
             
             compression_widget = QWidget()
             compression_layout = QHBoxLayout()
             compression_label = QLabel()
             compression_slider = QSlider(Qt.Horizontal)
             compression_slider.setRange(1, 9)
-            compression_slider.valueChanged.connect(lambda value, d=s, cs=compression_slider, cl=compression_label: self._on_compression_slider_value_changed(value, d, cs, cl))
+            compression_slider.valueChanged.connect(lambda value, d=s, cs=compression_slider, cl=compression_label, i=item: self._on_compression_slider_value_changed(value, d, cs, cl, i))
             compression_slider.setValue(s["compression"])
             compression_label.setText(str(s["compression"]))
             compression_layout.addWidget(compression_slider)
             compression_layout.addWidget(compression_label)
             compression_widget.setLayout(compression_layout)
             self.setItemWidget(item, QECols.COMPRESSION_COLUMN, compression_widget)
+            item.setData(QECols.COMPRESSION_COLUMN, QERoles.CustomSortRole, str(s["compression"]))
             
             btns_widget = QWidget()
             btns_layout = QHBoxLayout()
@@ -353,6 +393,9 @@ layout = QVBoxLayout()
 tree_is_ready = False
 tree = QETree()
 tree.setup()
+# TODO: disallow sorting by thumbnail and action button columns.
+tree.setSortingEnabled(True)
+tree.sortByColumn(QECols.OPEN_FILE_COLUMN, Qt.AscendingOrder)
 layout.addWidget(tree)
 tree_is_ready = True
 

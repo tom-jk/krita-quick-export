@@ -22,4 +22,4 @@ Missing/To-Do:
 - can't adjust any other settings (transparency colour, embed sRGB profile, resize, etc.)
 - incremental saves do not automatically copy settings from prior saves
 - can't automatically export a chain of dependent images (eg. when exporting a texture atlas, first update file layers)
-- can't sort or group list of images
+- can't group images together in list or enforce a specific custom sort order
