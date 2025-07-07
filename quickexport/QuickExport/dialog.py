@@ -315,6 +315,7 @@ class QETree(QTreeWidget):
             item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(s["doc_index"]))
             
             item.setText(QECols.SOURCE_FILENAME_COLUMN, file_path.name)
+            item.setData(QECols.SOURCE_FILENAME_COLUMN, QERoles.CustomSortRole, file_path.name.lower())
             
             output_widget = QWidget()
             output_layout = QHBoxLayout()
