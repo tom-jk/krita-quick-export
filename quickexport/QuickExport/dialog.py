@@ -236,7 +236,7 @@ class QETree(QTreeWidget):
         
         
         self.setColumnCount(QECols.COLUMN_COUNT)
-        self.setHeaderLabels(["", "", "", "Filename", "Export to", "", "Compression", "btn"])
+        self.setHeaderLabels(["", "", "", "Filename", "Export to", "", "Compression", "Actions"])
         self.headerItem().setIcon(QECols.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
         
