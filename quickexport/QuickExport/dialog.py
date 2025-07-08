@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate,
-                             QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar)
+                             QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup)
 from PyQt5.QtCore import Qt, QRegExp, QModelIndex
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor
 from pathlib import Path
@@ -51,6 +51,30 @@ class SnapSlider(QSlider):
         if event == QSlider.SliderValueChange:
             self.setValue(self._snap_interval * (self.value()//self._snap_interval))
         super().sliderChange(event)
+
+class UncheckableButtonGroup(QButtonGroup):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.btnLastChecked = None
+        self.buttonClicked.connect(self._on_button_clicked)
+    
+    def _on_button_clicked(self, btn):
+        if not self.btnLastChecked:
+            self.btnLastChecked = btn
+        else:
+            if self.btnLastChecked == btn:
+                self.sender().setExclusive(False)
+                btn.setChecked(Qt.Unchecked)
+                self.sender().setExclusive(True)
+                self.btnLastChecked = None
+            else:
+                self.btnLastChecked = btn
+    
+    def uncheckButtons(self):
+        is_exclusive = self.exclusive()
+        self.setExclusive(False)
+        self.checkedButton().setChecked(False)
+        self.setExclusive(is_exclusive)
 
 class MyLineEdit(QLineEdit):
     def focusInEvent(self, event):
@@ -287,6 +311,22 @@ class QETree(QTreeWidget):
         
         docs = app.documents()
         
+        # TODO: only first doc of file will have saved settings, others
+        #       get default. all should get the saved settings.
+        # detect if multiple documents have the same filepath.
+        self.dup_counts = {}
+        for i, doc in enumerate(docs):
+            doc_fn = doc.fileName()
+            for i2, doc2 in enumerate(docs):
+                if i2 <= i:
+                    continue
+                if doc_fn == doc2.fileName():
+                    self.dup_counts[doc_fn] = self.dup_counts[doc_fn]+1 if doc_fn in self.dup_counts else 1
+        
+        self.store_button_groups = {}
+        for filename in self.dup_counts.keys():
+            self.store_button_groups[filename] = UncheckableButtonGroup()
+        
         # add default settings for currently open documents that didn't have corresponding stored settings.
         for i, doc in enumerate(docs):
             doc_is_in_settings = False
@@ -304,9 +344,7 @@ class QETree(QTreeWidget):
             path = Path(doc.fileName())
             self.settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":False, "compression":9, "output":path.with_suffix(".png").name})
         
-        # TODO: detect if multiple documents have the same filepath.
         # TODO: detect if multiple documents would export to the same output file.
-        
         
         self.setColumnCount(QECols.COLUMN_COUNT)
         self.setHeaderLabels(["", "", "", "Filename", "Export to", "", "Compression", "Actions"])
@@ -346,6 +384,8 @@ class QETree(QTreeWidget):
             
             btns_export = QPushButton("Export now")
             
+            # TODO: make clicking the cell also click the checkbox so
+            #       you don't have to aim the mouse so precisely.
             btn_store_forget = QCheckBox()
             btn_store_forget.setChecked(s["store"])
             btn_store_forget.setStyleSheet(checkbox_stylesheet)
@@ -353,6 +393,11 @@ class QETree(QTreeWidget):
             btn_store_widget = centered_checkbox_widget(btn_store_forget)
             self.setItemWidget(item, QECols.STORE_SETTINGS_COLUMN, btn_store_widget)
             item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+s["store"]))
+            
+            if (btn_group_key := str(s["path"])) in self.store_button_groups:
+                self.store_button_groups[btn_group_key].addButton(btn_store_forget)
+                if s["store"] and self.store_button_groups[btn_group_key].btnLastChecked == None:
+                    self.store_button_groups[btn_group_key].btnLastChecked = btn_store_forget
             
             if s["document"] != None:
                 item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(s["document"].thumbnail(64,64))))
@@ -519,19 +564,12 @@ sbar_ready_label = QLabel(" Ready.") # extra space to align with showmessage.
 sbar.insertWidget(0, sbar_ready_label)
 layout.addWidget(sbar)
 
-# TODO: gracefully handle multiple open documents of the same file.
-#       ideally, the settings controls for those docs would mirror each
-#       other (ie. checking store alpha for one checks it for all).
-#       next best: the store buttons for those docs would become radio
-#       buttons so the user can choose one copy's settings to be saved.
-#       on next run of the dialog, the saved settings woulb be applied
-#       to each doc of that file.
-#       I had some notes here about the pitfalls of trying to keep track
-#       of which doc was the chosen 'source of truth' between dialogs,
-#       before realising you don't need to do that: each dialog starts
-#       with all of the same doc having the same settings as read from
-#       config (in line with expectations: only one had the store button
-#       checked), so it doesn't matter which one gets chosen.
+# TODO: inform user about having multiple copies of same file open.
+if len(tree.dup_counts) == 1:
+    sbar_ready_label.setText(f"Note: Multiple copies of '{list(tree.dup_counts.keys())[0]}' are currently open in Krita.")
+elif len(tree.dup_counts) > 1:
+    sbar_ready_label.setText(f"Note: Multiple copies of multiple files (hover mouse here to see) are currently open in Krita.")
+    sbar_ready_label.setToolTip("\n".join(tree.dup_counts.keys()))
 
 class QEDialog(QDialog):
     def resizeEvent(self, event):
