@@ -167,9 +167,15 @@ class QETree(QTreeWidget):
     def set_settings_modified(self):
         if not tree_is_ready:
             return
-        save_button.setText("Save Settings*")
-        save_button.setIcon(app.icon('warning'))
-        save_button.setDisabled(False)
+        
+        if self.generate_save_string() != app.readSetting("TomJK_QuickExport", "settings", ""):
+            if not save_button.isEnabled():
+                save_button.setText("Save Settings*")
+                save_button.setDisabled(False)
+        else:
+            if save_button.isEnabled():
+                save_button.setText("Save Settings")
+                save_button.setDisabled(True)
     
     def load_settings_from_config(self):
         """
@@ -215,9 +221,7 @@ class QETree(QTreeWidget):
             for s in self.settings:
                 pass#print(s)
     
-    def save_settings_to_config(self):
-        print("save_settings_to_config")
-        
+    def generate_save_string(self):
         save_strings = []
         
         for s in self.settings:
@@ -226,7 +230,13 @@ class QETree(QTreeWidget):
             
             save_strings.append(f"path={str(s['path'])},alpha={'true' if s['alpha']==True else 'false'},compression={s['compression']},output={s['output']}")
         
-        save_string = ";".join(save_strings)
+        return ";".join(save_strings)
+    
+    def save_settings_to_config(self):
+        print("save_settings_to_config")
+        
+        save_string = self.generate_save_string()
+
         print(f"{save_string=}")
         app.writeSetting("TomJK_QuickExport", "settings", save_string)
         
