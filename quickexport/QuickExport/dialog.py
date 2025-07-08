@@ -284,6 +284,7 @@ class QETree(QTreeWidget):
         
         self.setColumnCount(QECols.COLUMN_COUNT)
         self.setHeaderLabels(["", "", "", "Filename", "Export to", "", "Compression", "Actions"])
+        self.headerItem().setIcon(QECols.STORE_SETTINGS_COLUMN, app.icon('document-save'))
         self.headerItem().setIcon(QECols.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
         
@@ -316,12 +317,12 @@ class QETree(QTreeWidget):
             
             btns_export = QPushButton("Export now")
             
-            btn_store_forget = QPushButton("")
-            btn_store_forget.setCheckable(True)
+            btn_store_forget = QCheckBox()
             btn_store_forget.setChecked(s["store"])
-            btn_store_forget.setIcon(app.icon('document-save'))
-            btn_store_forget.clicked.connect(lambda checked, btn=btn_store_forget, d=s, fn=file_path.name, i=item: self._on_item_btn_store_forget_clicked(checked, btn, d, fn, i))
-            self.setItemWidget(item, QECols.STORE_SETTINGS_COLUMN, btn_store_forget)
+            btn_store_forget.setStyleSheet(checkbox_stylesheet)
+            btn_store_forget.toggled.connect(lambda checked, btn=btn_store_forget, d=s, fn=file_path.name, i=item: self._on_item_btn_store_forget_clicked(checked, btn, d, fn, i))
+            btn_store_widget = centered_checkbox_widget(btn_store_forget)
+            self.setItemWidget(item, QECols.STORE_SETTINGS_COLUMN, btn_store_widget)
             item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+s["store"]))
             
             if s["document"] != None:
