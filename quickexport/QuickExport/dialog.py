@@ -50,9 +50,12 @@ class MyLineEdit(QLineEdit):
         self.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
         super().focusOutEvent(event)
 
-class NoEditDelegate(QStyledItemDelegate):
+class ItemDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
-        return None
+        if index.column() in (QECols.OPEN_FILE_COLUMN, QECols.THUMBNAIL_COLUMN, QECols.SOURCE_FILENAME_COLUMN, QECols.BUTTONS_COLUMN):
+            return None
+        else:
+            return super().createEditor(parent, option, index)
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     def __lt__(self, other):
@@ -309,11 +312,14 @@ class QETree(QTreeWidget):
         
         checkbox_stylesheet = "QCheckBox::indicator:unchecked {border: 1px solid rgba(255,255,255,0.1);}"
         
+        item_delegate = ItemDelegate()
+        
         for s in self.settings:
             file_path = s["path"]
             
             item = MyTreeWidgetItem(self)#QTreeWidgetItem(self)
             item.setFlags(item.flags() | Qt.ItemIsEditable)
+            self.setItemDelegate(item_delegate)
             
             btns_export = QPushButton("Export now")
             
@@ -399,11 +405,6 @@ class QETree(QTreeWidget):
         
         for i in range(0, QECols.COLUMN_COUNT):
             self.resizeColumnToContents(i)
-            
-        ned = NoEditDelegate()
-        self.setItemDelegateForColumn(QECols.OPEN_FILE_COLUMN, ned)
-        self.setItemDelegateForColumn(QECols.SOURCE_FILENAME_COLUMN, ned)
-        self.setItemDelegateForColumn(QECols.STORE_ALPHA_COLUMN, ned)
 
 layout = QVBoxLayout()
 
