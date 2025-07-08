@@ -41,6 +41,17 @@ for child in root:
 #success = doc.exportImage("/home/thomas/Pictures/export_test.png")
 #print(success)
 
+class SnapSlider(QSlider):
+    def __init__(self, snap_interval, range_min, range_max, orientation, parent=None):
+        super().__init__(orientation, parent)
+        self._snap_interval = snap_interval
+        self.setRange(range_min, range_max)
+    
+    def sliderChange(self, event):
+        if event == QSlider.SliderValueChange:
+            self.setValue(self._snap_interval * (self.value()//self._snap_interval))
+        super().sliderChange(event)
+
 class MyLineEdit(QLineEdit):
     def focusInEvent(self, event):
         self.setStyleSheet("")
@@ -61,7 +72,7 @@ class ItemDelegate(QStyledItemDelegate):
         is_stored = index.model().index(index.row(), QECols.STORE_SETTINGS_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == "1"
         super().paint(painter, option, index)
         if is_stored:
-            painter.fillRect(option.rect, QColor(64,128,255,64))
+            painter.fillRect(option.rect, QColor(64,128,255,stored_highlight_slider.value()))
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     def __lt__(self, other):
@@ -465,6 +476,31 @@ show_png_button.setToolTip("Show export settings for .png files. Disabled by def
 show_png_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_png", "false") == "true" else Qt.Unchecked)
 show_png_button.clicked.connect(_on_show_png_button_clicked)
 buttons_layout.addWidget(show_png_button)
+
+# slider for row highlight intensity for stored settings.
+def _on_stored_highlight_slider_value_changed():
+    app.writeSetting("TomJK_QuickExport", "highlight_alpha", str(stored_highlight_slider.value()))
+    tree.redraw()
+
+stored_highlight_widget = QWidget()
+stored_highlight_layout = QHBoxLayout()
+
+stored_highlight_widget.setMinimumWidth(64)
+stored_highlight_widget.setMaximumWidth(256)
+
+stored_highlight_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+stored_highlight_label = QLabel("Highlight")
+stored_highlight_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+stored_highlight_layout.addWidget(stored_highlight_label)
+
+stored_highlight_slider = SnapSlider(8, 0, 64, Qt.Horizontal)
+stored_highlight_slider.setValue(int(app.readSetting("TomJK_QuickExport", "highlight_alpha", "64")))
+stored_highlight_slider.setMinimumWidth(64)
+stored_highlight_slider.valueChanged.connect(_on_stored_highlight_slider_value_changed)
+stored_highlight_layout.addWidget(stored_highlight_slider)
+
+stored_highlight_widget.setLayout(stored_highlight_layout)
+buttons_layout.addWidget(stored_highlight_widget)
 
 # save button.
 save_button = QPushButton("Save Settings")
