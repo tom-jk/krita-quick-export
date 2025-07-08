@@ -1,8 +1,8 @@
 from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate,
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar)
-from PyQt5.QtCore import Qt, QRegExp
-from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap
+from PyQt5.QtCore import Qt, QRegExp, QModelIndex
+from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor
 from pathlib import Path
 from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
@@ -56,6 +56,12 @@ class ItemDelegate(QStyledItemDelegate):
             return None
         else:
             return super().createEditor(parent, option, index)
+    
+    def paint(self, painter, option, index):
+        is_stored = index.model().index(index.row(), QECols.STORE_SETTINGS_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == "1"
+        super().paint(painter, option, index)
+        if is_stored:
+            painter.fillRect(option.rect, QColor(64,128,255,64))
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     def __lt__(self, other):
@@ -153,6 +159,7 @@ class QETree(QTreeWidget):
         #print("store/forget changed ->", checked, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["store"] = not doc["store"]
         item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+doc["store"]))
+        self.redraw()
         self.set_settings_modified()
     
     def _on_alpha_checkbox_state_changed(self, state, doc, item):
@@ -248,6 +255,11 @@ class QETree(QTreeWidget):
         save_button.setIcon(QIcon())
         save_button.setDisabled(True)
         sbar.showMessage("Settings saved.", 2500)
+    
+    def redraw(self):
+        for child in self.children():
+            if hasattr(child, "update"):
+                child.update()
     
     def __init__(self, parent=None):
         super().__init__(parent)
