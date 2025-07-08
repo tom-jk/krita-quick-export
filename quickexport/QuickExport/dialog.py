@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate,
-                             QSizePolicy, QWidget, QLineEdit, QMessageBox)
+                             QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar)
 from PyQt5.QtCore import Qt, QRegExp
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap
 from pathlib import Path
@@ -147,6 +147,7 @@ class QETree(QTreeWidget):
             sbar.showMessage(f"Exported to '{str(export_path)}'")
     
     def _on_item_btn_store_forget_clicked(self, checked, btn, doc, filename, item):
+        #print("store/forget changed ->", checked, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["store"] = not doc["store"]
         item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+doc["store"]))
         self.set_settings_modified()
@@ -258,8 +259,10 @@ class QETree(QTreeWidget):
         
         self.load_settings_from_config()
         
+        docs = app.documents()
+        
         # add default settings for currently open documents that didn't have corresponding stored settings.
-        for i, doc in enumerate(app.documents()):
+        for i, doc in enumerate(docs):
             doc_is_in_settings = False
             if doc.fileName() == "":
                 continue
@@ -274,9 +277,6 @@ class QETree(QTreeWidget):
             
             path = Path(doc.fileName())
             self.settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":False, "compression":9, "output":path.with_suffix(".png").name})
-        
-        for s in self.settings:
-            print(s)
         
         # TODO: detect if multiple documents have the same filepath.
         # TODO: detect if multiple documents would export to the same output file.
@@ -295,6 +295,18 @@ class QETree(QTreeWidget):
             output = s["path"].with_suffix(".png").name
             if len(output) > len(longest_output):
                 longest_output = output
+        
+        def centered_checkbox_widget(checkbox):
+            widget = QWidget()
+            layout = QHBoxLayout()
+            layout.addStretch()
+            layout.addWidget(checkbox)
+            layout.addStretch()
+            layout.setContentsMargins(0,0,0,0)
+            widget.setLayout(layout)
+            return widget
+        
+        checkbox_stylesheet = "QCheckBox::indicator:unchecked {border: 1px solid rgba(255,255,255,0.1);}"
         
         for s in self.settings:
             file_path = s["path"]
@@ -351,21 +363,11 @@ class QETree(QTreeWidget):
             item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output"].lower())
             
             alpha_checkbox = QCheckBox()
-            alpha_checkbox.setStyleSheet("""
-                QCheckBox::indicator:unchecked {
-                    border: 1px solid rgba(255,255,255,0.1);
-                }
-                """)
+            alpha_checkbox.setStyleSheet(checkbox_stylesheet)
             
             alpha_checkbox.setCheckState(Qt.Checked if s["alpha"] else Qt.Unchecked)
             alpha_checkbox.stateChanged.connect(lambda state, d=s, i=item: self._on_alpha_checkbox_state_changed(state, d, i))
-            alpha_checkbox_widget = QWidget()
-            alpha_checkbox_layout = QHBoxLayout()
-            alpha_checkbox_layout.addStretch()
-            alpha_checkbox_layout.addWidget(alpha_checkbox)
-            alpha_checkbox_layout.addStretch()
-            alpha_checkbox_layout.setContentsMargins(0,0,0,0)
-            alpha_checkbox_widget.setLayout(alpha_checkbox_layout)
+            alpha_checkbox_widget = centered_checkbox_widget(alpha_checkbox)
             self.setItemWidget(item, QECols.STORE_ALPHA_COLUMN, alpha_checkbox_widget)
             item.setData(QECols.STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+s["alpha"]))
             
@@ -404,6 +406,7 @@ class QETree(QTreeWidget):
 
 layout = QVBoxLayout()
 
+# TODO: save user changes to tree column sizes and retrieve at each start.
 tree_is_ready = False
 tree = QETree()
 tree.setup()
@@ -428,24 +431,28 @@ def _on_show_png_button_clicked(checked):
 buttons = QWidget()
 buttons_layout = QHBoxLayout()
 
+# show unstored button.
 show_unstored_button = QCheckBox("Show unstored")
 show_unstored_button.setToolTip("Enable this to pick the images you're interested in exporting, then disable it to hide the rest.")
 show_unstored_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unstored", "true") == "true" else Qt.Unchecked)
 show_unstored_button.clicked.connect(_on_show_unstored_button_clicked)
 buttons_layout.addWidget(show_unstored_button)
 
+# show unopened button.
 show_unopened_button = QCheckBox("Show unopened")
 show_unopened_button.setToolTip("Show the export settings of every file - currently open or not - for which settings have been saved.")
 show_unopened_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unopened", "true") == "true" else Qt.Unchecked)
 show_unopened_button.clicked.connect(_on_show_unopened_button_clicked)
 buttons_layout.addWidget(show_unopened_button)
 
+# show .png files button.
 show_png_button = QCheckBox("Show .png files")
 show_png_button.setToolTip("Show export settings for .png files. Disabled by default because it's kind of redundant.")
 show_png_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_png", "false") == "true" else Qt.Unchecked)
 show_png_button.clicked.connect(_on_show_png_button_clicked)
 buttons_layout.addWidget(show_png_button)
 
+# save button.
 save_button = QPushButton("Save Settings")
 save_button.setDisabled(True)
 save_button.clicked.connect(tree.save_settings_to_config)
@@ -456,11 +463,25 @@ layout.addWidget(buttons)
 
 tree.refilter()
 
-from PyQt5.QtWidgets import QStatusBar
+# status bar.
 sbar = QStatusBar()
 sbar_ready_label = QLabel(" Ready.") # extra space to align with showmessage.
 sbar.insertWidget(0, sbar_ready_label)
 layout.addWidget(sbar)
+
+# TODO: gracefully handle multiple open documents of the same file.
+#       ideally, the settings controls for those docs would mirror each
+#       other (ie. checking store alpha for one checks it for all).
+#       next best: the store buttons for those docs would become radio
+#       buttons so the user can choose one copy's settings to be saved.
+#       on next run of the dialog, the saved settings woulb be applied
+#       to each doc of that file.
+#       I had some notes here about the pitfalls of trying to keep track
+#       of which doc was the chosen 'source of truth' between dialogs,
+#       before realising you don't need to do that: each dialog starts
+#       with all of the same doc having the same settings as read from
+#       config (in line with expectations: only one had the store button
+#       checked), so it doesn't matter which one gets chosen.
 
 class QEDialog(QDialog):
     def resizeEvent(self, event):
