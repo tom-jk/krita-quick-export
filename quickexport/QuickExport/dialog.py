@@ -502,29 +502,26 @@ def _on_show_png_button_clicked(checked):
     app.writeSetting("TomJK_QuickExport", "show_png", "true" if checked else "false")
     tree.refilter()
 
-buttons = QWidget()
-buttons_layout = QHBoxLayout()
+view_buttons = QWidget()
+view_buttons_layout = QHBoxLayout()
 
 # show unstored button.
 show_unstored_button = QCheckBox("Show unstored")
 show_unstored_button.setToolTip("Enable this to pick the images you're interested in exporting, then disable it to hide the rest.")
 show_unstored_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unstored", "true") == "true" else Qt.Unchecked)
 show_unstored_button.clicked.connect(_on_show_unstored_button_clicked)
-buttons_layout.addWidget(show_unstored_button)
 
 # show unopened button.
 show_unopened_button = QCheckBox("Show unopened")
 show_unopened_button.setToolTip("Show the export settings of every file - currently open or not - for which settings have been saved.")
-show_unopened_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unopened", "true") == "true" else Qt.Unchecked)
+show_unopened_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unopened", "false") == "true" else Qt.Unchecked)
 show_unopened_button.clicked.connect(_on_show_unopened_button_clicked)
-buttons_layout.addWidget(show_unopened_button)
 
 # show .png files button.
 show_png_button = QCheckBox("Show .png files")
 show_png_button.setToolTip("Show export settings for .png files. Disabled by default because it's kind of redundant.")
 show_png_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_png", "false") == "true" else Qt.Unchecked)
 show_png_button.clicked.connect(_on_show_png_button_clicked)
-buttons_layout.addWidget(show_png_button)
 
 # slider for row highlight intensity for stored settings.
 def _on_stored_highlight_slider_value_changed():
@@ -549,16 +546,24 @@ stored_highlight_slider.valueChanged.connect(_on_stored_highlight_slider_value_c
 stored_highlight_layout.addWidget(stored_highlight_slider)
 
 stored_highlight_widget.setLayout(stored_highlight_layout)
-buttons_layout.addWidget(stored_highlight_widget)
 
 # save button.
 save_button = QPushButton("Save Settings")
 save_button.setDisabled(True)
 save_button.clicked.connect(tree.save_settings_to_config)
-buttons_layout.addWidget(save_button)
 
-buttons.setLayout(buttons_layout)
-layout.addWidget(buttons)
+
+view_buttons_layout.addWidget(show_png_button)
+view_buttons_layout.addWidget(show_unopened_button)
+view_buttons_layout.addWidget(show_unstored_button)
+view_buttons_layout.addStretch()
+view_buttons_layout.addWidget(stored_highlight_widget)
+view_buttons_layout.addWidget(save_button)
+
+view_buttons_layout.setContentsMargins(0,0,0,0)
+view_buttons.setLayout(view_buttons_layout)
+layout.addWidget(view_buttons)
+
 
 tree.refilter()
 
