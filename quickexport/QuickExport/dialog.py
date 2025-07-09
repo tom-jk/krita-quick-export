@@ -161,13 +161,13 @@ class QETree(QTreeWidget):
         export_btn.setDisabled(False)
         print("done")
     
-    def _on_output_lineedit_editing_finished(self, doc, lineedit, item):
+    def _on_output_lineedit_editing_finished(self, doc, lineedit, item, store_button):
         doc["output"] = lineedit.text()
         item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output"].lower())
         #print("_on_output_lineedit_changed ->", doc["output"])
-        self.set_settings_modified()
+        self.set_settings_modified(store_button)
     
-    def _on_item_btn_export_clicked(self, checked, doc, filename):
+    def _on_item_btn_export_clicked(self, checked, doc, filename, store_button):
         print(f"Clicked export for {doc['path']}")
         self.sender().setText("Exporting...")
         
@@ -189,6 +189,9 @@ class QETree(QTreeWidget):
         else:
             self.sender().setText("Done!")
             sbar.showMessage(f"Exported to '{str(export_path)}'")
+        
+        if auto_store_on_export_button.checkState() == Qt.Checked:
+            store_button.setCheckState(Qt.Checked)
     
     def _on_item_btn_store_forget_clicked(self, checked, btn, doc, filename, item):
         #print("store/forget changed ->", checked, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
@@ -197,20 +200,20 @@ class QETree(QTreeWidget):
         self.redraw()
         self.set_settings_modified()
     
-    def _on_alpha_checkbox_state_changed(self, state, doc, item):
+    def _on_alpha_checkbox_state_changed(self, state, doc, item, store_button):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["alpha"] = True if state == Qt.Checked else False
         item.setData(QECols.STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["alpha"]))
-        self.set_settings_modified()
+        self.set_settings_modified(store_button)
     
-    def _on_compression_slider_value_changed(self, value, doc, slider, label, item):
+    def _on_compression_slider_value_changed(self, value, doc, slider, label, item, store_button):
         #print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["compression"] = value
         item.setData(QECols.COMPRESSION_COLUMN, QERoles.CustomSortRole, str(doc["compression"]))
         label.setText(str(value))
-        self.set_settings_modified()
+        self.set_settings_modified(store_button)
     
-    def set_settings_modified(self):
+    def set_settings_modified(self, store_button=None):
         if not tree_is_ready:
             return
         
@@ -222,6 +225,10 @@ class QETree(QTreeWidget):
             if save_button.isEnabled():
                 save_button.setText("Save Settings")
                 save_button.setDisabled(True)
+        
+        if store_button:
+            if auto_store_on_modify_button.checkState() == Qt.Checked:
+                store_button.setCheckState(Qt.Checked)
     
     def load_settings_from_config(self):
         """
@@ -433,7 +440,7 @@ class QETree(QTreeWidget):
             fm = QFontMetrics(output_edit.font())
             pixelsWide = fm.width(text)
             output_edit.setMinimumWidth(pixelsWide)
-            output_edit.editingFinished.connect(lambda d=s, oe=output_edit, i=item: self._on_output_lineedit_editing_finished(d, oe, i))
+            output_edit.editingFinished.connect(lambda d=s, oe=output_edit, i=item, sb=btn_store_forget: self._on_output_lineedit_editing_finished(d, oe, i, sb))
             
             output_layout.addWidget(output_edit)
             output_widget.setLayout(output_layout)
@@ -445,7 +452,7 @@ class QETree(QTreeWidget):
             alpha_checkbox.setStyleSheet(checkbox_stylesheet)
             
             alpha_checkbox.setCheckState(Qt.Checked if s["alpha"] else Qt.Unchecked)
-            alpha_checkbox.stateChanged.connect(lambda state, d=s, i=item: self._on_alpha_checkbox_state_changed(state, d, i))
+            alpha_checkbox.stateChanged.connect(lambda state, d=s, i=item, sb=btn_store_forget: self._on_alpha_checkbox_state_changed(state, d, i, sb))
             alpha_checkbox_widget = centered_checkbox_widget(alpha_checkbox)
             self.setItemWidget(item, QECols.STORE_ALPHA_COLUMN, alpha_checkbox_widget)
             item.setData(QECols.STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+s["alpha"]))
@@ -455,7 +462,7 @@ class QETree(QTreeWidget):
             compression_label = QLabel()
             compression_slider = QSlider(Qt.Horizontal)
             compression_slider.setRange(1, 9)
-            compression_slider.valueChanged.connect(lambda value, d=s, cs=compression_slider, cl=compression_label, i=item: self._on_compression_slider_value_changed(value, d, cs, cl, i))
+            compression_slider.valueChanged.connect(lambda value, d=s, cs=compression_slider, cl=compression_label, i=item, sb=btn_store_forget: self._on_compression_slider_value_changed(value, d, cs, cl, i, sb))
             compression_slider.setValue(s["compression"])
             compression_label.setText(str(s["compression"]))
             compression_layout.addWidget(compression_slider)
@@ -467,7 +474,7 @@ class QETree(QTreeWidget):
             btns_widget = QWidget()
             btns_layout = QHBoxLayout()
             btns_export.setDisabled(s["document"] == None)
-            btns_export.clicked.connect(lambda checked, d=s, fn=file_path.name: self._on_item_btn_export_clicked(checked, d, fn))
+            btns_export.clicked.connect(lambda checked, d=s, fn=file_path.name, sb=btn_store_forget: self._on_item_btn_export_clicked(checked, d, fn, sb))
             btns_layout.addWidget(btns_export)
             btns_widget.setLayout(btns_layout)
             
@@ -547,23 +554,62 @@ stored_highlight_layout.addWidget(stored_highlight_slider)
 
 stored_highlight_widget.setLayout(stored_highlight_layout)
 
-# save button.
-save_button = QPushButton("Save Settings")
-save_button.setDisabled(True)
-save_button.clicked.connect(tree.save_settings_to_config)
-
-
 view_buttons_layout.addWidget(show_png_button)
 view_buttons_layout.addWidget(show_unopened_button)
 view_buttons_layout.addWidget(show_unstored_button)
 view_buttons_layout.addStretch()
 view_buttons_layout.addWidget(stored_highlight_widget)
-view_buttons_layout.addWidget(save_button)
 
 view_buttons_layout.setContentsMargins(0,0,0,0)
 view_buttons.setLayout(view_buttons_layout)
 layout.addWidget(view_buttons)
 
+
+def _on_auto_store_on_modify_button_clicked(checked):
+    app.writeSetting("TomJK_QuickExport", "auto_store_on_modify", "true" if checked else "false")
+
+def _on_auto_store_on_export_button_clicked(checked):
+    app.writeSetting("TomJK_QuickExport", "auto_store_on_export", "true" if checked else "false")
+
+def _on_auto_save_on_close_button_clicked(checked):
+    app.writeSetting("TomJK_QuickExport", "auto_save_on_close", "true" if checked else "false")
+
+
+config_buttons = QWidget()
+config_buttons_layout = QHBoxLayout()
+
+# auto store for modified button.
+auto_store_on_modify_button = QCheckBox("Store on modify")
+auto_store_on_modify_button.setToolTip("Automatically check the store button for a file when you modify any of its export settings.")
+auto_store_on_modify_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_modify", "true") == "true" else Qt.Unchecked)
+auto_store_on_modify_button.clicked.connect(_on_auto_store_on_modify_button_clicked)
+
+# auto store for exported button.
+auto_store_on_export_button = QCheckBox("Store on export")
+auto_store_on_export_button.setToolTip("Automatically check the store button for a file when you export it.")
+auto_store_on_export_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_export", "true") == "true" else Qt.Unchecked)
+auto_store_on_export_button.clicked.connect(_on_auto_store_on_export_button_clicked)
+
+# auto save settings on close button.
+auto_save_on_close_button = QCheckBox("Save settings on close")
+auto_save_on_close_button.setToolTip("Automatically save changes to settings without asking when you close the dialog.")
+auto_save_on_close_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_save_on_close", "true") == "true" else Qt.Unchecked)
+auto_save_on_close_button.clicked.connect(_on_auto_save_on_close_button_clicked)
+
+# save button.
+save_button = QPushButton("Save Settings")
+save_button.setDisabled(True)
+save_button.clicked.connect(tree.save_settings_to_config)
+
+config_buttons_layout.addWidget(auto_store_on_modify_button)
+config_buttons_layout.addWidget(auto_store_on_export_button)
+config_buttons_layout.addWidget(auto_save_on_close_button)
+config_buttons_layout.addStretch()
+config_buttons_layout.addWidget(save_button)
+
+config_buttons_layout.setContentsMargins(0,0,0,0)
+config_buttons.setLayout(config_buttons_layout)
+layout.addWidget(config_buttons)
 
 tree.refilter()
 
@@ -589,18 +635,25 @@ class QEDialog(QDialog):
         self.close()
     
     def closeEvent(self, event):
-        if save_button.isEnabled():
+        ret = QMessageBox.Discard
+        
+        if auto_save_on_close_button.checkState() == Qt.Checked:
+            # save without asking.
+            ret = QMessageBox.Save
+        elif save_button.isEnabled():
+            # ask user.
             msgBox = QMessageBox(self)
             msgBox.setText("There are unsaved changes to export settings.")
             msgBox.setInformativeText("Do you want to save your changes?")
             msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
             msgBox.setDefaultButton(QMessageBox.Save)
             ret = msgBox.exec()
-            if ret == QMessageBox.Save:
-                tree.save_settings_to_config()
-            elif ret == QMessageBox.Cancel:
-                event.ignore()
-                return
+        
+        if ret == QMessageBox.Cancel:
+            event.ignore()
+            return
+        elif ret == QMessageBox.Save:
+            tree.save_settings_to_config()
         event.accept()
 
 # create dialog  and show it
