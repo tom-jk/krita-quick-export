@@ -580,6 +580,9 @@ class QEDialog(QDialog):
         app.writeSetting("TomJK_QuickExport", "dialogWidth", str(event.size().width()))
         app.writeSetting("TomJK_QuickExport", "dialogHeight", str(event.size().height()))
     
+    def reject(self):
+        self.close()
+    
     def closeEvent(self, event):
         if save_button.isEnabled():
             msgBox = QMessageBox(self)
