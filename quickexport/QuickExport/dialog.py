@@ -311,8 +311,6 @@ class QETree(QTreeWidget):
         
         docs = app.documents()
         
-        # TODO: only first doc of file will have saved settings, others
-        #       get default. all should get the saved settings.
         # detect if multiple documents have the same filepath.
         self.dup_counts = {}
         for i, doc in enumerate(docs):
@@ -333,15 +331,21 @@ class QETree(QTreeWidget):
             if doc.fileName() == "":
                 continue
             
+            path = Path(doc.fileName())
+            
             for s in self.settings:
                 if s["document"] == doc:
+                    doc_is_in_settings = True
+                    break
+                if str(s["path"]) == doc.fileName():
+                    # this doc is the same file as one already seen, copy settings.
+                    self.settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":s["alpha"], "compression":s["compression"], "output":s["output"]})
                     doc_is_in_settings = True
                     break
             
             if doc_is_in_settings:
                 continue
             
-            path = Path(doc.fileName())
             self.settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":False, "compression":9, "output":path.with_suffix(".png").name})
         
         # TODO: detect if multiple documents would export to the same output file.
