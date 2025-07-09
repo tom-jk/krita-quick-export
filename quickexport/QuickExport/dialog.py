@@ -565,6 +565,34 @@ view_buttons.setLayout(view_buttons_layout)
 layout.addWidget(view_buttons)
 
 
+def _on_advanced_mode_button_clicked(checked):
+    app.writeSetting("TomJK_QuickExport", "advanced_mode", "true" if checked else "false")
+    set_advanced_mode(checked)
+
+def set_advanced_mode(enabled):
+    if enabled:
+        tree.showColumn(QECols.STORE_SETTINGS_COLUMN)
+        show_unstored_button.show()
+        show_unstored_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unstored", "true") == "true" else Qt.Unchecked)
+        auto_store_on_modify_button.show()
+        auto_store_on_modify_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_modify", "true") == "true" else Qt.Unchecked)
+        auto_store_on_export_button.show()
+        auto_store_on_export_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_export", "true") == "true" else Qt.Unchecked)
+        auto_save_on_close_button.show()
+        auto_save_on_close_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_save_on_close", "true") == "true" else Qt.Unchecked)
+        save_button.show()
+    else:
+        tree.hideColumn(QECols.STORE_SETTINGS_COLUMN)
+        show_unstored_button.hide()
+        show_unstored_button.setCheckState(Qt.Checked)
+        auto_store_on_modify_button.hide()
+        auto_store_on_modify_button.setCheckState(Qt.Checked)
+        auto_store_on_export_button.hide()
+        auto_store_on_export_button.setCheckState(Qt.Checked)
+        auto_save_on_close_button.hide()
+        auto_save_on_close_button.setCheckState(Qt.Checked)
+        save_button.hide()
+
 def _on_auto_store_on_modify_button_clicked(checked):
     app.writeSetting("TomJK_QuickExport", "auto_store_on_modify", "true" if checked else "false")
 
@@ -577,6 +605,12 @@ def _on_auto_save_on_close_button_clicked(checked):
 
 config_buttons = QWidget()
 config_buttons_layout = QHBoxLayout()
+
+# advanced mode button.
+advanced_mode_button = QCheckBox("Advanced mode")
+advanced_mode_button.setToolTip("Basic mode: export settings are saved by default (recommended).\nAdvanced mode: configure how settings are stored.")
+advanced_mode_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "advanced_mode", "false") == "true" else Qt.Unchecked)
+advanced_mode_button.clicked.connect(_on_advanced_mode_button_clicked)
 
 # auto store for modified button.
 auto_store_on_modify_button = QCheckBox("Store on modify")
@@ -601,6 +635,7 @@ save_button = QPushButton("Save Settings")
 save_button.setDisabled(True)
 save_button.clicked.connect(tree.save_settings_to_config)
 
+config_buttons_layout.addWidget(advanced_mode_button)
 config_buttons_layout.addWidget(auto_store_on_modify_button)
 config_buttons_layout.addWidget(auto_store_on_export_button)
 config_buttons_layout.addWidget(auto_save_on_close_button)
@@ -612,6 +647,8 @@ config_buttons.setLayout(config_buttons_layout)
 layout.addWidget(config_buttons)
 
 tree.refilter()
+
+set_advanced_mode(advanced_mode_button.checkState() == Qt.Checked)
 
 # status bar.
 sbar = QStatusBar()
