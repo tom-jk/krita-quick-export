@@ -73,14 +73,8 @@ class QuickExportExtension(Extension):
         if not doc:
             return
         if doc.fileName() == "":
-            # TODO: give user options: save file, export file.
-            msgBox = QMessageBox(app.activeWindow().qwindow())
-            msgBox.setIcon(QMessageBox.Information)
-            msgBox.setText("Can't do quick export for unsaved file.")
-            msgBox.setInformativeText("Save the file first or perform a regular export.")
-            msgBox.setStandardButtons(QMessageBox.Ok)
-            msgBox.setDefaultButton(QMessageBox.Ok)
-            ret = msgBox.exec()
+            msg = "Quick Export: image must be saved first."
+            app.activeWindow().activeView().showFloatingMessage(msg, app.icon('document-export'), 5000, 2)
     
     def load_settings_from_config(self):
         """
