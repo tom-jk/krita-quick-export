@@ -29,7 +29,7 @@ class QuickExportExtension(Extension):
         self.qe_action.triggered.connect(self._on_quick_export_triggered)
         self.qec_action = window.createAction("tomjk_quick_export_configure", "Quick export configuration...", "file")
         self.qec_action.setIcon(app.icon('properties'))
-        self.qec_action.triggered.connect(self._on_quick_export_configuration_trigged)
+        self.qec_action.triggered.connect(self._on_quick_export_configuration_triggered)
         call_later = partial(self.moveAction, [self.qe_action, self.qec_action], "file_export_advanced", window.qwindow())
         QTimer.singleShot(0, call_later)
     
@@ -59,13 +59,18 @@ class QuickExportExtension(Extension):
             doc = view.document()
             if doc:
                 if doc.fileName():
+                    self.qe_action.setEnabled(True)
                     file_settings = find_settings_for_file(Path(doc.fileName()))
                     if file_settings:
+                        # file has QE settings.
                         output_filename = file_settings["output"]
                         self.qe_action.setText(f"Quick export to '{output_filename}'")
-                        self.qe_action.setEnabled(True)
                         return
-        self.qe_action.setText(f"Quick export")
+                    # file has been saved but has no settings.
+                    self.qe_action.setText("Quick export...")
+                    return
+        # no doc or unsaved doc.
+        self.qe_action.setText("Quick export")
         self.qe_action.setEnabled(False)
     
     def _on_quick_export_triggered(self):
@@ -95,7 +100,7 @@ class QuickExportExtension(Extension):
             print(f"QE: Exported to '{str(export_path)}'")
             app.activeWindow().activeView().showFloatingMessage(f"Exported to '{str(export_path)}'", app.icon('document-export'), 5000, 1)
     
-    def _on_quick_export_configuration_trigged(self):
+    def _on_quick_export_configuration_triggered(self):
         self.run_dialog()
     
     def run_dialog(self, msg=""):
