@@ -85,7 +85,7 @@ class QuickExportExtension(Extension):
         file_settings = find_settings_for_file(Path(doc.fileName()))
         
         if file_settings == None:
-            self.run_dialog(msg="Configure export settings for the image then try again, or just click 'Export now'.")
+            self.run_dialog(msg="Configure export settings for the image then try again, or just click 'Export now'.", doc=doc)
             return
         
         result = export_image(file_settings, doc)
@@ -99,13 +99,14 @@ class QuickExportExtension(Extension):
             app.activeWindow().activeView().showFloatingMessage(f"Exported to '{str(export_path)}'", app.icon('document-export'), 5000, 1)
     
     def _on_quick_export_configuration_triggered(self):
-        self.run_dialog()
+        self.run_dialog(doc=app.activeDocument())
     
-    def run_dialog(self, msg=""):
+    def run_dialog(self, msg="", doc=None):
         # ensure settings up to date.
         load_settings_from_config()
         
-        dialog = QEDialog(msg=msg)
+        # TODO: reuse instead of destroy?
+        dialog = QEDialog(msg=msg, doc=doc)
         dialog.exec_()
         del dialog
         

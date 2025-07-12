@@ -63,8 +63,11 @@ class ItemDelegate(QStyledItemDelegate):
             return super().createEditor(parent, option, index)
     
     def paint(self, painter, option, index):
+        is_highlighted = index.model().index(index.row(), QECols.OPEN_FILE_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == QETree.instance.highlighted_doc_index
         is_stored = index.model().index(index.row(), QECols.STORE_SETTINGS_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == "1"
         super().paint(painter, option, index)
+        if is_highlighted:
+            painter.fillRect(option.rect, QColor(192,255,96,48))
         if is_stored:
             painter.fillRect(option.rect, QColor(64,128,255,QEDialog.instance.stored_highlight_slider.value()))
 
@@ -102,6 +105,8 @@ class QERoles(IntEnum):
     #MoreRoles = auto()...
 
 class QETree(QTreeWidget):
+    instance = None
+    
     def refilter(self):
         for index, s in enumerate(qe_settings):
             #print(index, s["document"])
@@ -197,6 +202,7 @@ class QETree(QTreeWidget):
     
     def __init__(self, dialog, parent=None):
         super().__init__(parent)
+        self.__class__.instance = self
         self.dialog = dialog
         
         self.setIndentation(False)
@@ -245,6 +251,13 @@ class QETree(QTreeWidget):
             qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":False, "compression":9, "output":path.with_suffix(".png").name})
         
         # TODO: detect if multiple documents would export to the same output file.
+        
+        self.highlighted_doc_index = -1
+        if self.dialog.highlighted_doc:
+            for s in qe_settings:
+                if s["document"] == self.dialog.highlighted_doc:
+                    self.highlighted_doc_index = str(s["doc_index"])
+                    break
         
         self.setColumnCount(QECols.COLUMN_COUNT)
         self.setHeaderLabels(["", "", "", "Filename", "Export to", "", "Compression", "Actions"])
@@ -378,10 +391,12 @@ class QETree(QTreeWidget):
 class QEDialog(QDialog):
     instance = None
 
-    def __init__(self, msg="", *args, **kwargs):
+    def __init__(self, msg="", doc=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         self.__class__.instance = self
+
+        self.highlighted_doc = doc
 
         layout = QVBoxLayout()
 
@@ -424,7 +439,7 @@ class QEDialog(QDialog):
         stored_highlight_widget.setMaximumWidth(256)
 
         stored_highlight_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-        stored_highlight_label = QLabel("Highlight")
+        stored_highlight_label = QLabel("Highlight stored")
         stored_highlight_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         stored_highlight_layout.addWidget(stored_highlight_label)
 
