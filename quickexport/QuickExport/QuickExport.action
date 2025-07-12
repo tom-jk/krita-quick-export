@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ActionCollection version="2" name="Menu">
+    <Actions category="File">
+        <text>File</text>
+
+        <Action name="tomjk_quick_export">
+        <icon>document-export</icon>
+        <text>TomJK Quick Export </text>
+        <whatsThis></whatsThis>
+        <toolTip>Quick Export image</toolTip>
+        <iconText>Quick Export</iconText>
+        <activationFlags>0</activationFlags>
+        <activationConditions>0</activationConditions>
+        <shortcut></shortcut>
+        <isCheckable>false</isCheckable>
+        <statusTip></statusTip>
+        </Action>
+        
+        <Action name="tomjk_quick_export_configure">
+        <icon>configure</icon>
+        <text>TomJK Quick Export Configuration</text>
+        <whatsThis></whatsThis>
+        <toolTip>Configure Quick Export...</toolTip>
+        <iconText>⋯</iconText>
+        <activationFlags>0</activationFlags>
+        <activationConditions>0</activationConditions>
+        <shortcut></shortcut>
+        <isCheckable>false</isCheckable>
+        <statusTip></statusTip>
+        </Action>
+    </Actions>
+</ActionCollection>
