@@ -26,10 +26,10 @@ class QuickExportExtension(Extension):
         #self.qe_action.setEnabled(False)
         self.qe_action.triggered.connect(self._on_quick_export_triggered)
         self.qec_action = window.createAction("tomjk_quick_export_configure", "Quick export configuration...", "file")
-        call_later = partial(self.moveAction, self.qe_action, self.qec_action, window.qwindow())
+        call_later = partial(self.moveAction, [self.qe_action, self.qec_action], "file_export_advanced", window.qwindow())
         QTimer.singleShot(0, call_later)
     
-    def moveAction(self, action1, action2, qwindow):
+    def moveAction(self, actions_to_move, name_of_action_to_insert_before, qwindow):
         menu_bar = qwindow.menuBar()
         file_menu_action = next(
             (a for a in menu_bar.actions() if a.objectName() == "file"), None
@@ -37,11 +37,11 @@ class QuickExportExtension(Extension):
         if file_menu_action:
             file_menu = file_menu_action.menu()
             for file_action in file_menu.actions():
-                if file_action.objectName() == "file_export_advanced":
-                    file_menu.removeAction(action1)
-                    file_menu.insertAction(file_action, action1)
-                    file_menu.removeAction(action2)
-                    file_menu.insertAction(file_action, action2)
+                if file_action.objectName() == name_of_action_to_insert_before:
+                    for action in actions_to_move:
+                        file_menu.removeAction(action)
+                        file_menu.insertAction(file_action, action)
+                    break
         
         self.window = app.activeWindow()
         self.window.activeViewChanged.connect(self._on_active_view_changed)
