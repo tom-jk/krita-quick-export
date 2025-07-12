@@ -7,39 +7,9 @@ from pathlib import Path
 from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
-
-import xml
-
-exportParameters = InfoObject()
+from .utils import *
 
 app = Krita.instance()
-
-doc = app.activeDocument()
-#print(doc.name())
-exportConfig = app.readSetting("", "ExportConfiguration-image/png", "")
-ET = xml.etree.ElementTree
-root = ET.fromstring(exportConfig)
-#print(ET)
-for child in root:
-    #print(child.tag, child.attrib, child.text)
-    #print(child.text)
-    value = None
-    if child.text in ("true", "false"):
-        value = True if child.text == "true" else False
-    elif child.text in ("0","1","2","3","4","5","6","7","8","9"):
-        value = int(child.text)
-    elif child.text.startswith("<!DOCTYPE color>"):
-        #print("color")
-        color = ManagedColor("RGBA", "U8", "sRGB-elle-V2-srgbtrc.icc")
-        #print("->", color)
-        color.fromXML(child.text)
-        value = color
-        #print(value.toXML())
-    #print(child.attrib['name'], "=", value)
-    exportParameters.setProperty(child.attrib['name'], child.text)
-#exportInfo = 
-#success = doc.exportImage("/home/thomas/Pictures/export_test.png")
-#print(success)
 
 class SnapSlider(QSlider):
     def __init__(self, snap_interval, range_min, range_max, orientation, parent=None):
@@ -96,7 +66,7 @@ class ItemDelegate(QStyledItemDelegate):
         is_stored = index.model().index(index.row(), QECols.STORE_SETTINGS_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == "1"
         super().paint(painter, option, index)
         if is_stored:
-            painter.fillRect(option.rect, QColor(64,128,255,stored_highlight_slider.value()))
+            painter.fillRect(option.rect, QColor(64,128,255,QEDialog.instance.stored_highlight_slider.value()))
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     def __lt__(self, other):
@@ -133,12 +103,12 @@ class QERoles(IntEnum):
 
 class QETree(QTreeWidget):
     def refilter(self):
-        for index, s in enumerate(self.settings):
+        for index, s in enumerate(qe_settings):
             #print(index, s["document"])
             self.items[index].setHidden(
-                   (show_unstored_button.checkState() == Qt.Unchecked and s["store"] == False)
-                or (show_unopened_button.checkState() == Qt.Unchecked and s["document"] == None)
-                or (show_png_button.checkState() == Qt.Unchecked and s["path"].suffix == ".png")
+                   (self.dialog.show_unstored_button.checkState() == Qt.Unchecked and s["store"] == False)
+                or (self.dialog.show_unopened_button.checkState() == Qt.Unchecked and s["document"] == None)
+                or (self.dialog.show_png_button.checkState() == Qt.Unchecked and s["path"].suffix == ".png")
             )
     
     def _on_btn_open_clicked(self, checked, btn, export_btn, doc, item):
@@ -152,7 +122,7 @@ class QETree(QTreeWidget):
         sbar.showMessage(f"Opened '{str(doc['path'])}'", 5000)
         app.activeWindow().addView(new_doc)
         item.setDisabled(False)
-        tree.setItemWidget(item, QECols.OPEN_FILE_COLUMN, None)
+        self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, None)
         doc['document'] = new_doc
         doc['doc_index'] = app.documents().index(new_doc)
         item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(doc['doc_index']))
@@ -171,26 +141,16 @@ class QETree(QTreeWidget):
         print(f"Clicked export for {doc['path']}")
         self.sender().setText("Exporting...")
         
-        exportParameters = InfoObject()
-        exportParameters.setProperty("alpha", doc["alpha"])
-        exportParameters.setProperty("compression", int(doc["compression"]))
-        exportParameters.setProperty("indexed", True)
-        
-        export_path = doc["path"].with_name(doc["output"])
-        
-        doc["document"].setBatchmode(True)
-        doc["document"].waitForDone()
-        result = doc["document"].exportImage(str(export_path), exportParameters)
-        doc["document"].setBatchmode(False)
+        result = export_image(doc)
         
         if not result:
             self.sender().setText("Export failed!")
-            sbar.showMessage(f"Export failed", 5000)
+            self.dialog.sbar.showMessage(f"Export failed", 5000)
         else:
             self.sender().setText("Done!")
-            sbar.showMessage(f"Exported to '{str(export_path)}'")
+            self.dialog.sbar.showMessage(f"Exported to '{str(doc['path'].with_name(doc['output']))}'")
         
-        if auto_store_on_export_button.checkState() == Qt.Checked:
+        if self.dialog.auto_store_on_export_button.checkState() == Qt.Checked:
             store_button.setCheckState(Qt.Checked)
     
     def _on_item_btn_store_forget_clicked(self, checked, btn, doc, filename, item):
@@ -214,97 +174,30 @@ class QETree(QTreeWidget):
         self.set_settings_modified(store_button)
     
     def set_settings_modified(self, store_button=None):
-        if not tree_is_ready:
+        if not self.dialog.tree_is_ready:
             return
         
-        if self.generate_save_string() != app.readSetting("TomJK_QuickExport", "settings", ""):
-            if not save_button.isEnabled():
-                save_button.setText("Save Settings*")
-                save_button.setDisabled(False)
+        if generate_save_string() != app.readSetting("TomJK_QuickExport", "settings", ""):
+            if not self.dialog.save_button.isEnabled():
+                self.dialog.save_button.setText("Save Settings*")
+                self.dialog.save_button.setDisabled(False)
         else:
-            if save_button.isEnabled():
-                save_button.setText("Save Settings")
-                save_button.setDisabled(True)
+            if self.dialog.save_button.isEnabled():
+                self.dialog.save_button.setText("Save Settings")
+                self.dialog.save_button.setDisabled(True)
         
         if store_button:
-            if auto_store_on_modify_button.checkState() == Qt.Checked:
+            if self.dialog.auto_store_on_modify_button.checkState() == Qt.Checked:
                 store_button.setCheckState(Qt.Checked)
-    
-    def load_settings_from_config(self):
-        """
-        read in settings string from kritarc.
-        example: "path=a/b.kra,alpha=false,ouput=b.png;c/d.kra,alpha=true,output=e/f.png"
-        becomes: settings[{"document":<obj>, "store":True, "path":"a/b.kra", "alpha":False, "output":"b.png"}, {"document":<obj>, "store":True, "path":"c/d.kra", "alpha":True, "output":"d.png"}]
-        """
-        # TODO: will break if a filename contains a comma ',' char.
-        settings_string = app.readSetting("TomJK_QuickExport", "settings", "")
-        #print(f"{settings_string=}")
-        
-        if settings_string != "":
-            settings_as_arrays = [[[y for y in kvpair.split('=', 1)] for kvpair in file.split(',')] for file in settings_string.split(';')]
-            #print(f"{settings_as_arrays=}")
-            
-            #print()
-            
-            for file_settings in settings_as_arrays:
-                #print("found file settings", file_settings)
-                self.settings.append({"document":None, "doc_index":1024, "store":True})
-                for kvpair in file_settings:
-                    if kvpair[0] == "path":
-                        self.settings[-1][kvpair[0]] = Path(kvpair[1])
-                        for i, d in enumerate(app.documents()):
-                            if d.fileName() == kvpair[1]:
-                                self.settings[-1]["document"] = d
-                                self.settings[-1]["doc_index"] = i
-                                break
-                    elif kvpair[0] == "alpha":
-                        self.settings[-1][kvpair[0]] = True if kvpair[1] == "true" else False
-                    elif kvpair[0] == "compression":
-                        self.settings[-1][kvpair[0]] = int(kvpair[1])
-                    elif kvpair[0] == "output":
-                        self.settings[-1][kvpair[0]] = kvpair[1]
-                    else:
-                        print(f" unrecognised parameter name '{kvpair[0]}'")
-                        continue
-                    #print(" found", kvpair)
-                #print()
-
-            #print(f"{self.settings=}")
-            #print()
-            for s in self.settings:
-                pass#print(s)
-    
-    def generate_save_string(self):
-        save_strings = []
-        
-        for s in self.settings:
-            if not s["store"]:
-                continue
-            
-            save_strings.append(f"path={str(s['path'])},alpha={'true' if s['alpha']==True else 'false'},compression={s['compression']},output={s['output']}")
-        
-        return ";".join(save_strings)
-    
-    def save_settings_to_config(self):
-        print("save_settings_to_config")
-        
-        save_string = self.generate_save_string()
-
-        print(f"{save_string=}")
-        app.writeSetting("TomJK_QuickExport", "settings", save_string)
-        
-        save_button.setText("Save Settings")
-        save_button.setIcon(QIcon())
-        save_button.setDisabled(True)
-        sbar.showMessage("Settings saved.", 2500)
     
     def redraw(self):
         for child in self.children():
             if hasattr(child, "update"):
                 child.update()
     
-    def __init__(self, parent=None):
+    def __init__(self, dialog, parent=None):
         super().__init__(parent)
+        self.dialog = dialog
         
         self.setIndentation(False)
         self.setAlternatingRowColors(True)
@@ -312,10 +205,6 @@ class QETree(QTreeWidget):
         self.setSelectionMode(QTreeWidget.NoSelection)
     
     def setup(self):
-        self.settings = []
-        
-        self.load_settings_from_config()
-        
         docs = app.documents()
         
         # detect if multiple documents have the same filepath.
@@ -340,20 +229,20 @@ class QETree(QTreeWidget):
             
             path = Path(doc.fileName())
             
-            for s in self.settings:
+            for s in qe_settings:
                 if s["document"] == doc:
                     doc_is_in_settings = True
                     break
                 if str(s["path"]) == doc.fileName():
                     # this doc is the same file as one already seen, copy settings.
-                    self.settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":s["alpha"], "compression":s["compression"], "output":s["output"]})
+                    qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":s["alpha"], "compression":s["compression"], "output":s["output"]})
                     doc_is_in_settings = True
                     break
             
             if doc_is_in_settings:
                 continue
             
-            self.settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":False, "compression":9, "output":path.with_suffix(".png").name})
+            qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":False, "compression":9, "output":path.with_suffix(".png").name})
         
         # TODO: detect if multiple documents would export to the same output file.
         
@@ -367,7 +256,7 @@ class QETree(QTreeWidget):
         filename_regex = QRegExp("^[^<>:;,?\"*|/]+$")
         
         longest_output = ""
-        for s in self.settings:
+        for s in qe_settings:
             output = s["path"].with_suffix(".png").name
             if len(output) > len(longest_output):
                 longest_output = output
@@ -386,10 +275,10 @@ class QETree(QTreeWidget):
         
         item_delegate = ItemDelegate()
         
-        for s in self.settings:
+        for s in qe_settings:
             file_path = s["path"]
             
-            item = MyTreeWidgetItem(self)#QTreeWidgetItem(self)
+            item = MyTreeWidgetItem(self)
             item.setFlags(item.flags() | Qt.ItemIsEditable)
             self.setItemDelegate(item_delegate)
             
@@ -485,185 +374,145 @@ class QETree(QTreeWidget):
         for i in range(0, QECols.COLUMN_COUNT):
             self.resizeColumnToContents(i)
 
-layout = QVBoxLayout()
-
-# TODO: save user changes to tree column sizes and retrieve at each start.
-tree_is_ready = False
-tree = QETree()
-tree.setup()
-# TODO: disallow sorting by thumbnail and action button columns.
-tree.setSortingEnabled(True)
-tree.sortByColumn(QECols.OPEN_FILE_COLUMN, Qt.AscendingOrder)
-layout.addWidget(tree)
-tree_is_ready = True
-
-def _on_show_unstored_button_clicked(checked):
-    app.writeSetting("TomJK_QuickExport", "show_unstored", "true" if checked else "false")
-    tree.refilter()
-
-def _on_show_unopened_button_clicked(checked):
-    app.writeSetting("TomJK_QuickExport", "show_unopened", "true" if checked else "false")
-    tree.refilter()
-
-def _on_show_png_button_clicked(checked):
-    app.writeSetting("TomJK_QuickExport", "show_png", "true" if checked else "false")
-    tree.refilter()
-
-view_buttons = QWidget()
-view_buttons_layout = QHBoxLayout()
-
-# show unstored button.
-show_unstored_button = QCheckBox("Show unstored")
-show_unstored_button.setToolTip("Enable this to pick the images you're interested in exporting, then disable it to hide the rest.")
-show_unstored_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unstored", "true") == "true" else Qt.Unchecked)
-show_unstored_button.clicked.connect(_on_show_unstored_button_clicked)
-
-# show unopened button.
-show_unopened_button = QCheckBox("Show unopened")
-show_unopened_button.setToolTip("Show the export settings of every file - currently open or not - for which settings have been saved.")
-show_unopened_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unopened", "false") == "true" else Qt.Unchecked)
-show_unopened_button.clicked.connect(_on_show_unopened_button_clicked)
-
-# show .png files button.
-show_png_button = QCheckBox("Show .png files")
-show_png_button.setToolTip("Show export settings for .png files. Disabled by default because it's kind of redundant.")
-show_png_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_png", "false") == "true" else Qt.Unchecked)
-show_png_button.clicked.connect(_on_show_png_button_clicked)
-
-# slider for row highlight intensity for stored settings.
-def _on_stored_highlight_slider_value_changed():
-    app.writeSetting("TomJK_QuickExport", "highlight_alpha", str(stored_highlight_slider.value()))
-    tree.redraw()
-
-stored_highlight_widget = QWidget()
-stored_highlight_layout = QHBoxLayout()
-
-stored_highlight_widget.setMinimumWidth(64)
-stored_highlight_widget.setMaximumWidth(256)
-
-stored_highlight_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-stored_highlight_label = QLabel("Highlight")
-stored_highlight_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-stored_highlight_layout.addWidget(stored_highlight_label)
-
-stored_highlight_slider = SnapSlider(8, 0, 64, Qt.Horizontal)
-stored_highlight_slider.setValue(int(app.readSetting("TomJK_QuickExport", "highlight_alpha", "64")))
-stored_highlight_slider.setMinimumWidth(64)
-stored_highlight_slider.valueChanged.connect(_on_stored_highlight_slider_value_changed)
-stored_highlight_layout.addWidget(stored_highlight_slider)
-
-stored_highlight_widget.setLayout(stored_highlight_layout)
-
-view_buttons_layout.addWidget(show_png_button)
-view_buttons_layout.addWidget(show_unopened_button)
-view_buttons_layout.addWidget(show_unstored_button)
-view_buttons_layout.addStretch()
-view_buttons_layout.addWidget(stored_highlight_widget)
-
-view_buttons_layout.setContentsMargins(0,0,0,0)
-view_buttons.setLayout(view_buttons_layout)
-layout.addWidget(view_buttons)
-
-
-def _on_advanced_mode_button_clicked(checked):
-    app.writeSetting("TomJK_QuickExport", "advanced_mode", "true" if checked else "false")
-    set_advanced_mode(checked)
-
-def set_advanced_mode(enabled):
-    if enabled:
-        tree.showColumn(QECols.STORE_SETTINGS_COLUMN)
-        show_unstored_button.show()
-        show_unstored_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unstored", "true") == "true" else Qt.Unchecked)
-        auto_store_on_modify_button.show()
-        auto_store_on_modify_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_modify", "true") == "true" else Qt.Unchecked)
-        auto_store_on_export_button.show()
-        auto_store_on_export_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_export", "true") == "true" else Qt.Unchecked)
-        auto_save_on_close_button.show()
-        auto_save_on_close_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_save_on_close", "true") == "true" else Qt.Unchecked)
-        save_button.show()
-    else:
-        tree.hideColumn(QECols.STORE_SETTINGS_COLUMN)
-        show_unstored_button.hide()
-        show_unstored_button.setCheckState(Qt.Checked)
-        auto_store_on_modify_button.hide()
-        auto_store_on_modify_button.setCheckState(Qt.Checked)
-        auto_store_on_export_button.hide()
-        auto_store_on_export_button.setCheckState(Qt.Checked)
-        auto_save_on_close_button.hide()
-        auto_save_on_close_button.setCheckState(Qt.Checked)
-        save_button.hide()
-
-def _on_auto_store_on_modify_button_clicked(checked):
-    app.writeSetting("TomJK_QuickExport", "auto_store_on_modify", "true" if checked else "false")
-
-def _on_auto_store_on_export_button_clicked(checked):
-    app.writeSetting("TomJK_QuickExport", "auto_store_on_export", "true" if checked else "false")
-
-def _on_auto_save_on_close_button_clicked(checked):
-    app.writeSetting("TomJK_QuickExport", "auto_save_on_close", "true" if checked else "false")
-
-
-config_buttons = QWidget()
-config_buttons_layout = QHBoxLayout()
-
-# advanced mode button.
-advanced_mode_button = QCheckBox("Advanced mode")
-advanced_mode_button.setToolTip("Basic mode: export settings are saved by default (recommended).\nAdvanced mode: configure how settings are stored.")
-advanced_mode_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "advanced_mode", "false") == "true" else Qt.Unchecked)
-advanced_mode_button.clicked.connect(_on_advanced_mode_button_clicked)
-
-# auto store for modified button.
-auto_store_on_modify_button = QCheckBox("Store on modify")
-auto_store_on_modify_button.setToolTip("Automatically check the store button for a file when you modify any of its export settings.")
-auto_store_on_modify_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_modify", "true") == "true" else Qt.Unchecked)
-auto_store_on_modify_button.clicked.connect(_on_auto_store_on_modify_button_clicked)
-
-# auto store for exported button.
-auto_store_on_export_button = QCheckBox("Store on export")
-auto_store_on_export_button.setToolTip("Automatically check the store button for a file when you export it.")
-auto_store_on_export_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_export", "true") == "true" else Qt.Unchecked)
-auto_store_on_export_button.clicked.connect(_on_auto_store_on_export_button_clicked)
-
-# auto save settings on close button.
-auto_save_on_close_button = QCheckBox("Save settings on close")
-auto_save_on_close_button.setToolTip("Automatically save changes to settings without asking when you close the dialog.")
-auto_save_on_close_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_save_on_close", "true") == "true" else Qt.Unchecked)
-auto_save_on_close_button.clicked.connect(_on_auto_save_on_close_button_clicked)
-
-# save button.
-save_button = QPushButton("Save Settings")
-save_button.setDisabled(True)
-save_button.clicked.connect(tree.save_settings_to_config)
-
-config_buttons_layout.addWidget(advanced_mode_button)
-config_buttons_layout.addWidget(auto_store_on_modify_button)
-config_buttons_layout.addWidget(auto_store_on_export_button)
-config_buttons_layout.addWidget(auto_save_on_close_button)
-config_buttons_layout.addStretch()
-config_buttons_layout.addWidget(save_button)
-
-config_buttons_layout.setContentsMargins(0,0,0,0)
-config_buttons.setLayout(config_buttons_layout)
-layout.addWidget(config_buttons)
-
-tree.refilter()
-
-set_advanced_mode(advanced_mode_button.checkState() == Qt.Checked)
-
-# status bar.
-sbar = QStatusBar()
-sbar_ready_label = QLabel(" Ready.") # extra space to align with showmessage.
-sbar.insertWidget(0, sbar_ready_label)
-layout.addWidget(sbar)
-
-# TODO: inform user about having multiple copies of same file open.
-if len(tree.dup_counts) == 1:
-    sbar_ready_label.setText(f"Note: Multiple copies of '{list(tree.dup_counts.keys())[0]}' are currently open in Krita.")
-elif len(tree.dup_counts) > 1:
-    sbar_ready_label.setText(f"Note: Multiple copies of multiple files (hover mouse here to see) are currently open in Krita.")
-    sbar_ready_label.setToolTip("\n".join(tree.dup_counts.keys()))
 
 class QEDialog(QDialog):
+    instance = None
+
+    def __init__(self, msg="", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.__class__.instance = self
+
+        layout = QVBoxLayout()
+
+        # TODO: save user changes to tree column sizes and retrieve at each start.
+        self.tree_is_ready = False
+        self.tree = QETree(self)
+        self.tree.setup()
+        # TODO: disallow sorting by thumbnail and action button columns.
+        self.tree.setSortingEnabled(True)
+        self.tree.sortByColumn(QECols.OPEN_FILE_COLUMN, Qt.AscendingOrder)
+        layout.addWidget(self.tree)
+        self.tree_is_ready = True
+
+        view_buttons = QWidget()
+        view_buttons_layout = QHBoxLayout()
+
+        # show unstored button.
+        self.show_unstored_button = QCheckBox("Show unstored")
+        self.show_unstored_button.setToolTip("Enable this to pick the images you're interested in exporting, then disable it to hide the rest.")
+        self.show_unstored_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unstored", "true") == "true" else Qt.Unchecked)
+        self.show_unstored_button.clicked.connect(self._on_show_unstored_button_clicked)
+
+        # show unopened button.
+        self.show_unopened_button = QCheckBox("Show unopened")
+        self.show_unopened_button.setToolTip("Show the export settings of every file - currently open or not - for which settings have been saved.")
+        self.show_unopened_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unopened", "false") == "true" else Qt.Unchecked)
+        self.show_unopened_button.clicked.connect(self._on_show_unopened_button_clicked)
+
+        # show .png files button.
+        self.show_png_button = QCheckBox("Show .png files")
+        self.show_png_button.setToolTip("Show export settings for .png files. Disabled by default because it's kind of redundant.")
+        self.show_png_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_png", "false") == "true" else Qt.Unchecked)
+        self.show_png_button.clicked.connect(self._on_show_png_button_clicked)
+
+        # slider for row highlight intensity for stored settings.
+        stored_highlight_widget = QWidget()
+        stored_highlight_layout = QHBoxLayout()
+
+        stored_highlight_widget.setMinimumWidth(64)
+        stored_highlight_widget.setMaximumWidth(256)
+
+        stored_highlight_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        stored_highlight_label = QLabel("Highlight")
+        stored_highlight_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        stored_highlight_layout.addWidget(stored_highlight_label)
+
+        self.stored_highlight_slider = SnapSlider(8, 0, 64, Qt.Horizontal)
+        self.stored_highlight_slider.setValue(int(app.readSetting("TomJK_QuickExport", "highlight_alpha", "64")))
+        self.stored_highlight_slider.setMinimumWidth(64)
+        self.stored_highlight_slider.valueChanged.connect(self._on_stored_highlight_slider_value_changed)
+        stored_highlight_layout.addWidget(self.stored_highlight_slider)
+
+        stored_highlight_widget.setLayout(stored_highlight_layout)
+
+        view_buttons_layout.addWidget(self.show_png_button)
+        view_buttons_layout.addWidget(self.show_unopened_button)
+        view_buttons_layout.addWidget(self.show_unstored_button)
+        view_buttons_layout.addStretch()
+        view_buttons_layout.addWidget(stored_highlight_widget)
+
+        view_buttons_layout.setContentsMargins(0,0,0,0)
+        view_buttons.setLayout(view_buttons_layout)
+        layout.addWidget(view_buttons)
+
+        config_buttons = QWidget()
+        config_buttons_layout = QHBoxLayout()
+
+        # advanced mode button.
+        self.advanced_mode_button = QCheckBox("Advanced mode")
+        self.advanced_mode_button.setToolTip("Basic mode: export settings are saved by default (recommended).\nAdvanced mode: configure how settings are stored.")
+        self.advanced_mode_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "advanced_mode", "false") == "true" else Qt.Unchecked)
+        self.advanced_mode_button.clicked.connect(self._on_advanced_mode_button_clicked)
+
+        # auto store for modified button.
+        self.auto_store_on_modify_button = QCheckBox("Store on modify")
+        self.auto_store_on_modify_button.setToolTip("Automatically check the store button for a file when you modify any of its export settings.")
+        self.auto_store_on_modify_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_modify", "true") == "true" else Qt.Unchecked)
+        self.auto_store_on_modify_button.clicked.connect(self._on_auto_store_on_modify_button_clicked)
+
+        # auto store for exported button.
+        self.auto_store_on_export_button = QCheckBox("Store on export")
+        self.auto_store_on_export_button.setToolTip("Automatically check the store button for a file when you export it.")
+        self.auto_store_on_export_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_export", "true") == "true" else Qt.Unchecked)
+        self.auto_store_on_export_button.clicked.connect(self._on_auto_store_on_export_button_clicked)
+
+        # auto save settings on close button.
+        self.auto_save_on_close_button = QCheckBox("Save settings on close")
+        self.auto_save_on_close_button.setToolTip("Automatically save changes to settings without asking when you close the dialog.")
+        self.auto_save_on_close_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_save_on_close", "true") == "true" else Qt.Unchecked)
+        self.auto_save_on_close_button.clicked.connect(self._on_auto_save_on_close_button_clicked)
+
+        # save button.
+        self.save_button = QPushButton("Save Settings")
+        self.save_button.setDisabled(True)
+        self.save_button.clicked.connect(self._on_save_button_clicked)
+
+        config_buttons_layout.addWidget(self.advanced_mode_button)
+        config_buttons_layout.addWidget(self.auto_store_on_modify_button)
+        config_buttons_layout.addWidget(self.auto_store_on_export_button)
+        config_buttons_layout.addWidget(self.auto_save_on_close_button)
+        config_buttons_layout.addStretch()
+        config_buttons_layout.addWidget(self.save_button)
+
+        config_buttons_layout.setContentsMargins(0,0,0,0)
+        config_buttons.setLayout(config_buttons_layout)
+        layout.addWidget(config_buttons)
+
+        self.tree.refilter()
+
+        self.set_advanced_mode(self.advanced_mode_button.checkState() == Qt.Checked)
+
+        # status bar.
+        self.sbar = QStatusBar()
+        sbar_ready_label = QLabel(" Ready." if msg == "" else " "+msg) # extra space to align with showmessage.
+        self.sbar.insertWidget(0, sbar_ready_label)
+        layout.addWidget(self.sbar)
+
+        # TODO: inform user about having multiple copies of same file open.
+        if len(self.tree.dup_counts) == 1:
+            sbar_ready_label.setText(f"Note: Multiple copies of '{list(self.tree.dup_counts.keys())[0]}' are currently open in Krita.")
+        elif len(self.tree.dup_counts) > 1:
+            sbar_ready_label.setText(f"Note: Multiple copies of multiple files (hover mouse here to see) are currently open in Krita.")
+            sbar_ready_label.setToolTip("\n".join(self.tree.dup_counts.keys()))
+
+        # create dialog and show it
+        self.setLayout(layout)
+        self.setWindowTitle("Quick Export")
+        dialog_width = int(app.readSetting("TomJK_QuickExport", "dialogWidth", "1024"))
+        dialog_height = int(app.readSetting("TomJK_QuickExport", "dialogHeight", "640"))
+        self.resize(dialog_width, dialog_height)
+
     def resizeEvent(self, event):
         app.writeSetting("TomJK_QuickExport", "dialogWidth", str(event.size().width()))
         app.writeSetting("TomJK_QuickExport", "dialogHeight", str(event.size().height()))
@@ -674,10 +523,10 @@ class QEDialog(QDialog):
     def closeEvent(self, event):
         ret = QMessageBox.Discard
         
-        if auto_save_on_close_button.checkState() == Qt.Checked:
+        if self.auto_save_on_close_button.checkState() == Qt.Checked:
             # save without asking.
             ret = QMessageBox.Save
-        elif save_button.isEnabled():
+        elif self.save_button.isEnabled():
             # ask user.
             msgBox = QMessageBox(self)
             msgBox.setText("There are unsaved changes to export settings.")
@@ -690,14 +539,68 @@ class QEDialog(QDialog):
             event.ignore()
             return
         elif ret == QMessageBox.Save:
-            tree.save_settings_to_config()
+            save_settings_to_config()
         event.accept()
 
-# create dialog  and show it
-newDialog = QEDialog() 
-newDialog.setLayout(layout)
-newDialog.setWindowTitle("Quick Export")
-dialog_width = int(app.readSetting("TomJK_QuickExport", "dialogWidth", "1024"))
-dialog_height = int(app.readSetting("TomJK_QuickExport", "dialogHeight", "640"))
-newDialog.resize(dialog_width, dialog_height)
-newDialog.exec_() # show the dialog
+    def _on_show_unstored_button_clicked(self, checked):
+        app.writeSetting("TomJK_QuickExport", "show_unstored", "true" if checked else "false")
+        self.tree.refilter()
+
+    def _on_show_unopened_button_clicked(self, checked):
+        app.writeSetting("TomJK_QuickExport", "show_unopened", "true" if checked else "false")
+        self.tree.refilter()
+
+    def _on_show_png_button_clicked(self, checked):
+        app.writeSetting("TomJK_QuickExport", "show_png", "true" if checked else "false")
+        self.tree.refilter()
+    
+    def _on_stored_highlight_slider_value_changed(self):
+        app.writeSetting("TomJK_QuickExport", "highlight_alpha", str(self.stored_highlight_slider.value()))
+        self.tree.redraw()
+
+    def _on_advanced_mode_button_clicked(self, checked):
+        app.writeSetting("TomJK_QuickExport", "advanced_mode", "true" if checked else "false")
+        self.set_advanced_mode(checked)
+
+    def set_advanced_mode(self, enabled):
+        if enabled:
+            self.tree.showColumn(QECols.STORE_SETTINGS_COLUMN)
+            self.show_unstored_button.show()
+            self.show_unstored_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unstored", "true") == "true" else Qt.Unchecked)
+            self.auto_store_on_modify_button.show()
+            self.auto_store_on_modify_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_modify", "true") == "true" else Qt.Unchecked)
+            self.auto_store_on_export_button.show()
+            self.auto_store_on_export_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_export", "true") == "true" else Qt.Unchecked)
+            self.auto_save_on_close_button.show()
+            self.auto_save_on_close_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_save_on_close", "true") == "true" else Qt.Unchecked)
+            self.save_button.show()
+        else:
+            self.tree.hideColumn(QECols.STORE_SETTINGS_COLUMN)
+            self.show_unstored_button.hide()
+            self.show_unstored_button.setCheckState(Qt.Checked)
+            self.auto_store_on_modify_button.hide()
+            self.auto_store_on_modify_button.setCheckState(Qt.Checked)
+            self.auto_store_on_export_button.hide()
+            self.auto_store_on_export_button.setCheckState(Qt.Checked)
+            self.auto_save_on_close_button.hide()
+            self.auto_save_on_close_button.setCheckState(Qt.Checked)
+            self.save_button.hide()
+
+    def _on_auto_store_on_modify_button_clicked(self, checked):
+        app.writeSetting("TomJK_QuickExport", "auto_store_on_modify", "true" if checked else "false")
+
+    def _on_auto_store_on_export_button_clicked(self, checked):
+        app.writeSetting("TomJK_QuickExport", "auto_store_on_export", "true" if checked else "false")
+
+    def _on_auto_save_on_close_button_clicked(self, checked):
+        app.writeSetting("TomJK_QuickExport", "auto_save_on_close", "true" if checked else "false")
+
+    def _on_save_button_clicked(self, checked):
+        save_settings_to_config()
+        self.save_button.setText("Save Settings")
+        self.save_button.setIcon(QIcon())
+        self.save_button.setDisabled(True)
+        self.sbar.showMessage("Settings saved.", 2500)
+
+
+# TODO: if __main__ etc. to allow running script by itself?

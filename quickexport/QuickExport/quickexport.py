@@ -4,6 +4,9 @@ from functools import partial
 from pathlib import Path
 from krita import *
 
+from .utils import *
+from .dialog import QEDialog
+
 app = Krita.instance()
 app_notifier = app.notifier()
 app_notifier.setActive(True)
@@ -14,8 +17,7 @@ class QuickExportExtension(Extension):
         super().__init__(parent)
         print("QuickExport init.")
         
-        self.settings = []
-        self.load_settings_from_config()
+        load_settings_from_config()
 
     def setup(self):
         pass
@@ -26,6 +28,8 @@ class QuickExportExtension(Extension):
         self.qe_action.setEnabled(False)
         self.qe_action.triggered.connect(self._on_quick_export_triggered)
         self.qec_action = window.createAction("tomjk_quick_export_configure", "Quick export configuration...", "file")
+        self.qec_action.setIcon(app.icon('properties'))
+        self.qec_action.triggered.connect(self._on_quick_export_configuration_trigged)
         call_later = partial(self.moveAction, [self.qe_action, self.qec_action], "file_export_advanced", window.qwindow())
         QTimer.singleShot(0, call_later)
     
@@ -54,73 +58,56 @@ class QuickExportExtension(Extension):
         if view:
             doc = view.document()
             if doc:
-                print(f"QE: active view in {window=} changed to {doc.fileName() or 'Untitled'}")
                 if doc.fileName():
-                    file_settings = self.find_settings_for_file(Path(doc.fileName()))
-                    print(f"QE: {file_settings=}")
+                    file_settings = find_settings_for_file(Path(doc.fileName()))
                     if file_settings:
                         output_filename = file_settings["output"]
-                        print("QE: set action text..")
                         self.qe_action.setText(f"Quick export to '{output_filename}'")
                         self.qe_action.setEnabled(True)
-                        print("QE: ..text set")
                         return
         self.qe_action.setText(f"Quick export")
         self.qe_action.setEnabled(False)
     
     def _on_quick_export_triggered(self):
-        print("QE: _on_quick_export_triggered!!!")
         doc = app.activeDocument()
         if not doc:
+            print("QE: no document to export.")
             return
+        
         if doc.fileName() == "":
             msg = "Quick Export: image must be saved first."
             app.activeWindow().activeView().showFloatingMessage(msg, app.icon('document-export'), 5000, 2)
-    
-    def load_settings_from_config(self):
-        """
-        read in settings string from kritarc.
-        example: "path=a/b.kra,alpha=false,ouput=b.png;c/d.kra,alpha=true,output=e/f.png"
-        becomes: settings[{"document":<obj>, "store":True, "path":"a/b.kra", "alpha":False, "output":"b.png"}, {"document":<obj>, "store":True, "path":"c/d.kra", "alpha":True, "output":"d.png"}]
-        """
-        # TODO: will break if a filename contains a comma ',' char.
-        settings_string = app.readSetting("TomJK_QuickExport", "settings", "")
-        #print(f"{settings_string=}")
+            return
         
-        if settings_string != "":
-            settings_as_arrays = [[[y for y in kvpair.split('=', 1)] for kvpair in file.split(',')] for file in settings_string.split(';')]
-            #print(f"{settings_as_arrays=}")
-            
-            #print()
-            
-            for file_settings in settings_as_arrays:
-                #print("found file settings", file_settings)
-                self.settings.append({"document":None, "doc_index":1024, "store":True})
-                for kvpair in file_settings:
-                    if kvpair[0] == "path":
-                        self.settings[-1][kvpair[0]] = Path(kvpair[1])
-                        for i, d in enumerate(app.documents()):
-                            if d.fileName() == kvpair[1]:
-                                self.settings[-1]["document"] = d
-                                self.settings[-1]["doc_index"] = i
-                                break
-                    elif kvpair[0] == "alpha":
-                        self.settings[-1][kvpair[0]] = True if kvpair[1] == "true" else False
-                    elif kvpair[0] == "compression":
-                        self.settings[-1][kvpair[0]] = int(kvpair[1])
-                    elif kvpair[0] == "output":
-                        self.settings[-1][kvpair[0]] = kvpair[1]
-                    else:
-                        print(f" unrecognised parameter name '{kvpair[0]}'")
-                        continue
-                    #print(" found", kvpair)
-                #print()
+        file_settings = find_settings_for_file(Path(doc.fileName()))
+        
+        if file_settings == None:
+            self.run_dialog(msg="Configure export settings for the image then try again, or just click 'Export now'.")
+            return
+        
+        result = export_image(file_settings, doc)
+        
+        if not result:
+            print("QE: Export failed!")
+            app.activeWindow().activeView().showFloatingMessage("Export failed!", app.icon('warning'), 5000, 0)
+        else:
+            export_path = file_settings['path'].with_name(file_settings['output'])
+            print(f"QE: Exported to '{str(export_path)}'")
+            app.activeWindow().activeView().showFloatingMessage(f"Exported to '{str(export_path)}'", app.icon('document-export'), 5000, 1)
     
-    def find_settings_for_file(self, file_path):
-        for s in self.settings:
-            if s["path"] == file_path:
-                return s
-        return None
+    def _on_quick_export_configuration_trigged(self):
+        self.run_dialog()
+    
+    def run_dialog(self, msg=""):
+        # ensure settings up to date.
+        load_settings_from_config()
+        
+        dialog = QEDialog(msg=msg)
+        dialog.exec_()
+        del dialog
+        
+        # reload settings to remove temporary stuff (TODO: automatic based on store flag?)
+        load_settings_from_config()
 
 # And add the extension to Krita's list of extensions:
 app.addExtension(QuickExportExtension(app))
