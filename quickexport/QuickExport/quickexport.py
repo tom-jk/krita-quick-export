@@ -23,7 +23,7 @@ class QuickExportExtension(Extension):
     def createActions(self, window):
         self.qe_action = window.createAction("tomjk_quick_export", "Quick export", "file")
         self.qe_action.setIcon(app.icon('document-export'))
-        #self.qe_action.setEnabled(False)
+        self.qe_action.setEnabled(False)
         self.qe_action.triggered.connect(self._on_quick_export_triggered)
         self.qec_action = window.createAction("tomjk_quick_export_configure", "Quick export configuration...", "file")
         call_later = partial(self.moveAction, [self.qe_action, self.qec_action], "file_export_advanced", window.qwindow())
@@ -44,10 +44,11 @@ class QuickExportExtension(Extension):
                     break
         
         self.window = app.activeWindow()
-        self.window.activeViewChanged.connect(self._on_active_view_changed)
+        self.window.activeViewChanged.connect(self.update_quick_export_enabled)
+        self.qe_action.changed.connect(self.update_quick_export_enabled)
+        app_notifier.imageSaved.connect(partial(self.update_quick_export_enabled))
     
-    def _on_active_view_changed(self):
-        print("QE: _on_active_view_changed")
+    def update_quick_export_enabled(self):
         window = app.activeWindow()
         view = window.activeView()
         if view:
@@ -61,11 +62,11 @@ class QuickExportExtension(Extension):
                         output_filename = file_settings["output"]
                         print("QE: set action text..")
                         self.qe_action.setText(f"Quick export to '{output_filename}'")
-                        #self.qe_action.setEnabled(True)
+                        self.qe_action.setEnabled(True)
                         print("QE: ..text set")
                         return
         self.qe_action.setText(f"Quick export")
-        #self.qe_action.setEnabled(False)
+        self.qe_action.setEnabled(False)
     
     def _on_quick_export_triggered(self):
         print("QE: _on_quick_export_triggered!!!")
