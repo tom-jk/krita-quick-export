@@ -210,6 +210,18 @@ class QETree(QTreeWidget):
         from PyQt5.QtCore import QItemSelectionModel
         self.setSelectionMode(QTreeWidget.NoSelection)
     
+    def _on_item_clicked(self, item, column):
+        widget = self.itemWidget(item, column)
+        if not widget:
+            return
+        children = widget.findChildren(QCheckBox)
+        if len(children) == 1:
+            children[0].animateClick()
+            return
+        children = widget.findChildren(QLineEdit)
+        if len(children) == 1:
+            children[0].setFocus(Qt.MouseFocusReason)
+    
     def setup(self):
         docs = app.documents()
         
@@ -288,6 +300,8 @@ class QETree(QTreeWidget):
         
         item_delegate = ItemDelegate()
         
+        self.itemClicked.connect(self._on_item_clicked)
+        
         for s in qe_settings:
             file_path = s["path"]
             
@@ -297,8 +311,6 @@ class QETree(QTreeWidget):
             
             btns_export = QPushButton("Export now")
             
-            # TODO: make clicking the cell also click the checkbox so
-            #       you don't have to aim the mouse so precisely.
             btn_store_forget = QCheckBox()
             btn_store_forget.setChecked(s["store"])
             btn_store_forget.setStyleSheet(checkbox_stylesheet)
