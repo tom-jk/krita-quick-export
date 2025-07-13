@@ -89,3 +89,50 @@ def export_image(image_settings, document=None):
     document.setBatchmode(False)
     
     return result
+
+def truncated_name_suggestions(text):
+    l = []
+    ss = 0
+    se = 0
+    tlen = len(text)
+    while ss < tlen:
+        char = text[ss]
+        if char in "._-)]}+'":
+            # Punctuation Mark: consume characters until character is not THAT punctuation mark.
+            se = ss + 1
+            while se < tlen:
+                if text[se] != char:
+                    break
+                se += 1
+            l.append(text[ss:se])
+            ss = se
+        elif char in "([{":
+            # Opening Bracket: consume characters until character is a closing bracket.
+            se = ss + 1
+            while se < tlen:
+                if text[se] in ")]}":
+                    se += 1
+                    break
+                se += 1
+            l.append(text[ss:se])
+            ss = se
+        elif char in "0123456789":
+            # Digit: consume characters until character is not ANY number.
+            se = ss + 1
+            while se < tlen:
+                if text[se] not in "0123456789":
+                    break
+                se += 1
+            l.append(text[ss:se])
+            ss = se
+        else:
+            # General Text: consume characters until character is a punctuation mark, digit, or
+            #               possible version number (eg. 'v001' in 'myfilev001').
+            se = ss + 1
+            while se < tlen:
+                if text[se] in "._-()[]{}+'0123456789" or  (text[se] in "vV" and se+1 < tlen and text[se+1] in "0123456789"):
+                    break
+                se += 1
+            l.append(text[ss:se])
+            ss = se
+    return l

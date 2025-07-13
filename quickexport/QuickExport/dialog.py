@@ -54,6 +54,28 @@ class MyLineEdit(QLineEdit):
     def focusOutEvent(self, event):
         self.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
         super().focusOutEvent(event)
+    
+    def contextMenuEvent(self, event):
+        menu = self.createStandardContextMenu()
+        menu.addSeparator()
+        header = menu.addAction("Suggestions")
+        header.setDisabled(True)
+        text = (self.settings['path'].stem)
+        suggestions = truncated_name_suggestions(text)
+        
+        t = suggestions[0]
+        suggestion_actions = []
+        suggestion_actions.append(menu.addAction(t+".png"))
+        for i in range(1, len(suggestions)):
+            t += suggestions[i]
+            if suggestions[i] in "._-+":
+                continue
+            suggestion_actions.append(menu.addAction(t+".png"))
+        
+        result = menu.exec(event.globalPos(), header)
+        
+        if result in suggestion_actions:
+            self.setText(result.text())
 
 class ItemDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -345,6 +367,7 @@ class QETree(QTreeWidget):
             output_widget = QWidget()
             output_layout = QHBoxLayout()
             output_edit = MyLineEdit(s["output"])
+            output_edit.settings = s
             output_edit.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
             
             input_validator = QRegExpValidator(filename_regex, output_edit)
