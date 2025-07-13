@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QAction, QMessageBox
+from PyQt5.QtWidgets import QAction, QMessageBox, QDialog
 from PyQt5.QtCore import QTimer
 from functools import partial
 from pathlib import Path
@@ -6,6 +6,7 @@ from krita import *
 
 from .utils import *
 from .dialog import QEDialog
+from .copysettingsdialog import CopySettingsDialogResult, CopySettingsDialog
 
 app = Krita.instance()
 app_notifier = app.notifier()
@@ -82,11 +83,81 @@ class QuickExportExtension(Extension):
             app.activeWindow().activeView().showFloatingMessage(msg, app.icon('document-export'), 5000, 2)
             return
         
-        file_settings = find_settings_for_file(Path(doc.fileName()))
+        path = Path(doc.fileName())
+        file_settings = find_settings_for_file(path)
         
         if file_settings == None:
-            self.run_dialog(msg="Configure export settings for the image then try again, or just click 'Export now'.", doc=doc)
-            return
+            print("check previous versions")
+            # check to see if this might be an incremental save of an already stored file.
+            import re
+            nums_list = re.finditer(r"[0-9]+", path.stem)
+            possible_previous_paths = []
+            for item in nums_list:
+                print(f" {item}")
+                # try substituting in decrements of each number into original path.
+                # eg. 'name03.002' tests for 'name02.002' and 'name03.001'.
+                # TODO: keep decrementing number until settings found (as user
+                #       may have incremented version twice without exporting).
+                # TODO: won't find 'filename.kra' -> 'filename_001.kra'.
+                # TODO: actually, what if user is exporting an *earlier* version of
+                #       an image where settings are stored for a *later* version?
+                if int(item.group()) == 0:
+                    # who saves version -1 of a file?
+                    continue
+                for t in ("", "_", " ", ".", "-"):
+                    test_name = (
+                          path.stem[0:item.start()]
+                        + t
+                        + str(int(item.group())-1).zfill(len(item.group()))
+                        + path.stem[item.end():]
+                    )
+                    test_path = Path(f"{path.parent.joinpath(test_name)}"+path.suffix)
+                    #print(f"  testing {test_path}")
+                    if find_settings_for_file(test_path):
+                        possible_previous_paths.append(test_path)
+            
+            # HACK: test specifically for 'filename.kra' -> 'filename_001.kra' case.
+            if path.stem.endswith("_001", 1):
+                test_path = Path(f"{path.parent.joinpath(path.stem[:-4])}"+path.suffix)
+                #print(f" testing  {test_path}")
+                if find_settings_for_file(test_path):
+                    possible_previous_paths.append(test_path)
+            
+            if possible_previous_paths:
+                print("Possible Previous Paths:")
+                for i, p in enumerate(possible_previous_paths):
+                    print(f" {i} {repr(p)}")
+                
+                csBox = CopySettingsDialog(
+                    [p.name for p in possible_previous_paths],
+                    [f"Will export to '{find_settings_for_file(p)['output']}'." for p in possible_previous_paths],
+                    app.activeWindow().qwindow()
+                )
+                ret = csBox.exec()
+                
+                if ret == QDialog.Rejected:
+                    return
+                
+                if csBox.result == CopySettingsDialogResult.NEW:
+                    self.run_dialog(msg="Configure export settings for the image, or just click 'Export now'.", doc=doc)
+                    return
+                else:
+                    prev_path = possible_previous_paths[csBox.selected_item_index]
+                    load_settings_from_config()
+                    s = find_settings_for_file(prev_path)
+                    if csBox.result == CopySettingsDialogResult.REPLACE:
+                        s["path"] = path
+                        file_settings = s
+                    else:
+                        i = qe_settings.index(s) + 1
+                        qe_settings.insert(i, s.copy())
+                        qe_settings[i]["path"] = path
+                        file_settings = qe_settings[i]
+                    save_settings_to_config()
+                    
+            else:
+                self.run_dialog(msg="Configure export settings for the image then try again, or just click 'Export now'.", doc=doc)
+                return
         
         result = export_image(file_settings, doc)
         
