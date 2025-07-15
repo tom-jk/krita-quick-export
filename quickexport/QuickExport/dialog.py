@@ -571,6 +571,15 @@ class QEDialog(QDialog):
         show_export_name_in_menu_action.toggled.connect(self._on_show_export_name_in_menu_action_toggled)
         
         options_menu.addSeparator()
+
+        default_export_unsaved_action = options_menu.addAction("Default export for unsaved images")
+        default_export_unsaved_action.setToolTip("Run the normal Krita exporter for not-yet-saved images.\n" \
+                                                 "Otherwise don't export, just show a reminder to save the file.")
+        default_export_unsaved_action.setCheckable(True)
+        default_export_unsaved_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "default_export_unsaved", "false") == "true" else Qt.Unchecked)
+        default_export_unsaved_action.toggled.connect(self._on_default_export_unsaved_action_toggled)
+        
+        options_menu.addSeparator()
         
         use_previous_version_settings_action_group = QActionGroup(options_menu)
         
@@ -716,6 +725,10 @@ class QEDialog(QDialog):
 
     def _on_show_export_name_in_menu_action_toggled(self, checked):
         app.writeSetting("TomJK_QuickExport", "show_export_name_in_menu", "true" if checked else "false")
+        extension().update_quick_export_display()
+    
+    def _on_default_export_unsaved_action_toggled(self, checked):
+        app.writeSetting("TomJK_QuickExport", "default_export_unsaved", "true" if checked else "false")
         extension().update_quick_export_display()
 
     def _on_save_button_clicked(self, checked):

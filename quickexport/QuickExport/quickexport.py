@@ -76,7 +76,8 @@ class QuickExportExtension(Extension):
                     return
         # no doc or unsaved doc.
         self.qe_action.setText("Quick export")
-        self.qe_action.setEnabled(False)
+        default_export_unsaved = app.readSetting("TomJK_QuickExport", "default_export_unsaved", "false") == "true"
+        self.qe_action.setEnabled(default_export_unsaved)
     
     def _on_quick_export_triggered(self):
         doc = app.activeDocument()
@@ -85,9 +86,14 @@ class QuickExportExtension(Extension):
             return
         
         if doc.fileName() == "":
-            msg = "Quick Export: image must be saved first."
-            app.activeWindow().activeView().showFloatingMessage(msg, app.icon('document-export'), 5000, 2)
-            return
+            default_export_unsaved = app.readSetting("TomJK_QuickExport", "default_export_unsaved", "false") == "true"
+            if not default_export_unsaved:
+                msg = "Quick Export: image must be saved first."
+                app.activeWindow().activeView().showFloatingMessage(msg, app.icon('document-export'), 5000, 2)
+                return
+            else:
+                self.default_export_action.trigger()
+                return
         
         path = Path(doc.fileName())
         file_settings = find_settings_for_file(path)
