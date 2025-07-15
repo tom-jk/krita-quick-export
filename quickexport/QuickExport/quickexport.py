@@ -137,24 +137,36 @@ class QuickExportExtension(Extension):
                 for i, p in enumerate(possible_previous_paths):
                     print(f" {i} {repr(p)}")
                 
-                csBox = CopySettingsDialog(
-                    [p.name for p in possible_previous_paths],
-                    [f"Will export to '{find_settings_for_file(p)['output']}'." for p in possible_previous_paths],
-                    app.activeWindow().qwindow()
-                )
-                ret = csBox.exec()
+                use_previous_version_settings = app.readSetting("TomJK_QuickExport", "use_previous_version_settings", "replace")
+                result = CopySettingsDialogResult.NONE
+                selected_item_index = 0
                 
-                if ret == QDialog.Rejected:
-                    return
+                if len(possible_previous_paths) > 1 or use_previous_version_settings == "ask":
+                    csBox = CopySettingsDialog(
+                        [p.name for p in possible_previous_paths],
+                        [f"Will export to '{find_settings_for_file(p)['output']}'." for p in possible_previous_paths],
+                        app.activeWindow().qwindow()
+                    )
+                    ret = csBox.exec()
+                    if ret == QDialog.Rejected:
+                        return
+                    result = csBox.result
+                    selected_item_index = csBox.selected_item_index
+                else:
+                    result = (
+                             CopySettingsDialogResult.COPY if use_previous_version_settings == "copy"
+                        else CopySettingsDialogResult.NEW if use_previous_version_settings == "new"
+                        else CopySettingsDialogResult.REPLACE
+                    )
                 
-                if csBox.result == CopySettingsDialogResult.NEW:
+                if result == CopySettingsDialogResult.NEW:
                     self.run_dialog(msg="Configure export settings for the image, or just click 'Export now'.", doc=doc)
                     return
                 else:
-                    prev_path = possible_previous_paths[csBox.selected_item_index]
+                    prev_path = possible_previous_paths[selected_item_index]
                     load_settings_from_config()
                     s = find_settings_for_file(prev_path)
-                    if csBox.result == CopySettingsDialogResult.REPLACE:
+                    if result == CopySettingsDialogResult.REPLACE:
                         s["path"] = path
                         file_settings = s
                     else:

@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate, QMenu,
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
-                             QToolButton)
+                             QActionGroup, QToolButton)
 from PyQt5.QtCore import Qt, QRegExp, QModelIndex
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor
 from pathlib import Path
@@ -569,6 +569,39 @@ class QEDialog(QDialog):
         show_export_name_in_menu_action.setCheckable(True)
         show_export_name_in_menu_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_export_name_in_menu", "true") == "true" else Qt.Unchecked)
         show_export_name_in_menu_action.toggled.connect(self._on_show_export_name_in_menu_action_toggled)
+        
+        options_menu.addSeparator()
+        
+        use_previous_version_settings_action_group = QActionGroup(options_menu)
+        
+        use_previous_version_settings_prompt_header = options_menu.addAction("When first exporting a new version of an image:")
+        use_previous_version_settings_prompt_header.setDisabled(True)
+        
+        use_previous_version_settings_copy_action = options_menu.addAction("Always copy settings from previous version")
+        use_previous_version_settings_copy_action.setToolTip("Make a copy of the old version settings. Separate export settings will be kept for each version of the image you export.")
+        use_previous_version_settings_copy_action.setActionGroup(use_previous_version_settings_action_group)
+        use_previous_version_settings_copy_action.setCheckable(True)
+        use_previous_version_settings_copy_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "use_previous_version_settings", "replace") == "copy" else Qt.Unchecked)
+        use_previous_version_settings_copy_action.triggered.connect(lambda checked: app.writeSetting("TomJK_QuickExport", "use_previous_version_settings", "copy"))
+        
+        use_previous_version_settings_replace_action = options_menu.addAction("Always replace settings of previous version (Recommended)")
+        use_previous_version_settings_replace_action.setToolTip("Replace the old version settings. Only settings for the most recently exported version will be kept.")
+        use_previous_version_settings_replace_action.setActionGroup(use_previous_version_settings_action_group)
+        use_previous_version_settings_replace_action.setCheckable(True)
+        use_previous_version_settings_replace_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "use_previous_version_settings", "replace") == "replace" else Qt.Unchecked)
+        use_previous_version_settings_replace_action.triggered.connect(lambda checked: app.writeSetting("TomJK_QuickExport", "use_previous_version_settings", "replace"))
+        
+        use_previous_version_settings_ignore_action = options_menu.addAction("Always ignore previous versions")
+        use_previous_version_settings_ignore_action.setActionGroup(use_previous_version_settings_action_group)
+        use_previous_version_settings_ignore_action.setCheckable(True)
+        use_previous_version_settings_ignore_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "use_previous_version_settings", "replace") == "ignore" else Qt.Unchecked)
+        use_previous_version_settings_ignore_action.triggered.connect(lambda checked: app.writeSetting("TomJK_QuickExport", "use_previous_version_settings", "ignore"))
+        
+        use_previous_version_settings_ask_action = options_menu.addAction("Always ask")
+        use_previous_version_settings_ask_action.setActionGroup(use_previous_version_settings_action_group)
+        use_previous_version_settings_ask_action.setCheckable(True)
+        use_previous_version_settings_ask_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "use_previous_version_settings", "replace") == "ask" else Qt.Unchecked)
+        use_previous_version_settings_ask_action.triggered.connect(lambda checked: app.writeSetting("TomJK_QuickExport", "use_previous_version_settings", "ask"))
 
         options_button.setMenu(options_menu)
         
