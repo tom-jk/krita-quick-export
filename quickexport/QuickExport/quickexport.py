@@ -49,11 +49,11 @@ class QuickExportExtension(Extension):
                     break
         
         self.window = app.activeWindow()
-        self.window.activeViewChanged.connect(self.update_quick_export_enabled)
-        self.qe_action.changed.connect(self.update_quick_export_enabled)
-        app_notifier.imageSaved.connect(partial(self.update_quick_export_enabled))
+        self.window.activeViewChanged.connect(self.update_quick_export_display)
+        self.qe_action.changed.connect(self.update_quick_export_display)
+        app_notifier.imageSaved.connect(partial(self.update_quick_export_display))
     
-    def update_quick_export_enabled(self):
+    def update_quick_export_display(self):
         window = app.activeWindow()
         view = window.activeView()
         if view:
@@ -64,8 +64,12 @@ class QuickExportExtension(Extension):
                     file_settings = find_settings_for_file(Path(doc.fileName()))
                     if file_settings:
                         # file has QE settings.
-                        output_filename = file_settings["output"]
-                        self.qe_action.setText(f"Quick export to '{output_filename}'")
+                        show_export_name_in_menu = app.readSetting("TomJK_QuickExport", "show_export_name_in_menu", "true") == "true"
+                        if show_export_name_in_menu:
+                            output_filename = file_settings["output"]
+                            self.qe_action.setText(f"Quick export to '{output_filename}'")
+                        else:
+                            self.qe_action.setText("Quick export")
                         return
                     # file has been saved but has no settings.
                     self.qe_action.setText("Quick export...")

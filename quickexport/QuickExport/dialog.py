@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
-                             QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate,
-                             QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup)
+                             QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate, QMenu,
+                             QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
+                             QToolButton)
 from PyQt5.QtCore import Qt, QRegExp, QModelIndex
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor
 from pathlib import Path
@@ -546,12 +547,41 @@ class QEDialog(QDialog):
 
         self.set_advanced_mode(self.advanced_mode_button.checkState() == Qt.Checked)
 
+        # status bar area.
+        status_widget = QWidget()
+        status_layout = QHBoxLayout()
+        
+        # qe options menu.
+        options_button = QToolButton()
+        options_button.setIcon(app.icon('view-choose'))
+        options_button.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        options_button.setAutoRaise(True)
+        options_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
+        options_button.setPopupMode(QToolButton.InstantPopup)
+        status_layout.addWidget(options_button)
+        
+        options_menu = QMenu()
+        options_menu.setToolTipsVisible(True)
+
+        show_export_name_in_menu_action = options_menu.addAction("Show export name in File menu")
+        show_export_name_in_menu_action.setToolTip("When possible, show in the File menu as 'Quick Export to 'myImageName.png'.\n" \
+                                                   "Otherwise show as 'Quick Export' only.")
+        show_export_name_in_menu_action.setCheckable(True)
+        show_export_name_in_menu_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_export_name_in_menu", "true") == "true" else Qt.Unchecked)
+        show_export_name_in_menu_action.toggled.connect(self._on_show_export_name_in_menu_action_toggled)
+
+        options_button.setMenu(options_menu)
+        
         # status bar.
         self.sbar = QStatusBar()
         sbar_ready_label = QLabel(" Ready." if msg == "" else " "+msg) # extra space to align with showmessage.
         self.sbar.insertWidget(0, sbar_ready_label)
-        layout.addWidget(self.sbar)
-
+        status_layout.addWidget(self.sbar)
+        
+        status_layout.setContentsMargins(0,0,0,0)
+        status_widget.setLayout(status_layout)
+        layout.addWidget(status_widget)
+        
         # TODO: inform user about having multiple copies of same file open.
         if len(self.tree.dup_counts) == 1:
             sbar_ready_label.setText(f"Note: Multiple copies of '{list(self.tree.dup_counts.keys())[0]}' are currently open in Krita.")
@@ -594,6 +624,8 @@ class QEDialog(QDialog):
             return
         elif ret == QMessageBox.Save:
             save_settings_to_config()
+        
+        extension().update_quick_export_display()
         event.accept()
 
     def _on_show_unstored_button_clicked(self, checked):
@@ -648,6 +680,10 @@ class QEDialog(QDialog):
 
     def _on_auto_save_on_close_button_clicked(self, checked):
         app.writeSetting("TomJK_QuickExport", "auto_save_on_close", "true" if checked else "false")
+
+    def _on_show_export_name_in_menu_action_toggled(self, checked):
+        app.writeSetting("TomJK_QuickExport", "show_export_name_in_menu", "true" if checked else "false")
+        extension().update_quick_export_display()
 
     def _on_save_button_clicked(self, checked):
         save_settings_to_config()
