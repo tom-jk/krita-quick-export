@@ -4,6 +4,15 @@ app = Krita.instance()
 
 qe_settings = []
 
+qe_extension = None
+
+def set_extension(extension):
+    global qe_extension
+    qe_extension = extension
+
+def extension():
+    return qe_extension
+
 def load_settings_from_config():
     """
     read in settings string from kritarc.

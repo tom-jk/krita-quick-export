@@ -18,6 +18,8 @@ class QuickExportExtension(Extension):
         super().__init__(parent)
         print("QuickExport init.")
         
+        set_extension(self)
+        
         load_settings_from_config()
 
     def setup(self):
