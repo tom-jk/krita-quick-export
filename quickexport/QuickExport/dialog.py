@@ -318,6 +318,7 @@ class QETree(QTreeWidget):
             widget.setLayout(layout)
             return widget
         
+        # TODO: adapt to theme light/dark.
         checkbox_stylesheet = "QCheckBox::indicator:unchecked {border: 1px solid rgba(255,255,255,0.1);}"
         
         item_delegate = ItemDelegate()
@@ -364,6 +365,8 @@ class QETree(QTreeWidget):
             item.setText(QECols.SOURCE_FILENAME_COLUMN, file_path.name)
             item.setData(QECols.SOURCE_FILENAME_COLUMN, QERoles.CustomSortRole, file_path.name.lower())
             
+            # TODO: move caret to before .extension when user clicks on unfocused textbox?
+            #       maybe only if they click anywhere after the '.'?
             output_widget = QWidget()
             output_layout = QHBoxLayout()
             output_edit = MyLineEdit(s["output"])
@@ -571,6 +574,7 @@ class QEDialog(QDialog):
         self.close()
     
     def closeEvent(self, event):
+        # TODO: export file name not set if user doesn't unfocus lineedit before closing.
         ret = QMessageBox.Discard
         
         if self.auto_save_on_close_button.checkState() == Qt.Checked:

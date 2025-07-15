@@ -103,6 +103,9 @@ class QuickExportExtension(Extension):
                 # TODO: won't find 'filename.kra' -> 'filename_001.kra'.
                 # TODO: actually, what if user is exporting an *earlier* version of
                 #       an image where settings are stored for a *later* version?
+                # TODO: maybe allow user to store settings for a file path with a
+                #       wildcard? eg. settings for 'path/img*' would apply to
+                #       'path/img_001.kra', 'path/img_002.kra', 'path/img2.kra' etc.
                 if int(item.group()) == 0:
                     # who saves version -1 of a file?
                     continue
