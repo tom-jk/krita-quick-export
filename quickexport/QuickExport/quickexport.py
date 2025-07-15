@@ -23,16 +23,96 @@ class QuickExportExtension(Extension):
         load_settings_from_config()
 
     def setup(self):
-        pass
-
+        print("QE: setup")
+        
+        plugin_dir = Path(app.getAppDataLocation()) / "pykrita/QuickExport"
+        
+        if not plugin_dir.is_dir():
+            # do something about it
+            pass
+        
+        self.qe_icon_l = QIcon(str(plugin_dir / "light_document-quick-export.svg"))
+        self.qe_icon_d = QIcon(str(plugin_dir / "dark_document-quick-export.svg"))
+        self.qec_icon_l = QIcon(str(plugin_dir / "light_document-quick-export-configure.svg"))
+        self.qec_icon_d = QIcon(str(plugin_dir / "dark_document-quick-export-configure.svg"))
+        
+        self.default_export_action = None
+        
+        self.theme_name = ""
+        self.theme_is_dark = False
+    
+    def is_theme_dark(self, theme_name=None):
+        # TODO: find out more common keywords used in dark theme names, including non-english.
+        theme_name = theme_name or self.theme_name
+        if theme_name in ("breeze dark", "breeze high contrast", "krita blender", "krita dark", "krita dark orange", "krita darker"):
+            return True
+        if any(test in theme_name for test in ("dark", "black", "night", "dusk", "sleep")):
+            return True
+        return False
+    
+    def _on_theme_change_triggered(self, theme_name):
+        self.theme_name = theme_name
+        self.update_action_icons()
+    
+    def set_action_default_icons(self):
+        self.qe_action.setIcon(self.qe_default_icon)
+        self.qec_action.setIcon(self.qec_default_icon)
+    
+    def set_action_custom_icons(self):
+        self.qe_action.setIcon(self.qe_icon_l if self.theme_is_dark else self.qe_icon_d)
+        self.qec_action.setIcon(self.qec_icon_l if self.theme_is_dark else self.qec_icon_d)
+    
+    def update_action_icons(self):
+        use_custom_icons = True if app.readSetting("TomJK_QuickExport", "use_custom_icons", "true") == "true" else False
+        custom_icons_theme = app.readSetting("TomJK_QuickExport", "custom_icons_theme", "follow")
+        
+        if not use_custom_icons:
+            self.set_action_default_icons()
+            return
+        
+        self.theme_is_dark = True if custom_icons_theme == "dark" else False if custom_icons_theme == "light" else self.is_theme_dark()
+        self.set_action_custom_icons()
+    
     def createActions(self, window):
+        print("QE: createActions")
+        
         self.qe_action = window.createAction("tomjk_quick_export", "Quick export", "file")
         self.qe_action.setEnabled(False)
         self.qe_action.triggered.connect(self._on_quick_export_triggered)
         self.qec_action = window.createAction("tomjk_quick_export_configure", "Quick export configuration...", "file")
         self.qec_action.triggered.connect(self._on_quick_export_configuration_triggered)
-        call_later = partial(self.moveAction, [self.qe_action, self.qec_action], "file_export_advanced", window.qwindow())
+        
+        self.qe_default_icon = self.qe_action.icon()
+        self.qec_default_icon = self.qec_action.icon()
+        
+        move_partial = partial(self.moveAction, [self.qe_action, self.qec_action], "file_export_advanced", window.qwindow())
+        call_later = partial(self.finishCreateActions, move_partial)
         QTimer.singleShot(0, call_later)
+    
+    def finishCreateActions(self, move_partial):
+        move_partial.func(*move_partial.args)
+        
+        theme_menu_action = next(
+            (a for a in app.actions() if a.objectName() == "theme_menu"), None
+        )
+        
+        for theme_action in theme_menu_action.menu().actions():
+            theme_action.triggered.connect(lambda checked, tn=theme_action.text().lower(): self._on_theme_change_triggered(tn))
+            if theme_action.isChecked():
+                self.theme_name = theme_action.text().lower()
+        
+        self.theme_is_dark = self.is_theme_dark(self.theme_name)
+        self.update_action_icons()
+        
+        for action in app.actions():
+            if action.objectName() == "file_export_file":
+                self.default_export_action = action
+        
+        # TODO: only works for initial window.
+        self.window = app.activeWindow()
+        self.window.activeViewChanged.connect(self.update_quick_export_display)
+        self.qe_action.changed.connect(self.update_quick_export_display)
+        app_notifier.imageSaved.connect(partial(self.update_quick_export_display))
     
     def moveAction(self, actions_to_move, name_of_action_to_insert_before, qwindow):
         menu_bar = qwindow.menuBar()
@@ -47,11 +127,6 @@ class QuickExportExtension(Extension):
                         file_menu.removeAction(action)
                         file_menu.insertAction(file_action, action)
                     break
-        
-        self.window = app.activeWindow()
-        self.window.activeViewChanged.connect(self.update_quick_export_display)
-        self.qe_action.changed.connect(self.update_quick_export_display)
-        app_notifier.imageSaved.connect(partial(self.update_quick_export_display))
     
     def update_quick_export_display(self):
         window = app.activeWindow()

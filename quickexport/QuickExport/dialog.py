@@ -563,6 +563,36 @@ class QEDialog(QDialog):
         options_menu = QMenu()
         options_menu.setToolTipsVisible(True)
 
+        use_custom_icons_action = options_menu.addAction("Use custom icons")
+        use_custom_icons_action.setCheckable(True)
+        use_custom_icons_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "use_custom_icons", "true") == "true" else Qt.Unchecked)
+        use_custom_icons_action.toggled.connect(self._on_use_custom_icons_action_toggled)
+
+        options_menu.addSeparator()
+
+        custom_icons_theme_action_group = QActionGroup(options_menu)
+        custom_icons_theme_action_group.triggered.connect(lambda action, grp=custom_icons_theme_action_group: self._on_custom_icons_theme_action_group_triggered(action, grp))
+
+        icons_follow_theme_action = options_menu.addAction("Try to follow theme")
+        icons_follow_theme_action.setToolTip("If using one of the themes bundled with Krita, the correct icons will be used.\n" \
+                                             "If not, guesses which icons to use based on keywords in the theme name ('dark', 'black', etc.)\n" \
+                                             "If there are no such keywords, assumes light theme. You can force a theme if the guess is wrong.")
+        icons_follow_theme_action.setActionGroup(custom_icons_theme_action_group)
+        icons_follow_theme_action.setCheckable(True)
+        icons_follow_theme_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "custom_icons_theme", "follow") == "follow" else Qt.Unchecked)
+
+        icons_light_theme_action = options_menu.addAction("Use light theme icons")
+        icons_light_theme_action.setActionGroup(custom_icons_theme_action_group)
+        icons_light_theme_action.setCheckable(True)
+        icons_light_theme_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "custom_icons_theme", "follow") == "light" else Qt.Unchecked)
+
+        icons_dark_theme_action = options_menu.addAction("Use dark theme icons")
+        icons_dark_theme_action.setActionGroup(custom_icons_theme_action_group)
+        icons_dark_theme_action.setCheckable(True)
+        icons_dark_theme_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "custom_icons_theme", "follow") == "dark" else Qt.Unchecked)
+
+        options_menu.addSeparator()
+        
         show_export_name_in_menu_action = options_menu.addAction("Show export name in File menu")
         show_export_name_in_menu_action.setToolTip("When possible, show in the File menu as 'Quick Export to 'myImageName.png'.\n" \
                                                    "Otherwise show as 'Quick Export' only.")
@@ -723,6 +753,14 @@ class QEDialog(QDialog):
     def _on_auto_save_on_close_button_clicked(self, checked):
         app.writeSetting("TomJK_QuickExport", "auto_save_on_close", "true" if checked else "false")
 
+    def _on_use_custom_icons_action_toggled(self, checked):
+        app.writeSetting("TomJK_QuickExport", "use_custom_icons", "true" if checked else "false")
+        extension().update_action_icons()
+
+    def _on_custom_icons_theme_action_group_triggered(self, action, group):
+        app.writeSetting("TomJK_QuickExport", "custom_icons_theme", ["follow","light","dark"][group.actions().index(action)])
+        extension().update_action_icons()
+    
     def _on_show_export_name_in_menu_action_toggled(self, checked):
         app.writeSetting("TomJK_QuickExport", "show_export_name_in_menu", "true" if checked else "false")
         extension().update_quick_export_display()
