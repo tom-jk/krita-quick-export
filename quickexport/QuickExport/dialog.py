@@ -121,6 +121,7 @@ class QECols(IntEnum):
     OUTPUT_FILETYPE_COLUMN = auto()
     PNG_STORE_ALPHA_COLUMN = auto()
     PNG_COMPRESSION_COLUMN = auto()
+    JPEG_QUALITY_COLUMN = auto()
     BUTTONS_COLUMN = auto()
     COLUMN_COUNT = auto()
 
@@ -177,7 +178,7 @@ class QETree(QTreeWidget):
             self.dialog.sbar.showMessage(f"Export failed", 5000)
         else:
             self.sender().setText("Done!")
-            self.dialog.sbar.showMessage(f"Exported to '{str(doc['path'].with_name(doc['output']))}'")
+            self.dialog.sbar.showMessage(f"Exported to '{str(doc['path'].with_name(doc['output']).with_suffix(doc['ext']))}'")
         
         if self.dialog.auto_store_on_export_button.checkState() == Qt.Checked:
             store_button.setCheckState(Qt.Checked)
@@ -189,10 +190,11 @@ class QETree(QTreeWidget):
         self.redraw()
         self.set_settings_modified()
     
-    def _on_outputext_combobox_activated(self, index, combobox, doc, item):
+    def _on_outputext_combobox_activated(self, index, combobox, doc, item, store_button):
         ext = combobox.itemText(index)
         doc["ext"] = ext
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
+        self.set_settings_modified(store_button)
     
     def _on_png_alpha_checkbox_state_changed(self, state, doc, item, store_button):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
@@ -205,6 +207,14 @@ class QETree(QTreeWidget):
         doc["png_compression"] = value
         item.setData(QECols.PNG_COMPRESSION_COLUMN, QERoles.CustomSortRole, str(doc["png_compression"]))
         label.setText(str(value))
+        self.set_settings_modified(store_button)
+    
+    def _on_jpeg_quality_slider_value_changed(self, doc, slider, label, item, store_button):
+        #print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
+        value = slider.value()
+        doc["jpeg_quality"] = value
+        item.setData(QECols.JPEG_QUALITY_COLUMN, QERoles.CustomSortRole, str(doc["jpeg_quality"]))
+        label.setText(f"{value}%")
         self.set_settings_modified(store_button)
     
     def set_settings_modified(self, store_button=None):
@@ -282,14 +292,14 @@ class QETree(QTreeWidget):
                     break
                 if str(s["path"]) == doc.fileName():
                     # this doc is the same file as one already seen, copy settings.
-                    qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "png_alpha":s["png_alpha"], "png_compression":s["png_compression"], "output":s["output"], "ext":s["ext"]})
+                    qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "png_alpha":s["png_alpha"], "png_compression":s["png_compression"], "jpeg_quality":s["jpeg_quality"], "output":s["output"], "ext":s["ext"]})
                     doc_is_in_settings = True
                     break
             
             if doc_is_in_settings:
                 continue
             
-            qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "png_alpha":False, "png_compression":9, "output":path.stem, "ext":".png"})
+            qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "png_alpha":False, "png_compression":9, "jpeg_quality":90, "output":path.stem, "ext":".png"})
         
         # TODO: detect if multiple documents would export to the same output file.
         
@@ -301,7 +311,7 @@ class QETree(QTreeWidget):
                     break
         
         self.setColumnCount(QECols.COLUMN_COUNT)
-        self.setHeaderLabels(["", "", "", "Filename", "Export to", "Type", "", "Compression", "Actions"])
+        self.setHeaderLabels(["", "", "", "Filename", "Export to", "Type", "", "Compression", "Quality", "Actions"])
         self.headerItem().setIcon(QECols.STORE_SETTINGS_COLUMN, app.icon('document-save'))
         self.headerItem().setIcon(QECols.PNG_STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
@@ -400,6 +410,7 @@ class QETree(QTreeWidget):
             
             outputext_combobox = QComboBox()
             outputext_combobox.addItem(".png", ".png")
+            outputext_combobox.addItem(".jpg", ".jpg")
             outputext_combobox.setCurrentIndex(outputext_combobox.findData(s["ext"]))
             
             outputext_layout.addWidget(outputext_combobox)
@@ -431,7 +442,24 @@ class QETree(QTreeWidget):
             self.setItemWidget(item, QECols.PNG_COMPRESSION_COLUMN, png_compression_widget)
             item.setData(QECols.PNG_COMPRESSION_COLUMN, QERoles.CustomSortRole, str(s["png_compression"]))
             
+            jpeg_quality_widget = QWidget()
+            jpeg_quality_layout = QHBoxLayout()
+            jpeg_quality_label = QLabel()
+            jpeg_quality_slider = SnapSlider(5, 0, 100, Qt.Horizontal)
+            jpeg_quality_slider.valueChanged.connect(lambda value, d=s, js=jpeg_quality_slider, jl=jpeg_quality_label, i=item, sb=btn_store_forget: self._on_jpeg_quality_slider_value_changed(d, js, jl, i, sb))
+            jpeg_quality_slider.setValue(s["jpeg_quality"])
             
+            jpeg_quality_label.setText(f"{s['jpeg_quality']}%")
+            fm = QFontMetrics(jpeg_quality_label.font())
+            pixelsWide = fm.width("100%")
+            jpeg_quality_label.setMinimumWidth(pixelsWide)
+            jpeg_quality_label.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+            
+            jpeg_quality_layout.addWidget(jpeg_quality_slider)
+            jpeg_quality_layout.addWidget(jpeg_quality_label)
+            jpeg_quality_widget.setLayout(jpeg_quality_layout)
+            self.setItemWidget(item, QECols.JPEG_QUALITY_COLUMN, jpeg_quality_widget)
+            item.setData(QECols.JPEG_QUALITY_COLUMN, QERoles.CustomSortRole, str(s["jpeg_quality"]))
             
             btns_widget = QWidget()
             btns_layout = QHBoxLayout()
@@ -442,7 +470,7 @@ class QETree(QTreeWidget):
             
             self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
             
-            outputext_combobox.activated.connect(lambda index, cb=outputext_combobox, d=s, i=item: self._on_outputext_combobox_activated(index, cb, d, i))
+            outputext_combobox.activated.connect(lambda index, cb=outputext_combobox, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_activated(index, cb, d, i, sb))
             
             self.items.append(item)
         
