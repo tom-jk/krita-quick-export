@@ -67,12 +67,12 @@ class MyLineEdit(QLineEdit):
         
         t = suggestions[0]
         suggestion_actions = []
-        suggestion_actions.append(menu.addAction(t+".png"))
+        suggestion_actions.append(menu.addAction(t))
         for i in range(1, len(suggestions)):
             t += suggestions[i]
             if suggestions[i] in "._-+":
                 continue
-            suggestion_actions.append(menu.addAction(t+".png"))
+            suggestion_actions.append(menu.addAction(t))
         
         result = menu.exec(event.globalPos(), header)
         
@@ -326,7 +326,14 @@ class QETree(QTreeWidget):
         
         post_setup = []
         
-        # TODO: still need to ensure output filename ends with ".png".
+        # TODO: should probably have an option to force removal of extensions from output name.
+        #       an *option* because user could wish to export myfile.kra as myfile.kra.png, so output
+        #       text would be myfile.kra. could instead only automatically remove an extension matching
+        #       export type, but what if user wants to export myfile.png as myfile.png.png? each time they
+        #       edited the output name, would they have to offer the extra .png as a sacrifice to protect
+        #       the inner .png?
+        #       ...I guess it could just check if output text starts with exact source filename
+        #       and always leave that bit alone. Probably do that.
         filename_regex = QRegExp("^[^<>:;,?\"*|/]+$")
         
         longest_output = ""
