@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
 from PyQt5.QtCore import Qt, QRegExp, QModelIndex
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor
 from pathlib import Path
+from functools import partial
 from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
@@ -190,11 +191,18 @@ class QETree(QTreeWidget):
         self.redraw()
         self.set_settings_modified()
     
-    def _on_outputext_combobox_activated(self, index, combobox, doc, item, store_button):
+    def _on_outputext_combobox_activated(self, index, combobox, png_widgets, jpeg_widgets, doc, item, store_button):
         ext = combobox.itemText(index)
         doc["ext"] = ext
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
+        self.update_type_specific_widgets_enabled(ext, png_widgets, jpeg_widgets)
         self.set_settings_modified(store_button)
+        
+    def update_type_specific_widgets_enabled(self, ext, png_widgets, jpeg_widgets):
+        for w in png_widgets:
+            w.setHidden(ext != ".png")
+        for w in jpeg_widgets:
+            w.setHidden(ext != ".jpg")
     
     def _on_png_alpha_checkbox_state_changed(self, state, doc, item, store_button):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
@@ -315,6 +323,8 @@ class QETree(QTreeWidget):
         self.headerItem().setIcon(QECols.STORE_SETTINGS_COLUMN, app.icon('document-save'))
         self.headerItem().setIcon(QECols.PNG_STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
+        
+        post_setup = []
         
         # TODO: still need to ensure output filename ends with ".png".
         filename_regex = QRegExp("^[^<>:;,?\"*|/]+$")
@@ -470,12 +480,18 @@ class QETree(QTreeWidget):
             
             self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
             
-            outputext_combobox.activated.connect(lambda index, cb=outputext_combobox, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_activated(index, cb, d, i, sb))
+            png_widgets = (png_alpha_checkbox, png_compression_slider, png_compression_label)
+            jpeg_widgets = (jpeg_quality_slider, jpeg_quality_label)
+            outputext_combobox.activated.connect(lambda index, cb=outputext_combobox, png_w=png_widgets, jpeg_w=jpeg_widgets, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_activated(index, cb, png_w, jpeg_w, d, i, sb))
+            post_setup.append(partial(self.update_type_specific_widgets_enabled, s["ext"], png_widgets, jpeg_widgets))
             
             self.items.append(item)
         
         for i in range(0, QECols.COLUMN_COUNT):
             self.resizeColumnToContents(i)
+        
+        for ps in post_setup:
+            ps()
 
 
 class QEDialog(QDialog):
