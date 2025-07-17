@@ -119,8 +119,8 @@ class QECols(IntEnum):
     SOURCE_FILENAME_COLUMN = auto()
     OUTPUT_FILENAME_COLUMN = auto()
     OUTPUT_FILETYPE_COLUMN = auto()
-    STORE_ALPHA_COLUMN = auto()
-    COMPRESSION_COLUMN = auto()
+    PNG_STORE_ALPHA_COLUMN = auto()
+    PNG_COMPRESSION_COLUMN = auto()
     BUTTONS_COLUMN = auto()
     COLUMN_COUNT = auto()
 
@@ -194,16 +194,16 @@ class QETree(QTreeWidget):
         doc["ext"] = ext
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
     
-    def _on_alpha_checkbox_state_changed(self, state, doc, item, store_button):
+    def _on_png_alpha_checkbox_state_changed(self, state, doc, item, store_button):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
-        doc["alpha"] = True if state == Qt.Checked else False
-        item.setData(QECols.STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["alpha"]))
+        doc["png_alpha"] = True if state == Qt.Checked else False
+        item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["png_alpha"]))
         self.set_settings_modified(store_button)
     
-    def _on_compression_slider_value_changed(self, value, doc, slider, label, item, store_button):
+    def _on_png_compression_slider_value_changed(self, value, doc, slider, label, item, store_button):
         #print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
-        doc["compression"] = value
-        item.setData(QECols.COMPRESSION_COLUMN, QERoles.CustomSortRole, str(doc["compression"]))
+        doc["png_compression"] = value
+        item.setData(QECols.PNG_COMPRESSION_COLUMN, QERoles.CustomSortRole, str(doc["png_compression"]))
         label.setText(str(value))
         self.set_settings_modified(store_button)
     
@@ -282,14 +282,14 @@ class QETree(QTreeWidget):
                     break
                 if str(s["path"]) == doc.fileName():
                     # this doc is the same file as one already seen, copy settings.
-                    qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":s["alpha"], "compression":s["compression"], "output":s["output"], "ext":s["ext"]})
+                    qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "png_alpha":s["png_alpha"], "png_compression":s["png_compression"], "output":s["output"], "ext":s["ext"]})
                     doc_is_in_settings = True
                     break
             
             if doc_is_in_settings:
                 continue
             
-            qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":False, "compression":9, "output":path.stem, "ext":".png"})
+            qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "png_alpha":False, "png_compression":9, "output":path.stem, "ext":".png"})
         
         # TODO: detect if multiple documents would export to the same output file.
         
@@ -303,7 +303,7 @@ class QETree(QTreeWidget):
         self.setColumnCount(QECols.COLUMN_COUNT)
         self.setHeaderLabels(["", "", "", "Filename", "Export to", "Type", "", "Compression", "Actions"])
         self.headerItem().setIcon(QECols.STORE_SETTINGS_COLUMN, app.icon('document-save'))
-        self.headerItem().setIcon(QECols.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
+        self.headerItem().setIcon(QECols.PNG_STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
         
         # TODO: still need to ensure output filename ends with ".png".
@@ -408,28 +408,30 @@ class QETree(QTreeWidget):
             self.setItemWidget(item, QECols.OUTPUT_FILETYPE_COLUMN, outputext_widget)
             item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, s["ext"])
             
-            alpha_checkbox = QCheckBox()
-            alpha_checkbox.setStyleSheet(checkbox_stylesheet)
+            png_alpha_checkbox = QCheckBox()
+            png_alpha_checkbox.setStyleSheet(checkbox_stylesheet)
             
-            alpha_checkbox.setCheckState(Qt.Checked if s["alpha"] else Qt.Unchecked)
-            alpha_checkbox.stateChanged.connect(lambda state, d=s, i=item, sb=btn_store_forget: self._on_alpha_checkbox_state_changed(state, d, i, sb))
-            alpha_checkbox_widget = centered_checkbox_widget(alpha_checkbox)
-            self.setItemWidget(item, QECols.STORE_ALPHA_COLUMN, alpha_checkbox_widget)
-            item.setData(QECols.STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+s["alpha"]))
+            png_alpha_checkbox.setCheckState(Qt.Checked if s["png_alpha"] else Qt.Unchecked)
+            png_alpha_checkbox.stateChanged.connect(lambda state, d=s, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_state_changed(state, d, i, sb))
+            png_alpha_checkbox_widget = centered_checkbox_widget(png_alpha_checkbox)
+            self.setItemWidget(item, QECols.PNG_STORE_ALPHA_COLUMN, png_alpha_checkbox_widget)
+            item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+s["png_alpha"]))
             
-            compression_widget = QWidget()
-            compression_layout = QHBoxLayout()
-            compression_label = QLabel()
-            compression_slider = QSlider(Qt.Horizontal)
-            compression_slider.setRange(1, 9)
-            compression_slider.valueChanged.connect(lambda value, d=s, cs=compression_slider, cl=compression_label, i=item, sb=btn_store_forget: self._on_compression_slider_value_changed(value, d, cs, cl, i, sb))
-            compression_slider.setValue(s["compression"])
-            compression_label.setText(str(s["compression"]))
-            compression_layout.addWidget(compression_slider)
-            compression_layout.addWidget(compression_label)
-            compression_widget.setLayout(compression_layout)
-            self.setItemWidget(item, QECols.COMPRESSION_COLUMN, compression_widget)
-            item.setData(QECols.COMPRESSION_COLUMN, QERoles.CustomSortRole, str(s["compression"]))
+            png_compression_widget = QWidget()
+            png_compression_layout = QHBoxLayout()
+            png_compression_label = QLabel()
+            png_compression_slider = QSlider(Qt.Horizontal)
+            png_compression_slider.setRange(1, 9)
+            png_compression_slider.valueChanged.connect(lambda value, d=s, cs=png_compression_slider, cl=png_compression_label, i=item, sb=btn_store_forget: self._on_png_compression_slider_value_changed(value, d, cs, cl, i, sb))
+            png_compression_slider.setValue(s["png_compression"])
+            png_compression_label.setText(str(s["png_compression"]))
+            png_compression_layout.addWidget(png_compression_slider)
+            png_compression_layout.addWidget(png_compression_label)
+            png_compression_widget.setLayout(png_compression_layout)
+            self.setItemWidget(item, QECols.PNG_COMPRESSION_COLUMN, png_compression_widget)
+            item.setData(QECols.PNG_COMPRESSION_COLUMN, QERoles.CustomSortRole, str(s["png_compression"]))
+            
+            
             
             btns_widget = QWidget()
             btns_layout = QHBoxLayout()

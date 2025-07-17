@@ -35,7 +35,7 @@ def load_settings_from_config():
     
     for file_settings in settings_as_arrays:
         #print("found file settings", file_settings)
-        qe_settings.append({"document":None, "doc_index":1024, "store":True, "alpha":False, "compression":9, "ext":".png"})
+        qe_settings.append({"document":None, "doc_index":1024, "store":True, "png_alpha":False, "png_compression":9, "ext":".png"})
         for kvpair in file_settings:
             if kvpair[0] == "path":
                 qe_settings[-1][kvpair[0]] = Path(kvpair[1])
@@ -44,9 +44,9 @@ def load_settings_from_config():
                         qe_settings[-1]["document"] = d
                         qe_settings[-1]["doc_index"] = i
                         break
-            elif kvpair[0] == "alpha":
+            elif kvpair[0] == "png_alpha":
                 qe_settings[-1][kvpair[0]] = True if kvpair[1] == "true" else False
-            elif kvpair[0] == "compression":
+            elif kvpair[0] == "png_compression":
                 qe_settings[-1][kvpair[0]] = int(kvpair[1])
             elif kvpair[0] == "output":
                 qe_settings[-1][kvpair[0]] = kvpair[1]
@@ -71,7 +71,7 @@ def generate_save_string():
         if not s["store"]:
             continue
         
-        save_strings.append(f"path={str(s['path'])},alpha={'true' if s['alpha']==True else 'false'},compression={s['compression']},output={s['output']},ext={s['ext']}")
+        save_strings.append(f"path={str(s['path'])},png_alpha={'true' if s['png_alpha']==True else 'false'},png_compression={s['png_compression']},output={s['output']},ext={s['ext']}")
     
     return ";".join(save_strings)
 
@@ -85,8 +85,8 @@ def save_settings_to_config():
 
 def export_image(image_settings, document=None):
     exportParameters = InfoObject()
-    exportParameters.setProperty("alpha", image_settings["alpha"])
-    exportParameters.setProperty("compression", int(image_settings["compression"]))
+    exportParameters.setProperty("alpha", image_settings["png_alpha"])
+    exportParameters.setProperty("compression", int(image_settings["png_compression"]))
     exportParameters.setProperty("indexed", True)
     
     export_path = image_settings["path"].with_name(image_settings["output"])
