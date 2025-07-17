@@ -136,7 +136,7 @@ class QETree(QTreeWidget):
             self.items[index].setHidden(
                    (self.dialog.show_unstored_button.checkState() == Qt.Unchecked and s["store"] == False)
                 or (self.dialog.show_unopened_button.checkState() == Qt.Unchecked and s["document"] == None)
-                or (self.dialog.show_png_button.checkState() == Qt.Unchecked and s["path"].suffix == ".png")
+                or (self.dialog.show_non_kra_button.checkState() == Qt.Unchecked and s["path"].suffix != ".kra")
             )
     
     def _on_btn_open_clicked(self, checked, btn, export_btn, doc, item):
@@ -465,10 +465,10 @@ class QEDialog(QDialog):
         self.show_unopened_button.clicked.connect(self._on_show_unopened_button_clicked)
 
         # show .png files button.
-        self.show_png_button = QCheckBox("Show .png files")
-        self.show_png_button.setToolTip("Show export settings for .png files. Disabled by default because it's kind of redundant.")
-        self.show_png_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_png", "false") == "true" else Qt.Unchecked)
-        self.show_png_button.clicked.connect(self._on_show_png_button_clicked)
+        self.show_non_kra_button = QCheckBox("Show non-kra files")
+        self.show_non_kra_button.setToolTip("Show export settings for files of usually exported types, such as .png and .jpg. Disabled by default because it's kind of redundant.")
+        self.show_non_kra_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_non_kra", "false") == "true" else Qt.Unchecked)
+        self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
 
         # slider for row highlight intensity for stored settings.
         stored_highlight_widget = QWidget()
@@ -490,7 +490,7 @@ class QEDialog(QDialog):
 
         stored_highlight_widget.setLayout(stored_highlight_layout)
 
-        view_buttons_layout.addWidget(self.show_png_button)
+        view_buttons_layout.addWidget(self.show_non_kra_button)
         view_buttons_layout.addWidget(self.show_unopened_button)
         view_buttons_layout.addWidget(self.show_unstored_button)
         view_buttons_layout.addStretch()
@@ -708,8 +708,8 @@ class QEDialog(QDialog):
         app.writeSetting("TomJK_QuickExport", "show_unopened", "true" if checked else "false")
         self.tree.refilter()
 
-    def _on_show_png_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "show_png", "true" if checked else "false")
+    def _on_show_non_kra_button_clicked(self, checked):
+        app.writeSetting("TomJK_QuickExport", "show_non_kra", "true" if checked else "false")
         self.tree.refilter()
     
     def _on_stored_highlight_slider_value_changed(self):
