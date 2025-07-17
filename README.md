@@ -15,15 +15,14 @@ Click "Export now" to export the image. The exported file will be saved to the s
 The settings for each image are saved in Krita's config file (kritarc) and will persist between Krita sessions.
 
 #### Features:
-- export as png
+- export as png or jpeg
 - choose output file name
-- adjust export settings: alpha and compression level
+- adjust export settings: (png) alpha and compression level, (jpeg) quality
 - choose to keep or forget export settings for each image
 
 #### Missing/To-Do:
-- can't export as jpg or any other type besides png
+- can't currently export as any type other than png and jpeg
 - can't export the image to a different directory than that of the source image
 - can't adjust any other settings (transparency colour, embed sRGB profile, resize, etc.)
-- incremental saves do not automatically copy settings from prior saves
 - can't automatically export a chain of dependent images (eg. when exporting a texture atlas, first update file layers)
 - can't group images together in list or enforce a specific custom sort order
