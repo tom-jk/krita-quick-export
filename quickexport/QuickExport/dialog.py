@@ -145,9 +145,9 @@ class QETree(QTreeWidget):
         new_doc = app.openDocument(str(doc['path']))
         print("new_doc:", new_doc)
         if new_doc == None:
-            sbar.showMessage(f"Couldn't open '{str(doc['path'])}'", 5000)
+            self.dialog.sbar.showMessage(f"Couldn't open '{str(doc['path'])}'", 5000)
             return
-        sbar.showMessage(f"Opened '{str(doc['path'])}'", 5000)
+        self.dialog.sbar.showMessage(f"Opened '{str(doc['path'])}'", 5000)
         app.activeWindow().addView(new_doc)
         item.setDisabled(False)
         self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, None)
