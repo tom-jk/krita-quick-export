@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate, QMenu,
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
-                             QActionGroup, QToolButton, QComboBox)
+                             QActionGroup, QToolButton, QComboBox, QStackedWidget)
 from PyQt5.QtCore import Qt, QRegExp, QModelIndex
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor
 from pathlib import Path
@@ -87,6 +87,7 @@ class ItemDelegate(QStyledItemDelegate):
             return super().createEditor(parent, option, index)
     
     def paint(self, painter, option, index):
+        # TODO: lightly highlight row if mouse over.
         is_highlighted = index.model().index(index.row(), QECols.OPEN_FILE_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == QETree.instance.highlighted_doc_index
         is_stored = index.model().index(index.row(), QECols.STORE_SETTINGS_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == "1"
         super().paint(painter, option, index)
@@ -120,9 +121,7 @@ class QECols(IntEnum):
     SOURCE_FILENAME_COLUMN = auto()
     OUTPUT_FILENAME_COLUMN = auto()
     OUTPUT_FILETYPE_COLUMN = auto()
-    PNG_STORE_ALPHA_COLUMN = auto()
-    PNG_COMPRESSION_COLUMN = auto()
-    JPEG_QUALITY_COLUMN = auto()
+    SETTINGS_COLUMN = auto()
     BUTTONS_COLUMN = auto()
     COLUMN_COUNT = auto()
 
@@ -191,11 +190,11 @@ class QETree(QTreeWidget):
         self.redraw()
         self.set_settings_modified()
     
-    def _on_outputext_combobox_activated(self, index, combobox, png_widgets, jpeg_widgets, doc, item, store_button):
+    def _on_outputext_combobox_activated(self, index, combobox, settings_stack, doc, item, store_button):
         ext = combobox.itemText(index)
         doc["ext"] = ext
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
-        self.update_type_specific_widgets_enabled(ext, png_widgets, jpeg_widgets)
+        settings_stack.setCurrentIndex(self.settings_stack_page_order.index(ext))
         self.set_settings_modified(store_button)
         
     def update_type_specific_widgets_enabled(self, ext, png_widgets, jpeg_widgets):
@@ -207,13 +206,13 @@ class QETree(QTreeWidget):
     def _on_png_alpha_checkbox_state_changed(self, state, doc, item, store_button):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["png_alpha"] = True if state == Qt.Checked else False
-        item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["png_alpha"]))
+        #item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["png_alpha"]))
         self.set_settings_modified(store_button)
     
     def _on_png_compression_slider_value_changed(self, value, doc, slider, label, item, store_button):
         #print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["png_compression"] = value
-        item.setData(QECols.PNG_COMPRESSION_COLUMN, QERoles.CustomSortRole, str(doc["png_compression"]))
+        #item.setData(QECols.PNG_COMPRESSION_COLUMN, QERoles.CustomSortRole, str(doc["png_compression"]))
         label.setText(str(value))
         self.set_settings_modified(store_button)
     
@@ -221,7 +220,7 @@ class QETree(QTreeWidget):
         #print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         value = slider.value()
         doc["jpeg_quality"] = value
-        item.setData(QECols.JPEG_QUALITY_COLUMN, QERoles.CustomSortRole, str(doc["jpeg_quality"]))
+        #item.setData(QECols.JPEG_QUALITY_COLUMN, QERoles.CustomSortRole, str(doc["jpeg_quality"]))
         label.setText(f"{value}%")
         self.set_settings_modified(store_button)
     
@@ -319,9 +318,8 @@ class QETree(QTreeWidget):
                     break
         
         self.setColumnCount(QECols.COLUMN_COUNT)
-        self.setHeaderLabels(["", "", "", "Filename", "Export to", "Type", "", "Compression", "Quality", "Actions"])
+        self.setHeaderLabels(["", "", "", "Filename", "Export to", "Type", "Settings", "Actions"])
         self.headerItem().setIcon(QECols.STORE_SETTINGS_COLUMN, app.icon('document-save'))
-        self.headerItem().setIcon(QECols.PNG_STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
         
         post_setup = []
@@ -341,6 +339,8 @@ class QETree(QTreeWidget):
             output = s["path"].stem
             if len(output) > len(longest_output):
                 longest_output = output
+        
+        self.settings_stack_page_order = [".png", ".jpg"]
         
         def centered_checkbox_widget(checkbox):
             widget = QWidget()
@@ -436,14 +436,19 @@ class QETree(QTreeWidget):
             self.setItemWidget(item, QECols.OUTPUT_FILETYPE_COLUMN, outputext_widget)
             item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, s["ext"])
             
+            settings_stack = QStackedWidget()
+            
+            png_settings_page = QWidget()
+            png_settings_page_layout = QHBoxLayout()
+            
             png_alpha_checkbox = QCheckBox()
             png_alpha_checkbox.setStyleSheet(checkbox_stylesheet)
             
             png_alpha_checkbox.setCheckState(Qt.Checked if s["png_alpha"] else Qt.Unchecked)
             png_alpha_checkbox.stateChanged.connect(lambda state, d=s, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_state_changed(state, d, i, sb))
             png_alpha_checkbox_widget = centered_checkbox_widget(png_alpha_checkbox)
-            self.setItemWidget(item, QECols.PNG_STORE_ALPHA_COLUMN, png_alpha_checkbox_widget)
-            item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+s["png_alpha"]))
+            #item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+s["png_alpha"]))
+            png_settings_page_layout.addWidget(png_alpha_checkbox_widget)
             
             png_compression_widget = QWidget()
             png_compression_layout = QHBoxLayout()
@@ -456,8 +461,14 @@ class QETree(QTreeWidget):
             png_compression_layout.addWidget(png_compression_slider)
             png_compression_layout.addWidget(png_compression_label)
             png_compression_widget.setLayout(png_compression_layout)
-            self.setItemWidget(item, QECols.PNG_COMPRESSION_COLUMN, png_compression_widget)
-            item.setData(QECols.PNG_COMPRESSION_COLUMN, QERoles.CustomSortRole, str(s["png_compression"]))
+            #item.setData(QECols.PNG_COMPRESSION_COLUMN, QERoles.CustomSortRole, str(s["png_compression"]))
+            png_settings_page_layout.addWidget(png_compression_widget)
+            
+            png_settings_page.setLayout(png_settings_page_layout)
+            settings_stack.addWidget(png_settings_page)
+            
+            jpeg_settings_page = QWidget()
+            jpeg_settings_page_layout = QHBoxLayout()
             
             jpeg_quality_widget = QWidget()
             jpeg_quality_layout = QHBoxLayout()
@@ -475,8 +486,14 @@ class QETree(QTreeWidget):
             jpeg_quality_layout.addWidget(jpeg_quality_slider)
             jpeg_quality_layout.addWidget(jpeg_quality_label)
             jpeg_quality_widget.setLayout(jpeg_quality_layout)
-            self.setItemWidget(item, QECols.JPEG_QUALITY_COLUMN, jpeg_quality_widget)
-            item.setData(QECols.JPEG_QUALITY_COLUMN, QERoles.CustomSortRole, str(s["jpeg_quality"]))
+            #item.setData(QECols.JPEG_QUALITY_COLUMN, QERoles.CustomSortRole, str(s["jpeg_quality"]))
+            jpeg_settings_page_layout.addWidget(jpeg_quality_widget)
+            
+            jpeg_settings_page.setLayout(jpeg_settings_page_layout)
+            settings_stack.addWidget(jpeg_settings_page)
+            
+            self.setItemWidget(item, QECols.SETTINGS_COLUMN, settings_stack)
+            settings_stack.setCurrentIndex(self.settings_stack_page_order.index(s["ext"]))
             
             btns_widget = QWidget()
             btns_layout = QHBoxLayout()
@@ -487,18 +504,12 @@ class QETree(QTreeWidget):
             
             self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
             
-            png_widgets = (png_alpha_checkbox, png_compression_slider, png_compression_label)
-            jpeg_widgets = (jpeg_quality_slider, jpeg_quality_label)
-            outputext_combobox.activated.connect(lambda index, cb=outputext_combobox, png_w=png_widgets, jpeg_w=jpeg_widgets, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_activated(index, cb, png_w, jpeg_w, d, i, sb))
-            post_setup.append(partial(self.update_type_specific_widgets_enabled, s["ext"], png_widgets, jpeg_widgets))
+            outputext_combobox.activated.connect(lambda index, cb=outputext_combobox, ss=settings_stack, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_activated(index, cb, ss, d, i, sb))
             
             self.items.append(item)
         
         for i in range(0, QECols.COLUMN_COUNT):
             self.resizeColumnToContents(i)
-        
-        for ps in post_setup:
-            ps()
 
 
 class QEDialog(QDialog):
