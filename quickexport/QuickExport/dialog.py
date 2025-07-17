@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate, QMenu,
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
-                             QActionGroup, QToolButton)
+                             QActionGroup, QToolButton, QComboBox)
 from PyQt5.QtCore import Qt, QRegExp, QModelIndex
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor
 from pathlib import Path
@@ -118,6 +118,7 @@ class QECols(IntEnum):
     THUMBNAIL_COLUMN = auto()
     SOURCE_FILENAME_COLUMN = auto()
     OUTPUT_FILENAME_COLUMN = auto()
+    OUTPUT_FILETYPE_COLUMN = auto()
     STORE_ALPHA_COLUMN = auto()
     COMPRESSION_COLUMN = auto()
     BUTTONS_COLUMN = auto()
@@ -187,6 +188,11 @@ class QETree(QTreeWidget):
         item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+doc["store"]))
         self.redraw()
         self.set_settings_modified()
+    
+    def _on_outputext_combobox_activated(self, index, combobox, doc, item):
+        ext = combobox.itemText(index)
+        doc["ext"] = ext
+        item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
     
     def _on_alpha_checkbox_state_changed(self, state, doc, item, store_button):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
@@ -276,14 +282,14 @@ class QETree(QTreeWidget):
                     break
                 if str(s["path"]) == doc.fileName():
                     # this doc is the same file as one already seen, copy settings.
-                    qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":s["alpha"], "compression":s["compression"], "output":s["output"]})
+                    qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":s["alpha"], "compression":s["compression"], "output":s["output"], "ext":s["ext"]})
                     doc_is_in_settings = True
                     break
             
             if doc_is_in_settings:
                 continue
             
-            qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":False, "compression":9, "output":path.with_suffix(".png").name})
+            qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "alpha":False, "compression":9, "output":path.stem, "ext":".png"})
         
         # TODO: detect if multiple documents would export to the same output file.
         
@@ -295,7 +301,7 @@ class QETree(QTreeWidget):
                     break
         
         self.setColumnCount(QECols.COLUMN_COUNT)
-        self.setHeaderLabels(["", "", "", "Filename", "Export to", "", "Compression", "Actions"])
+        self.setHeaderLabels(["", "", "", "Filename", "Export to", "Type", "", "Compression", "Actions"])
         self.headerItem().setIcon(QECols.STORE_SETTINGS_COLUMN, app.icon('document-save'))
         self.headerItem().setIcon(QECols.STORE_ALPHA_COLUMN, app.icon('transparency-unlocked'))
         self.items = []
@@ -305,7 +311,7 @@ class QETree(QTreeWidget):
         
         longest_output = ""
         for s in qe_settings:
-            output = s["path"].with_suffix(".png").name
+            output = s["path"].stem
             if len(output) > len(longest_output):
                 longest_output = output
         
@@ -389,6 +395,19 @@ class QETree(QTreeWidget):
             self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_widget)
             item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output"].lower())
             
+            outputext_widget = QWidget()
+            outputext_layout = QHBoxLayout()
+            
+            outputext_combobox = QComboBox()
+            outputext_combobox.addItem(".png", ".png")
+            outputext_combobox.setCurrentIndex(outputext_combobox.findData(s["ext"]))
+            
+            outputext_layout.addWidget(outputext_combobox)
+            outputext_widget.setLayout(outputext_layout)
+            
+            self.setItemWidget(item, QECols.OUTPUT_FILETYPE_COLUMN, outputext_widget)
+            item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, s["ext"])
+            
             alpha_checkbox = QCheckBox()
             alpha_checkbox.setStyleSheet(checkbox_stylesheet)
             
@@ -420,6 +439,8 @@ class QETree(QTreeWidget):
             btns_widget.setLayout(btns_layout)
             
             self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
+            
+            outputext_combobox.activated.connect(lambda index, cb=outputext_combobox, d=s, i=item: self._on_outputext_combobox_activated(index, cb, d, i))
             
             self.items.append(item)
         
