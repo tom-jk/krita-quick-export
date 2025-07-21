@@ -673,6 +673,56 @@ class QETree(QTreeWidget):
             jpeg_smooth_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_smooth", value, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_smooth_slider)
             
+            jpeg_subsampling_button = CheckToolButton(icon=app.icon('tool_similar_selection'), checked=True, tooltip="subsampling")
+            jpeg_subsampling_button.setPopupMode(QToolButton.InstantPopup)
+            
+            jpeg_subsampling_menu = QMenu()
+            jpeg_subsampling_action_group = QActionGroup(jpeg_subsampling_menu)
+            jpeg_subsampling_2x2_action = jpeg_subsampling_menu.addAction("2x2, 1x1, 1x1 (smallest file)")
+            jpeg_subsampling_2x1_action = jpeg_subsampling_menu.addAction("2x1, 1x1, 1x1")
+            jpeg_subsampling_1x2_action = jpeg_subsampling_menu.addAction("1x2, 1x1, 1x1")
+            jpeg_subsampling_1x1_action = jpeg_subsampling_menu.addAction("1x1, 1x1, 1x1 (best quality)")
+            for i, action in enumerate(jpeg_subsampling_menu.actions()):
+                action.setCheckable(True)
+                action.setData(("2x2","2x1","1x2","1x1")[i])
+                action.setActionGroup(jpeg_subsampling_action_group)
+                action.setChecked(action.data() == s["jpeg_subsampling"])
+            jpeg_subsampling_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_subsampling", a.data(), d, sb))
+            
+            jpeg_subsampling_button.setMenu(jpeg_subsampling_menu)
+            jpeg_settings_page_layout.addWidget(jpeg_subsampling_button)
+            
+            jpeg_formats_button = CheckToolButton(icon=app.icon('tag'), checked=True, tooltip="formats")
+            jpeg_formats_button.setPopupMode(QToolButton.InstantPopup)
+            
+            jpeg_formats_menu = QMenu()
+            jpeg_formats_Exif_action = jpeg_formats_menu.addAction("Exif")
+            jpeg_formats_IPTC_action = jpeg_formats_menu.addAction("IPTC")
+            jpeg_formats_XMP_action = jpeg_formats_menu.addAction("XMP")
+            for i, action in enumerate(jpeg_formats_menu.actions()):
+                action.setCheckable(True)
+                action.setData(("exif", "iptc", "xmp")[i])
+                action.setChecked(s[f"jpeg_{action.data()}"])
+            jpeg_formats_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), d, sb))
+            
+            jpeg_formats_button.setMenu(jpeg_formats_menu)
+            jpeg_settings_page_layout.addWidget(jpeg_formats_button)
+            
+            jpeg_filters_button = CheckToolButton(icon=app.icon('filterMask'), checked=True, tooltip="filters")
+            jpeg_filters_button.setPopupMode(QToolButton.InstantPopup)
+            
+            jpeg_filters_menu = QMenu()
+            jpeg_filters_Exif_action = jpeg_filters_menu.addAction("Tool information")
+            jpeg_filters_IPTC_action = jpeg_filters_menu.addAction("Anonymiser")
+            for i, action in enumerate(jpeg_filters_menu.actions()):
+                action.setCheckable(True)
+                action.setData(("tool_information", "anonymiser")[i])
+                action.setChecked(s[f"jpeg_{action.data()}"])
+            jpeg_filters_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), d, sb))
+            
+            jpeg_filters_button.setMenu(jpeg_filters_menu)
+            jpeg_settings_page_layout.addWidget(jpeg_filters_button)
+            
             jpeg_force_baseline_checkbox = CheckToolButton(icon=app.icon('krita_tool_rectangle'), checked=s["jpeg_force_baseline"], tooltip="force baseline JPEG")
             jpeg_force_baseline_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_force_baseline", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_force_baseline_checkbox)
