@@ -13,6 +13,43 @@ def set_extension(extension):
 def extension():
     return qe_extension
 
+def default_settings(document=None, doc_index=1024, store=False, path=None, output="", ext=".png"):
+    settings = {
+        "document":document,
+        "doc_index":doc_index,
+        "store":store,
+        "path":path,
+        "output":output,
+        "ext":ext,
+        "png_alpha":False,
+        "png_fillcolour":QColor('white'),
+        "png_compression":9,
+        "png_indexed":True,
+        "png_interlaced":False,
+        "png_hdr":False,
+        "png_embed_srgb":False,
+        "png_force_srgb":False,
+        "png_metadata":False,
+        "png_author":False,
+        "png_force_8bit":False,
+        "jpeg_progressive":False,
+        "jpeg_icc_profile":False,
+        "jpeg_fillcolour":QColor('white'),
+        "jpeg_quality":80,
+        "jpeg_force_baseline":True,
+        "jpeg_optimise":False,
+        "jpeg_smooth":0,
+        "jpeg_subsampling":"2x2",
+        "jpeg_exif":True,
+        "jpeg_iptc":True,
+        "jpeg_xmp":True,
+        "jpeg_tool_information":False,
+        "jpeg_anonymiser":False,
+        "jpeg_metadata":False,
+        "jpeg_author":False
+    }
+    return settings
+
 def load_settings_from_config():
     """
     read in settings string from kritarc.
@@ -35,7 +72,7 @@ def load_settings_from_config():
     
     for file_settings in settings_as_arrays:
         #print("found file settings", file_settings)
-        qe_settings.append({"document":None, "doc_index":1024, "store":True, "png_alpha":False, "png_compression":9, "jpeg_quality":90, "ext":".png"})
+        qe_settings.append(default_settings(store=True))
         for kvpair in file_settings:
             if kvpair[0] == "path":
                 qe_settings[-1][kvpair[0]] = Path(kvpair[1])

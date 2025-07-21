@@ -293,14 +293,16 @@ class QETree(QTreeWidget):
                     break
                 if str(s["path"]) == doc.fileName():
                     # this doc is the same file as one already seen, copy settings.
-                    qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "png_alpha":s["png_alpha"], "png_compression":s["png_compression"], "jpeg_quality":s["jpeg_quality"], "output":s["output"], "ext":s["ext"]})
+                    s_copy = s.copy()
+                    s_copy["store"] = False
+                    qe_settings.append(s_copy)
                     doc_is_in_settings = True
                     break
             
             if doc_is_in_settings:
                 continue
             
-            qe_settings.append({"document":doc, "doc_index":i, "store":False, "path":path, "png_alpha":False, "png_compression":9, "jpeg_quality":90, "output":path.stem, "ext":".png"})
+            qe_settings.append(default_settings(document=doc, doc_index=i, path=path, output=path.stem))
         
         # TODO: detect if multiple documents would export to the same output file.
         
