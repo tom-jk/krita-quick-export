@@ -1,9 +1,10 @@
 from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate, QMenu,
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
-                             QActionGroup, QToolButton, QComboBox, QStackedWidget)
+                             QActionGroup, QToolButton, QComboBox, QStackedWidget, QStyle, QStyleOption,
+                             QSpinBox, QStyleOptionSpinBox)
 from PyQt5.QtCore import Qt, QRegExp, QModelIndex
-from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor
+from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter
 from pathlib import Path
 from functools import partial
 from enum import IntEnum, auto
@@ -12,6 +13,66 @@ import krita
 from .utils import *
 
 app = Krita.instance()
+
+class SpinBoxSlider(QSpinBox):
+    def __init__(self, label_text="", label_suffix="", range_min=0, range_max=100, snap_interval=1, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.label_text = label_text
+        self.label_suffix = label_suffix
+        self._snap_interval = snap_interval
+        
+        self.setRange(range_min, range_max)
+        
+        fm = QFontMetrics(self.font())
+        pixelsWide = fm.width(f"  {self.label_text}: {self.maximum()}{self.label_suffix}  ")
+        self._default_width = pixelsWide
+        
+        sp = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        self.setSizePolicy(sp)
+        self.setButtonSymbols(QSpinBox.NoButtons)
+        self.lineEdit().hide()
+    
+    def sizeHint(self):
+        return QSize(self._default_width, super().sizeHint().height())
+    
+    def mouseMoveEvent(self, event):
+        w = self.width()
+        new_value = self.minimum() + ((self.maximum()-self.minimum()) / w * event.localPos().x())
+        snapped_value = self._snap_interval * round(new_value/self._snap_interval)
+        self.setValue(snapped_value)
+    
+    def paintEvent(self, event):
+        painter = QPainter(self)
+
+        style = self.style()
+        style_option = QStyleOptionSpinBox()
+        style_option.initFrom(self)
+        
+        fill_width = int(style_option.rect.width() * (self.value() - self.minimum()) / (self.maximum() - self.minimum()))
+        fill_rect = style_option.rect.adjusted(0,0,0,0)
+        fill_rect.setWidth(fill_width)
+        
+        painter.setPen(Qt.NoPen)
+        
+        painter.setBrush(style_option.palette.base().color())
+        painter.drawRoundedRect(style_option.rect, 1, 1)
+        
+        painter.setBrush(style_option.palette.highlight().color())
+        painter.drawRoundedRect(fill_rect, 1, 1)
+        
+        painter.setPen(Qt.SolidLine)
+        painter.setPen(self.palette().text().color())
+        
+        text = f"{self.label_text}: {self.value()}{self.label_suffix}"
+        
+        fm = painter.fontMetrics()
+        text = fm.elidedText(text, Qt.ElideLeft, style_option.rect.width())
+        pixelsWide = fm.width(text)
+        pixelsTall = fm.height()
+        style_option.rect.adjust(0,-2,0,0)
+        x = style_option.rect.center().x() - pixelsWide//2
+        y = style_option.rect.center().y() + pixelsTall//2
+        painter.drawText(style_option.rect, Qt.AlignCenter, text)
 
 class SnapSlider(QSlider):
     def __init__(self, snap_interval, range_min, range_max, orientation, parent=None):
@@ -203,11 +264,8 @@ class QETree(QTreeWidget):
         #item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["png_alpha"]))
         self.set_settings_modified(store_button)
     
-    
-    def _on_generic_setting_changed(self, key, value, doc, store_button, label=None, label_string=None):
+    def _on_generic_setting_changed(self, key, value, doc, store_button):
         doc[key] = value
-        if label:
-            label.setText(label_string.format(value))
         self.set_settings_modified(store_button)
     
     def set_settings_modified(self, store_button=None):
@@ -438,19 +496,10 @@ class QETree(QTreeWidget):
             #item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+s["png_alpha"]))
             png_settings_page_layout.addWidget(png_alpha_checkbox_widget)
             
-            png_compression_widget = QWidget()
-            png_compression_layout = QHBoxLayout()
-            png_compression_label = QLabel()
-            png_compression_slider = QSlider(Qt.Horizontal)
-            png_compression_slider.setRange(1, 9)
-            png_compression_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget, cl=png_compression_label: self._on_generic_setting_changed("png_compression", value, d, sb, cl, "{}"))
+            png_compression_slider = SpinBoxSlider(label_text="Compression", range_min=1, range_max=9, snap_interval=1)
             png_compression_slider.setValue(s["png_compression"])
-            png_compression_label.setText(str(s["png_compression"]))
-            png_compression_layout.addWidget(png_compression_slider)
-            png_compression_layout.addWidget(png_compression_label)
-            png_compression_widget.setLayout(png_compression_layout)
-            #item.setData(QECols.PNG_COMPRESSION_COLUMN, QERoles.CustomSortRole, str(s["png_compression"]))
-            png_settings_page_layout.addWidget(png_compression_widget)
+            png_compression_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_compression", value, d, sb))
+            png_settings_page_layout.addWidget(png_compression_slider)
             
             png_settings_page.setLayout(png_settings_page_layout)
             settings_stack.addWidget(png_settings_page)
@@ -458,24 +507,12 @@ class QETree(QTreeWidget):
             jpeg_settings_page = QWidget()
             jpeg_settings_page_layout = QHBoxLayout()
             
-            jpeg_quality_widget = QWidget()
-            jpeg_quality_layout = QHBoxLayout()
-            jpeg_quality_label = QLabel()
-            jpeg_quality_slider = SnapSlider(5, 0, 100, Qt.Horizontal)
-            jpeg_quality_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget, jl=jpeg_quality_label: self._on_generic_setting_changed("jpeg_quality", value, d, sb, jl, "{}%"))
+            jpeg_quality_slider = SpinBoxSlider(label_text="Quality", label_suffix="%", range_min=0, range_max=100, snap_interval=5)
             jpeg_quality_slider.setValue(s["jpeg_quality"])
+            jpeg_quality_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_quality", value, d, sb))
+            jpeg_settings_page_layout.addWidget(jpeg_quality_slider)
             
-            jpeg_quality_label.setText(f"{s['jpeg_quality']}%")
-            fm = QFontMetrics(jpeg_quality_label.font())
-            pixelsWide = fm.width("100%")
-            jpeg_quality_label.setMinimumWidth(pixelsWide)
-            jpeg_quality_label.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
             
-            jpeg_quality_layout.addWidget(jpeg_quality_slider)
-            jpeg_quality_layout.addWidget(jpeg_quality_label)
-            jpeg_quality_widget.setLayout(jpeg_quality_layout)
-            #item.setData(QECols.JPEG_QUALITY_COLUMN, QERoles.CustomSortRole, str(s["jpeg_quality"]))
-            jpeg_settings_page_layout.addWidget(jpeg_quality_widget)
             
             jpeg_settings_page.setLayout(jpeg_settings_page_layout)
             settings_stack.addWidget(jpeg_settings_page)
