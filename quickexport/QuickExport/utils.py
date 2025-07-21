@@ -110,7 +110,14 @@ def generate_save_string():
         if not s["store"]:
             continue
         
-        save_strings.append(f"path={str(s['path'])},png_alpha={'true' if s['png_alpha']==True else 'false'},png_compression={s['png_compression']},jpeg_quality={s['jpeg_quality']},output={s['output']},ext={s['ext']}")
+        save_strings.append(
+            f"path={str(s['path'])},"
+            f"png_alpha={'true' if s['png_alpha']==True else 'false'},"
+            f"png_compression={s['png_compression']},"
+            f"jpeg_quality={s['jpeg_quality']},"
+            f"output={s['output']},"
+            f"ext={s['ext']}"
+        )
     
     return ";".join(save_strings)
 
