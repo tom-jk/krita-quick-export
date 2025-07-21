@@ -880,15 +880,15 @@ class QEDialog(QDialog):
         event.accept()
 
     def _on_show_unstored_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "show_unstored", "true" if checked else "false")
+        app.writeSetting("TomJK_QuickExport", "show_unstored", bool2str(checked))
         self.tree.refilter()
 
     def _on_show_unopened_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "show_unopened", "true" if checked else "false")
+        app.writeSetting("TomJK_QuickExport", "show_unopened", bool2str(checked))
         self.tree.refilter()
 
     def _on_show_non_kra_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "show_non_kra", "true" if checked else "false")
+        app.writeSetting("TomJK_QuickExport", "show_non_kra", bool2str(checked))
         self.tree.refilter()
     
     def _on_stored_highlight_slider_value_changed(self):
@@ -896,7 +896,7 @@ class QEDialog(QDialog):
         self.tree.redraw()
 
     def _on_advanced_mode_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "advanced_mode", "true" if checked else "false")
+        app.writeSetting("TomJK_QuickExport", "advanced_mode", bool2str(checked))
         self.set_advanced_mode(checked)
 
     def set_advanced_mode(self, enabled):
@@ -924,16 +924,16 @@ class QEDialog(QDialog):
             self.save_button.hide()
 
     def _on_auto_store_on_modify_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "auto_store_on_modify", "true" if checked else "false")
+        app.writeSetting("TomJK_QuickExport", "auto_store_on_modify", bool2str(checked))
 
     def _on_auto_store_on_export_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "auto_store_on_export", "true" if checked else "false")
+        app.writeSetting("TomJK_QuickExport", "auto_store_on_export", bool2str(checked))
 
     def _on_auto_save_on_close_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "auto_save_on_close", "true" if checked else "false")
+        app.writeSetting("TomJK_QuickExport", "auto_save_on_close", bool2str(checked))
 
     def _on_use_custom_icons_action_toggled(self, checked):
-        app.writeSetting("TomJK_QuickExport", "use_custom_icons", "true" if checked else "false")
+        app.writeSetting("TomJK_QuickExport", "use_custom_icons", bool2str(checked))
         extension().update_action_icons()
 
     def _on_custom_icons_theme_action_group_triggered(self, action, group):
@@ -941,11 +941,11 @@ class QEDialog(QDialog):
         extension().update_action_icons()
     
     def _on_show_export_name_in_menu_action_toggled(self, checked):
-        app.writeSetting("TomJK_QuickExport", "show_export_name_in_menu", "true" if checked else "false")
+        app.writeSetting("TomJK_QuickExport", "show_export_name_in_menu", bool2str(checked))
         extension().update_quick_export_display()
     
     def _on_default_export_unsaved_action_toggled(self, checked):
-        app.writeSetting("TomJK_QuickExport", "default_export_unsaved", "true" if checked else "false")
+        app.writeSetting("TomJK_QuickExport", "default_export_unsaved", bool2str(checked))
         extension().update_quick_export_display()
 
     def _on_save_button_clicked(self, checked):

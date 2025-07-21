@@ -13,6 +13,12 @@ def set_extension(extension):
 def extension():
     return qe_extension
 
+def bool2str(boolval):
+    return "true" if boolval else "false"
+
+def str2bool(strval):
+    return True if strval == "true" else False
+
 def default_settings(document=None, doc_index=1024, store=False, path=None, output="", ext=".png"):
     settings = {
         "document":document,
@@ -82,7 +88,7 @@ def load_settings_from_config():
                         qe_settings[-1]["doc_index"] = i
                         break
             elif kvpair[0] == "png_alpha":
-                qe_settings[-1][kvpair[0]] = True if kvpair[1] == "true" else False
+                qe_settings[-1][kvpair[0]] = str2bool(kvpair[1])
             elif kvpair[0] == "png_compression":
                 qe_settings[-1][kvpair[0]] = int(kvpair[1])
             elif kvpair[0] == "jpeg_quality":
@@ -112,7 +118,7 @@ def generate_save_string():
         
         save_strings.append(
             f"path={str(s['path'])},"
-            f"png_alpha={'true' if s['png_alpha']==True else 'false'},"
+            f"png_alpha={bool2str(s['png_alpha'])},"
             f"png_compression={s['png_compression']},"
             f"jpeg_quality={s['jpeg_quality']},"
             f"output={s['output']},"

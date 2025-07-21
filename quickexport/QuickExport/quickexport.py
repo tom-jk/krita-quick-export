@@ -63,7 +63,7 @@ class QuickExportExtension(Extension):
         self.qec_action.setIcon(self.qec_icon_l if self.theme_is_dark else self.qec_icon_d)
     
     def update_action_icons(self):
-        use_custom_icons = True if app.readSetting("TomJK_QuickExport", "use_custom_icons", "true") == "true" else False
+        use_custom_icons = str2bool(app.readSetting("TomJK_QuickExport", "use_custom_icons", "true"))
         custom_icons_theme = app.readSetting("TomJK_QuickExport", "custom_icons_theme", "follow")
         
         if not use_custom_icons:
