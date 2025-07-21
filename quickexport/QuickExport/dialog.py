@@ -203,19 +203,11 @@ class QETree(QTreeWidget):
         #item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["png_alpha"]))
         self.set_settings_modified(store_button)
     
-    def _on_png_compression_slider_value_changed(self, value, doc, slider, label, item, store_button):
-        #print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
-        doc["png_compression"] = value
-        #item.setData(QECols.PNG_COMPRESSION_COLUMN, QERoles.CustomSortRole, str(doc["png_compression"]))
-        label.setText(str(value))
-        self.set_settings_modified(store_button)
     
-    def _on_jpeg_quality_slider_value_changed(self, doc, slider, label, item, store_button):
-        #print("slider value changed ->", value, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
-        value = slider.value()
-        doc["jpeg_quality"] = value
-        #item.setData(QECols.JPEG_QUALITY_COLUMN, QERoles.CustomSortRole, str(doc["jpeg_quality"]))
-        label.setText(f"{value}%")
+    def _on_generic_setting_changed(self, key, value, doc, store_button, label=None, label_string=None):
+        doc[key] = value
+        if label:
+            label.setText(label_string.format(value))
         self.set_settings_modified(store_button)
     
     def set_settings_modified(self, store_button=None):
@@ -451,7 +443,7 @@ class QETree(QTreeWidget):
             png_compression_label = QLabel()
             png_compression_slider = QSlider(Qt.Horizontal)
             png_compression_slider.setRange(1, 9)
-            png_compression_slider.valueChanged.connect(lambda value, d=s, cs=png_compression_slider, cl=png_compression_label, i=item, sb=btn_store_forget: self._on_png_compression_slider_value_changed(value, d, cs, cl, i, sb))
+            png_compression_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget, cl=png_compression_label: self._on_generic_setting_changed("png_compression", value, d, sb, cl, "{}"))
             png_compression_slider.setValue(s["png_compression"])
             png_compression_label.setText(str(s["png_compression"]))
             png_compression_layout.addWidget(png_compression_slider)
@@ -470,7 +462,7 @@ class QETree(QTreeWidget):
             jpeg_quality_layout = QHBoxLayout()
             jpeg_quality_label = QLabel()
             jpeg_quality_slider = SnapSlider(5, 0, 100, Qt.Horizontal)
-            jpeg_quality_slider.valueChanged.connect(lambda value, d=s, js=jpeg_quality_slider, jl=jpeg_quality_label, i=item, sb=btn_store_forget: self._on_jpeg_quality_slider_value_changed(d, js, jl, i, sb))
+            jpeg_quality_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget, jl=jpeg_quality_label: self._on_generic_setting_changed("jpeg_quality", value, d, sb, jl, "{}%"))
             jpeg_quality_slider.setValue(s["jpeg_quality"])
             
             jpeg_quality_label.setText(f"{s['jpeg_quality']}%")
