@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
                              QActionGroup, QToolButton, QComboBox, QStackedWidget, QStyle, QStyleOption,
                              QStyleOptionButton, QSpinBox, QStyleOptionSpinBox)
-from PyQt5.QtCore import Qt, QRegExp, QModelIndex
+from PyQt5.QtCore import Qt, QRegExp, QModelIndex, pyqtSignal
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette
 from pathlib import Path
 from functools import partial
@@ -73,6 +73,41 @@ class SpinBoxSlider(QSpinBox):
         x = style_option.rect.center().x() - pixelsWide//2
         y = style_option.rect.center().y() + pixelsTall//2
         painter.drawText(style_option.rect, Qt.AlignCenter, text)
+
+class ColourToolButton(QToolButton):
+    colourChanged = pyqtSignal(QColor)
+    
+    def __init__(self, colour=None, tooltip=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.colour = colour if colour else QColor(255,255,255,255)
+        if tooltip:
+            self.setToolTip(tooltip)
+        self.clicked.connect(self._on_clicked)
+    
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        
+        style_option = QStyleOptionButton()
+        style_option.initFrom(self)
+        
+        if self.isEnabled():
+            self.style().drawPrimitive(QStyle.PE_PanelButtonCommand, style_option, painter)
+        else:
+            painter.setOpacity(0.1)
+        
+        style_option.rect.adjust(4,4,-4,-4)
+        
+        painter.fillRect(style_option.rect, self.colour)
+    
+    def _on_clicked(self, event):
+        cd = QColorDialog(self.colour)
+        cd.exec()
+        selcol = cd.selectedColor()
+        if cd.result() == QDialog.Rejected:
+            return
+        self.colour = cd.selectedColor()
+        self.colourChanged.emit(self.colour)
+        self.update()
 
 class CheckToolButton(QToolButton):
     def __init__(self, icon=None, checked=False, tooltip=None, *args, **kwargs):
@@ -567,6 +602,12 @@ class QETree(QTreeWidget):
             png_alpha_checkbox.toggled.connect(lambda checked, d=s, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_toggled(checked, d, i, sb))
             png_settings_page_layout.addWidget(png_alpha_checkbox)
             
+            png_fillcolour_button = ColourToolButton(colour=s["png_fillcolour"], tooltip="transparent colour")
+            png_fillcolour_button.setDisabled(png_alpha_checkbox.isChecked())
+            png_alpha_checkbox.toggled.connect(lambda checked, fcb=png_fillcolour_button: fcb.setDisabled(checked))
+            png_fillcolour_button.colourChanged.connect(lambda colour, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_fillcolour", colour, d, sb))
+            png_settings_page_layout.addWidget(png_fillcolour_button)
+            
             png_compression_slider = SpinBoxSlider(label_text="Compression", range_min=1, range_max=9, snap_interval=1)
             png_compression_slider.setValue(s["png_compression"])
             png_compression_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_compression", value, d, sb))
@@ -577,6 +618,10 @@ class QETree(QTreeWidget):
             
             jpeg_settings_page = QWidget()
             jpeg_settings_page_layout = QHBoxLayout()
+            
+            jpeg_fillcolour_checkbox = ColourToolButton(colour=s["jpeg_fillcolour"], tooltip="transparent pixel fill colour")
+            jpeg_fillcolour_checkbox.colourChanged.connect(lambda colour, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_fillcolour", colour, d, sb))
+            jpeg_settings_page_layout.addWidget(jpeg_fillcolour_checkbox)
             
             jpeg_quality_slider = SpinBoxSlider(label_text="Quality", label_suffix="%", range_min=0, range_max=100, snap_interval=5)
             jpeg_quality_slider.setValue(s["jpeg_quality"])
