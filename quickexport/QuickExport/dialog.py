@@ -196,12 +196,6 @@ class QETree(QTreeWidget):
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
         settings_stack.setCurrentIndex(self.settings_stack_page_order.index(ext))
         self.set_settings_modified(store_button)
-        
-    def update_type_specific_widgets_enabled(self, ext, png_widgets, jpeg_widgets):
-        for w in png_widgets:
-            w.setHidden(ext != ".png")
-        for w in jpeg_widgets:
-            w.setHidden(ext != ".jpg")
     
     def _on_png_alpha_checkbox_state_changed(self, state, doc, item, store_button):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
