@@ -135,22 +135,43 @@ def save_settings_to_config():
     print(f"{save_string=}")
     app.writeSetting("TomJK_QuickExport", "settings", save_string)
 
-def export_image(image_settings, document=None):
+def export_image(settings, document=None):
     exportParameters = InfoObject()
-
-    extension = image_settings["ext"]
+    
+    extension = settings["ext"]
     
     if extension == ".png":
-        exportParameters.setProperty("alpha", image_settings["png_alpha"])
-        exportParameters.setProperty("compression", int(image_settings["png_compression"]))
-        exportParameters.setProperty("indexed", True)
+        exportParameters.setProperty("alpha",                 settings["png_alpha"])
+        exportParameters.setProperty("compression",           int(settings["png_compression"]))
+        exportParameters.setProperty("forceSRGB",             settings["png_force_srgb"])
+        exportParameters.setProperty("indexed",               settings["png_indexed"])
+        exportParameters.setProperty("interlaced",            settings["png_interlaced"])
+        exportParameters.setProperty("saveSRGBProfile",       settings["png_embed_srgb"])
+        exportParameters.setProperty("transparencyFillcolor", settings["png_fillcolour"])
+        exportParameters.setProperty("StoreMetaData",         settings["png_metadata"])         # not documented.
+        exportParameters.setProperty("StoreAuthor",           settings["png_author"])           # not documented.
     elif extension == ".jpg":
-        exportParameters.setProperty("quality", image_settings["jpeg_quality"])
+        exportParameters.setProperty("baseline",              settings["jpeg_force_baseline"])
+        exportParameters.setProperty("exif",                  settings["jpeg_exif"])
+        exportParameters.setProperty("filters",               ",".join(filter(lambda item: bool(item), ["ToolInfo" * settings['jpeg_tool_information'], "Anonymizer" * settings["jpeg_anonymiser"]])))
+        #exportParameters.setProperty("forceSRGB",            settings["??"])                   # probably safe to ignore for now.
+        exportParameters.setProperty("iptc",                  settings["jpeg_iptc"])
+        #exportParameters.setProperty("is_sRGB",              settings["??"])                   # probably safe to ignore for now.
+        exportParameters.setProperty("optimize",              settings["jpeg_optimise"])
+        exportParameters.setProperty("progressive",           settings["jpeg_progressive"])
+        exportParameters.setProperty("quality",               int(settings["jpeg_quality"]))
+        exportParameters.setProperty("saveProfile",           settings["jpeg_icc_profile"])
+        exportParameters.setProperty("smoothing",             int(settings["jpeg_smooth"]))
+        exportParameters.setProperty("subsampling",           ("2x2","2x1","1x2","1x1").index(settings["jpeg_subsampling"]))
+        exportParameters.setProperty("transparencyFillcolor", settings["jpeg_fillcolour"])
+        exportParameters.setProperty("xmp",                   settings["jpeg_xmp"])
+        exportParameters.setProperty("StoreMetaData",         settings["jpeg_metadata"])        # not documented.
+        exportParameters.setProperty("StoreAuthor",           settings["jpeg_author"])          # not documented.
     
-    export_path = image_settings["path"].with_name(image_settings["output"]).with_suffix(image_settings["ext"])
+    export_path = settings["path"].with_name(settings["output"]).with_suffix(settings["ext"])
     
     if not document:
-        document = image_settings["document"]
+        document = settings["document"]
     
     document.setBatchmode(True)
     document.waitForDone()
