@@ -2,9 +2,9 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate, QMenu,
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
                              QActionGroup, QToolButton, QComboBox, QStackedWidget, QStyle, QStyleOption,
-                             QSpinBox, QStyleOptionSpinBox)
+                             QStyleOptionButton, QSpinBox, QStyleOptionSpinBox)
 from PyQt5.QtCore import Qt, QRegExp, QModelIndex
-from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter
+from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette
 from pathlib import Path
 from functools import partial
 from enum import IntEnum, auto
@@ -73,6 +73,82 @@ class SpinBoxSlider(QSpinBox):
         x = style_option.rect.center().x() - pixelsWide//2
         y = style_option.rect.center().y() + pixelsTall//2
         painter.drawText(style_option.rect, Qt.AlignCenter, text)
+
+class CheckToolButton(QToolButton):
+    def __init__(self, icon=None, checked=False, tooltip=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setCheckable(True)
+        if icon:
+            self.setIcon(icon)
+        if checked:
+            self.setChecked(checked)
+        if tooltip:
+            self.setToolTip(tooltip)
+    
+    def paintEvent(self, event):
+        #print("paint", event)
+        
+        painter = QPainter(self)
+        
+        style_option = QStyleOptionButton()
+        style_option.initFrom(self)
+        
+        mouse_is_over = style_option.state & QStyle.State_MouseOver
+        
+        # if not mouse_is_over:
+            # painter.setOpacity(0.5)
+        if mouse_is_over:
+            self.style().drawPrimitive(QStyle.PE_PanelButtonCommand, style_option, painter)
+        
+        painter.setOpacity(0.85 if self.isChecked() else 0.33 if mouse_is_over else 0.15)
+        
+        style_option.rect.adjust(2,2,-2,-2)
+        if not self.isChecked():
+            style_option.rect.adjust(2,2,-2,-2)
+        
+        self.style().drawItemPixmap(painter, style_option.rect, 0, self.icon().pixmap(style_option.rect.size()))
+        
+        if True:#not self.isChecked():
+            return
+        
+        style_option.initFrom(self)
+        style_option.state = QStyle.State_On
+        style_option.rect.adjust(8,8,2,2)
+        
+        palette = style_option.palette
+        palette.setColor(QPalette.Window, QColor(255,255,255,0))
+        palette.setColor(QPalette.Base, QColor(0,0,0,0))
+        palette.setColor(QPalette.Text, QColor(0,0,0,255))
+        style_option.palette = palette
+        
+        painter.setOpacity(0.25)#0.75)
+        
+        # check shadow - top-left
+        style_option.rect.adjust(-1,-1,-1,-1)
+        self.style().drawPrimitive(QStyle.PE_IndicatorCheckBox, style_option, painter)
+        
+        # check shadow - top-right
+        style_option.rect.adjust(3,0,3,0)
+        self.style().drawPrimitive(QStyle.PE_IndicatorCheckBox, style_option, painter)
+        
+        # check shadow - bottom-left
+        style_option.rect.adjust(-3,3,-3,3)
+        self.style().drawPrimitive(QStyle.PE_IndicatorCheckBox, style_option, painter)
+        
+        # check shadow - bottom-right
+        style_option.rect.adjust(3,0,3,0)
+        self.style().drawPrimitive(QStyle.PE_IndicatorCheckBox, style_option, painter)
+        
+        painter.setOpacity(0.5)#1.0)
+        
+        # check
+        style_option.rect.adjust(-2,-2,-2,-2)
+        palette = style_option.palette
+        palette.setColor(QPalette.Base, QColor(0,0,0,0))
+        palette.setColor(QPalette.Text, QColor(255,255,255,255))
+        style_option.palette = palette
+        
+        self.style().drawPrimitive(QStyle.PE_IndicatorCheckBox, style_option, painter)
 
 class SnapSlider(QSlider):
     def __init__(self, snap_interval, range_min, range_max, orientation, parent=None):
@@ -258,9 +334,9 @@ class QETree(QTreeWidget):
         settings_stack.setCurrentIndex(self.settings_stack_page_order.index(ext))
         self.set_settings_modified(store_button)
     
-    def _on_png_alpha_checkbox_state_changed(self, state, doc, item, store_button):
+    def _on_png_alpha_checkbox_toggled(self, checked, doc, item, store_button):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
-        doc["png_alpha"] = True if state == Qt.Checked else False
+        doc["png_alpha"] = checked
         #item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["png_alpha"]))
         self.set_settings_modified(store_button)
     
@@ -487,14 +563,9 @@ class QETree(QTreeWidget):
             png_settings_page = QWidget()
             png_settings_page_layout = QHBoxLayout()
             
-            png_alpha_checkbox = QCheckBox()
-            png_alpha_checkbox.setStyleSheet(checkbox_stylesheet)
-            
-            png_alpha_checkbox.setCheckState(Qt.Checked if s["png_alpha"] else Qt.Unchecked)
-            png_alpha_checkbox.stateChanged.connect(lambda state, d=s, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_state_changed(state, d, i, sb))
-            png_alpha_checkbox_widget = centered_checkbox_widget(png_alpha_checkbox)
-            #item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+s["png_alpha"]))
-            png_settings_page_layout.addWidget(png_alpha_checkbox_widget)
+            png_alpha_checkbox = CheckToolButton(icon=app.icon('transparency-unlocked'), checked=s["png_alpha"], tooltip="store alpha channel (transparency)")
+            png_alpha_checkbox.toggled.connect(lambda checked, d=s, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_toggled(checked, d, i, sb))
+            png_settings_page_layout.addWidget(png_alpha_checkbox)
             
             png_compression_slider = SpinBoxSlider(label_text="Compression", range_min=1, range_max=9, snap_interval=1)
             png_compression_slider.setValue(s["png_compression"])
@@ -511,8 +582,6 @@ class QETree(QTreeWidget):
             jpeg_quality_slider.setValue(s["jpeg_quality"])
             jpeg_quality_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_quality", value, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_quality_slider)
-            
-            
             
             jpeg_settings_page.setLayout(jpeg_settings_page_layout)
             settings_stack.addWidget(jpeg_settings_page)
