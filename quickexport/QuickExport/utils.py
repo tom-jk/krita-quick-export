@@ -210,7 +210,7 @@ def tokenize_settings_string(s, tokens):
     while True:
         subs = s[i:]
         mo = re.search("=|,|;|\[|\]", subs)
-        print(mo)
+        #print(mo)
         if not mo:
             break
         if subs[:mo.end()-1] != "":
