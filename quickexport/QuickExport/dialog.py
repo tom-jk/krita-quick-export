@@ -430,6 +430,10 @@ class QETree(QTreeWidget):
         self.dup_counts = {}
         for i, doc in enumerate(docs):
             doc_fn = doc.fileName()
+            # ignore unsaved files.
+            # TODO: better handling of Recovery files (from autosave).
+            if doc_fn == "":
+                continue
             for i2, doc2 in enumerate(docs):
                 if i2 <= i:
                     continue
