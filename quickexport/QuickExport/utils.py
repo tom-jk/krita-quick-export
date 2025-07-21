@@ -1,4 +1,7 @@
+from PyQt5.QtGui import QColor
 from pathlib import Path
+from functools import reduce
+import re
 from krita import *
 app = Krita.instance()
 
@@ -18,6 +21,12 @@ def bool2str(boolval):
 
 def str2bool(strval):
     return True if strval == "true" else False
+
+def bool2flag(*args):
+    return reduce(lambda a,b: a+b, (("1" if b else "0") for b in args))
+
+def flag2bool(strval):
+    return True if strval == "1" else False
 
 def default_settings(document=None, doc_index=1024, store=False, path=None, output="", ext=".png"):
     settings = {
@@ -59,8 +68,8 @@ def default_settings(document=None, doc_index=1024, store=False, path=None, outp
 def load_settings_from_config():
     """
     read in settings string from kritarc.
-    example: "path=a/b.kra,alpha=false,ouput=b.png;c/d.kra,alpha=true,output=e/f.png"
-    becomes: settings[{"document":<obj>, "store":True, "path":"a/b.kra", "alpha":False, "output":"b.png"}, {"document":<obj>, "store":True, "path":"c/d.kra", "alpha":True, "output":"d.png"}]
+    example: "path=a/b.kra,output=b,ext=.png,png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
+    becomes: settings[{"document":<obj>, "store":True, "path":"a/b.kra", "output":"b", "ext":".png", "png_fillcolour":QColor('#ffffff'), "compression":9, "png_alpha":True, "png_indexed":True, "png_interlaced":False ... etc.}]
     """
     qe_settings.clear()
     
@@ -71,36 +80,88 @@ def load_settings_from_config():
     if settings_string == "":
         return
     
-    settings_as_arrays = [[[y for y in kvpair.split('=', 1)] for kvpair in file.split(',')] for file in settings_string.split(';')]
-    #print(f"{settings_as_arrays=}")
+    settings_tokens = []
+    tokenize_settings_string(settings_string, settings_tokens)
+    
+    if settings_tokens[-1] != ";":
+        settings_tokens.append(";")
+    
+    token_prefix = ""
+    token_stack = []
+    settings_per_file = []
+    settings_kvpairs = []
+    
+    for token in settings_tokens:
+        if token == ",":
+            continue
+        elif token == ";":
+            settings_per_file.append(settings_kvpairs)
+            settings_kvpairs = []
+        elif token == "=":
+            continue
+        elif token == "[":
+            token_prefix = token_stack.pop() + "_"
+        elif token == "]":
+            token_prefix = ""
+        else:
+            token_stack.append(token)
+            if len(token_stack) == 2:
+                settings_kvpairs.append([token_prefix + token_stack.pop(-2), token_stack.pop()])
     
     #print()
     
-    for file_settings in settings_as_arrays:
-        #print("found file settings", file_settings)
-        qe_settings.append(default_settings(store=True))
-        for kvpair in file_settings:
-            if kvpair[0] == "path":
-                qe_settings[-1][kvpair[0]] = Path(kvpair[1])
+    for file_kvpairs in settings_per_file:
+        #print("found file settings", file_kvpairs)
+        settings = default_settings(store=True)
+        for k,v in file_kvpairs:
+            if k == "path":
+                settings[k] = Path(v)
                 for i, d in enumerate(app.documents()):
-                    if d.fileName() == kvpair[1]:
-                        qe_settings[-1]["document"] = d
-                        qe_settings[-1]["doc_index"] = i
+                    if d.fileName() == v:
+                        settings["document"] = d
+                        settings["doc_index"] = i
                         break
-            elif kvpair[0] == "png_alpha":
-                qe_settings[-1][kvpair[0]] = str2bool(kvpair[1])
-            elif kvpair[0] == "png_compression":
-                qe_settings[-1][kvpair[0]] = int(kvpair[1])
-            elif kvpair[0] == "jpeg_quality":
-                qe_settings[-1][kvpair[0]] = int(kvpair[1])
-            elif kvpair[0] == "output":
-                qe_settings[-1][kvpair[0]] = kvpair[1]
-            elif kvpair[0] == "ext":
-                qe_settings[-1][kvpair[0]] = kvpair[1]
+            elif k in ("output", "ext"):
+                settings[k] = v
+            elif k == "png_fc":
+                settings["png_fillcolour"] = QColor(v)
+            elif k == "png_co":
+                settings["png_compression"] = int(v)
+            elif k == "png_flag":
+                settings["png_alpha"]       = flag2bool(v[0])
+                settings["png_indexed"]     = flag2bool(v[1])
+                settings["png_interlaced"]  = flag2bool(v[2])
+                settings["png_hdr"]         = flag2bool(v[3])
+                settings["png_embed_srgb"]  = flag2bool(v[4])
+                settings["png_force_srgb"]  = flag2bool(v[5])
+                settings["png_metadata"]    = flag2bool(v[6])
+                settings["png_author"]      = flag2bool(v[7])
+                settings["png_force_8bit"]  = flag2bool(v[8])
+            elif k == "jpeg_fc":
+                settings["jpeg_fillcolour"] = QColor(v)
+            elif k == "jpeg_qu":
+                settings["jpeg_quality"] = int(v)
+            elif k == "jpeg_sm":
+                settings["jpeg_smooth"] = int(v)
+            elif k == "jpeg_ss":
+                settings["jpeg_subsampling"] = v
+            elif k == "jpeg_flag":
+                settings["jpeg_progressive"]      = flag2bool(v[0])
+                settings["jpeg_icc_profile"]      = flag2bool(v[1])
+                settings["jpeg_force_baseline"]   = flag2bool(v[2])
+                settings["jpeg_optimise"]         = flag2bool(v[3])
+                settings["jpeg_exif"]             = flag2bool(v[4])
+                settings["jpeg_iptc"]             = flag2bool(v[5])
+                settings["jpeg_xmp"]              = flag2bool(v[6])
+                settings["jpeg_tool_information"] = flag2bool(v[7])
+                settings["jpeg_anonymiser"]       = flag2bool(v[8])
+                settings["jpeg_metadata"]         = flag2bool(v[9])
+                settings["jpeg_author"]           = flag2bool(v[10])
             else:
-                print(f" unrecognised parameter name '{kvpair[0]}'")
+                print(f" unrecognised parameter name '{k}'")
                 continue
-            #print(" found", kvpair)
+            #print(f" found {k}:{v}")
+        qe_settings.append(settings)
         #print()
 
 def find_settings_for_file(file_path):
@@ -118,11 +179,20 @@ def generate_save_string():
         
         save_strings.append(
             f"path={str(s['path'])},"
-            f"png_alpha={bool2str(s['png_alpha'])},"
-            f"png_compression={s['png_compression']},"
-            f"jpeg_quality={s['jpeg_quality']},"
             f"output={s['output']},"
-            f"ext={s['ext']}"
+            f"ext={s['ext']},"
+            f"png=["
+            f"fc={s['png_fillcolour'].name(QColor.HexRgb)},"
+            f"co={s['png_compression']},"
+            f"flag={bool2flag(s['png_alpha'], s['png_indexed'], s['png_interlaced'], s['png_hdr'], s['png_embed_srgb'], s['png_force_srgb'], s['png_metadata'], s['png_author'], s['png_force_8bit'])}"
+            f"],"
+            f"jpeg=["
+            f"fc={s['jpeg_fillcolour'].name(QColor.HexRgb)},"
+            f"qu={s['jpeg_quality']},"
+            f"sm={s['jpeg_smooth']},"
+            f"ss={s['jpeg_subsampling']},"
+            f"flag={bool2flag(s['jpeg_progressive'], s['jpeg_icc_profile'], s['jpeg_force_baseline'], s['jpeg_optimise'], s['jpeg_exif'], s['jpeg_iptc'], s['jpeg_xmp'], s['jpeg_tool_information'], s['jpeg_anonymiser'], s['jpeg_metadata'], s['jpeg_author'])}"
+            f"]"
         )
     
     return ";".join(save_strings)
@@ -134,6 +204,19 @@ def save_settings_to_config():
 
     print(f"{save_string=}")
     app.writeSetting("TomJK_QuickExport", "settings", save_string)
+
+def tokenize_settings_string(s, tokens):
+    i = 0
+    while True:
+        subs = s[i:]
+        mo = re.search("=|,|;|\[|\]", subs)
+        print(mo)
+        if not mo:
+            break
+        if subs[:mo.end()-1] != "":
+            tokens.append(subs[:mo.end()-1])
+        tokens.append(mo.group())
+        i += mo.end()
 
 def export_image(settings, document=None):
     exportParameters = InfoObject()
