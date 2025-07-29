@@ -231,6 +231,7 @@ def export_image(settings, document=None):
         exportParameters.setProperty("interlaced",            settings["png_interlaced"])
         exportParameters.setProperty("saveSRGBProfile",       settings["png_embed_srgb"])
         exportParameters.setProperty("transparencyFillcolor", settings["png_fillcolour"])
+        exportParameters.setProperty("downsample",            settings["png_force_8bit"])       # not documented.
         exportParameters.setProperty("StoreMetaData",         settings["png_metadata"])         # not documented.
         exportParameters.setProperty("StoreAuthor",           settings["png_author"])           # not documented.
     elif extension == ".jpg":
