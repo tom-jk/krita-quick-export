@@ -702,6 +702,10 @@ class QETree(QTreeWidget):
             png_force_srgb_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_srgb", checked, d, sb))
             png_settings_page_layout.addWidget(png_force_srgb_checkbox)
             
+            png_force_8bit_checkbox = CheckToolButton(icon=app.icon('merge-layer-below'), checked=s["png_force_8bit"], tooltip="force convert to 8bits/channel")
+            png_force_8bit_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_8bit", checked, d, sb))
+            png_settings_page_layout.addWidget(png_force_8bit_checkbox)
+            
             png_metadata_checkbox = CheckToolButton(icon=app.icon('view-list-details'), checked=s["png_metadata"], tooltip="store metadata")
             png_metadata_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_metadata", checked, d, sb))
             png_settings_page_layout.addWidget(png_metadata_checkbox)
@@ -709,10 +713,6 @@ class QETree(QTreeWidget):
             png_author_checkbox = CheckToolButton(icon=app.icon('im-user'), checked=s["png_author"], tooltip="sign with author data")
             png_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_author", checked, d, sb))
             png_settings_page_layout.addWidget(png_author_checkbox)
-            
-            png_force_8bit_checkbox = CheckToolButton(icon=app.icon('merge-layer-below'), checked=s["png_force_8bit"], tooltip="force convert to 8bits/channel")
-            png_force_8bit_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_8bit", checked, d, sb))
-            png_settings_page_layout.addWidget(png_force_8bit_checkbox)
             
             png_settings_page.setLayout(png_settings_page_layout)
             settings_stack.addWidget(png_settings_page)
