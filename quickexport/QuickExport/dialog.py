@@ -449,6 +449,10 @@ class QETree(QTreeWidget):
         self._on_generic_setting_changed("jpeg_subsampling", value, doc, store_button)
         button.set_icon_name(("subsampling", value))
     
+    def _on_jpeg_metadata_checkbox_toggled(self, checked, metadata_options_button, doc, store_button):
+        self._on_generic_setting_changed("jpeg_metadata", checked, doc, store_button)
+        metadata_options_button.setChecked(checked)
+    
     def _on_generic_setting_changed(self, key, value, doc, store_button):
         doc[key] = value
         self.set_settings_modified(store_button)
@@ -783,7 +787,7 @@ class QETree(QTreeWidget):
             jpeg_optimise_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_optimise", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_optimise_checkbox)
             
-            jpeg_metadata_options_button = CheckToolButton(icon_name="metadata_options", checked=True, tooltip="formats")
+            jpeg_metadata_options_button = CheckToolButton(icon_name="metadata_options", checked=s["jpeg_metadata"], tooltip="formats")
             jpeg_metadata_options_button.setPopupMode(QToolButton.InstantPopup)
             
             jpeg_metadata_options_menu = QEMenu()
@@ -810,7 +814,7 @@ class QETree(QTreeWidget):
             jpeg_settings_page_layout.addWidget(jpeg_metadata_options_button)
             
             jpeg_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["jpeg_metadata"], tooltip="store metadata")
-            jpeg_metadata_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_metadata", checked, d, sb))
+            jpeg_metadata_checkbox.toggled.connect(lambda checked, mob=jpeg_metadata_options_button, d=s, sb=btn_store_forget: self._on_jpeg_metadata_checkbox_toggled(checked, mob, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_metadata_checkbox)
             
             jpeg_author_checkbox = CheckToolButton(icon_name="author", checked=s["jpeg_author"], tooltip="sign with author data")
