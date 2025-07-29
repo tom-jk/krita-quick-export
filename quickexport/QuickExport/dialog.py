@@ -14,6 +14,27 @@ from .utils import *
 
 app = Krita.instance()
 
+class QEMenu(QMenu):
+    def __init__(self, keep_open=True, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.keep_open = keep_open
+    
+    def addAction(self, text, data=None):
+        action = super().addAction(text)
+        if data:
+            action.setData(data)
+        return action
+
+    def mouseReleaseEvent(self, event):
+        # keep menu open after toggling checkbox actions.
+        if self.keep_open:
+            if (action := self.activeAction()):
+                if action.isCheckable():
+                    action.trigger()
+                    event.accept()
+                    return
+        super().mouseReleaseEvent(event)
+
 class SpinBoxSlider(QSpinBox):
     def __init__(self, label_text="", label_suffix="", range_min=0, range_max=100, snap_interval=1, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -680,15 +701,14 @@ class QETree(QTreeWidget):
             jpeg_subsampling_button = CheckToolButton(icon=app.icon('tool_similar_selection'), checked=True, tooltip="subsampling")
             jpeg_subsampling_button.setPopupMode(QToolButton.InstantPopup)
             
-            jpeg_subsampling_menu = QMenu()
+            jpeg_subsampling_menu = QEMenu(keep_open=False)
             jpeg_subsampling_action_group = QActionGroup(jpeg_subsampling_menu)
-            jpeg_subsampling_2x2_action = jpeg_subsampling_menu.addAction("2x2, 1x1, 1x1 (smallest file)")
-            jpeg_subsampling_2x1_action = jpeg_subsampling_menu.addAction("2x1, 1x1, 1x1")
-            jpeg_subsampling_1x2_action = jpeg_subsampling_menu.addAction("1x2, 1x1, 1x1")
-            jpeg_subsampling_1x1_action = jpeg_subsampling_menu.addAction("1x1, 1x1, 1x1 (best quality)")
+            jpeg_subsampling_2x2_action = jpeg_subsampling_menu.addAction("2x2, 1x1, 1x1 (smallest file)", "2x2")
+            jpeg_subsampling_2x1_action = jpeg_subsampling_menu.addAction("2x1, 1x1, 1x1", "2x1")
+            jpeg_subsampling_1x2_action = jpeg_subsampling_menu.addAction("1x2, 1x1, 1x1", "1x2")
+            jpeg_subsampling_1x1_action = jpeg_subsampling_menu.addAction("1x1, 1x1, 1x1 (best quality)", "1x1")
             for i, action in enumerate(jpeg_subsampling_menu.actions()):
                 action.setCheckable(True)
-                action.setData(("2x2","2x1","1x2","1x1")[i])
                 action.setActionGroup(jpeg_subsampling_action_group)
                 action.setChecked(action.data() == s["jpeg_subsampling"])
             jpeg_subsampling_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_subsampling", a.data(), d, sb))
@@ -699,13 +719,12 @@ class QETree(QTreeWidget):
             jpeg_formats_button = CheckToolButton(icon=app.icon('tag'), checked=True, tooltip="formats")
             jpeg_formats_button.setPopupMode(QToolButton.InstantPopup)
             
-            jpeg_formats_menu = QMenu()
-            jpeg_formats_Exif_action = jpeg_formats_menu.addAction("Exif")
-            jpeg_formats_IPTC_action = jpeg_formats_menu.addAction("IPTC")
-            jpeg_formats_XMP_action = jpeg_formats_menu.addAction("XMP")
+            jpeg_formats_menu = QEMenu()
+            jpeg_formats_Exif_action = jpeg_formats_menu.addAction("Exif", "exif")
+            jpeg_formats_IPTC_action = jpeg_formats_menu.addAction("IPTC", "iptc")
+            jpeg_formats_XMP_action = jpeg_formats_menu.addAction("XMP", "xmp")
             for i, action in enumerate(jpeg_formats_menu.actions()):
                 action.setCheckable(True)
-                action.setData(("exif", "iptc", "xmp")[i])
                 action.setChecked(s[f"jpeg_{action.data()}"])
             jpeg_formats_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), d, sb))
             
@@ -715,12 +734,11 @@ class QETree(QTreeWidget):
             jpeg_filters_button = CheckToolButton(icon=app.icon('filterMask'), checked=True, tooltip="filters")
             jpeg_filters_button.setPopupMode(QToolButton.InstantPopup)
             
-            jpeg_filters_menu = QMenu()
-            jpeg_filters_Exif_action = jpeg_filters_menu.addAction("Tool information")
-            jpeg_filters_IPTC_action = jpeg_filters_menu.addAction("Anonymiser")
+            jpeg_filters_menu = QEMenu()
+            jpeg_filters_info_action = jpeg_filters_menu.addAction("Tool information", "tool_information")
+            jpeg_filters_anon_action = jpeg_filters_menu.addAction("Anonymiser", "anonymiser")
             for i, action in enumerate(jpeg_filters_menu.actions()):
                 action.setCheckable(True)
-                action.setData(("tool_information", "anonymiser")[i])
                 action.setChecked(s[f"jpeg_{action.data()}"])
             jpeg_filters_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), d, sb))
             
@@ -899,7 +917,7 @@ class QEDialog(QDialog):
         options_button.setPopupMode(QToolButton.InstantPopup)
         status_layout.addWidget(options_button)
         
-        options_menu = QMenu()
+        options_menu = QEMenu()
         options_menu.setToolTipsVisible(True)
 
         use_custom_icons_action = options_menu.addAction("Use custom icons")
