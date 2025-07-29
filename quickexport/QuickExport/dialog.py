@@ -760,35 +760,6 @@ class QETree(QTreeWidget):
             jpeg_subsampling_button.setMenu(jpeg_subsampling_menu)
             jpeg_settings_page_layout.addWidget(jpeg_subsampling_button)
             
-            jpeg_formats_button = CheckToolButton(icon=app.icon('tag'), checked=True, tooltip="formats")
-            jpeg_formats_button.setPopupMode(QToolButton.InstantPopup)
-            
-            jpeg_formats_menu = QEMenu()
-            jpeg_formats_Exif_action = jpeg_formats_menu.addAction("Exif", "exif")
-            jpeg_formats_IPTC_action = jpeg_formats_menu.addAction("IPTC", "iptc")
-            jpeg_formats_XMP_action = jpeg_formats_menu.addAction("XMP", "xmp")
-            for i, action in enumerate(jpeg_formats_menu.actions()):
-                action.setCheckable(True)
-                action.setChecked(s[f"jpeg_{action.data()}"])
-            jpeg_formats_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), d, sb))
-            
-            jpeg_formats_button.setMenu(jpeg_formats_menu)
-            jpeg_settings_page_layout.addWidget(jpeg_formats_button)
-            
-            jpeg_filters_button = CheckToolButton(icon=app.icon('filterMask'), checked=True, tooltip="filters")
-            jpeg_filters_button.setPopupMode(QToolButton.InstantPopup)
-            
-            jpeg_filters_menu = QEMenu()
-            jpeg_filters_info_action = jpeg_filters_menu.addAction("Tool information", "tool_information")
-            jpeg_filters_anon_action = jpeg_filters_menu.addAction("Anonymiser", "anonymiser")
-            for i, action in enumerate(jpeg_filters_menu.actions()):
-                action.setCheckable(True)
-                action.setChecked(s[f"jpeg_{action.data()}"])
-            jpeg_filters_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), d, sb))
-            
-            jpeg_filters_button.setMenu(jpeg_filters_menu)
-            jpeg_settings_page_layout.addWidget(jpeg_filters_button)
-            
             jpeg_force_baseline_checkbox = CheckToolButton(icon=app.icon('krita_tool_rectangle'), checked=s["jpeg_force_baseline"], tooltip="force baseline JPEG")
             jpeg_force_baseline_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_force_baseline", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_force_baseline_checkbox)
@@ -796,6 +767,32 @@ class QETree(QTreeWidget):
             jpeg_optimise_checkbox = CheckToolButton(icon=app.icon('tool_crop'), checked=s["jpeg_optimise"], tooltip="optimise")
             jpeg_optimise_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_optimise", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_optimise_checkbox)
+            
+            jpeg_metadata_options_button = CheckToolButton(icon=app.icon('tag'), checked=True, tooltip="formats")
+            jpeg_metadata_options_button.setPopupMode(QToolButton.InstantPopup)
+            
+            jpeg_metadata_options_menu = QEMenu()
+            
+            jpeg_metadata_options_header_action = jpeg_metadata_options_menu.addAction("Metadata formats")
+            jpeg_metadata_options_header_action.setDisabled(True)
+            jpeg_metadata_options_Exif_action = jpeg_metadata_options_menu.addAction("Exif", "exif")
+            jpeg_metadata_options_IPTC_action = jpeg_metadata_options_menu.addAction("IPTC", "iptc")
+            jpeg_metadata_options_XMP_action = jpeg_metadata_options_menu.addAction("XMP", "xmp")
+            
+            jpeg_filters_header_action = jpeg_metadata_options_menu.addAction("Filters")
+            jpeg_filters_header_action.setDisabled(True)
+            jpeg_metadata_options_info_action = jpeg_metadata_options_menu.addAction("Tool information", "tool_information")
+            jpeg_metadata_options_anon_action = jpeg_metadata_options_menu.addAction("Anonymiser", "anonymiser")
+            
+            for action in jpeg_metadata_options_menu.actions():
+                if not action.data():
+                    continue
+                action.setCheckable(True)
+                action.setChecked(s[f"jpeg_{action.data()}"])
+            jpeg_metadata_options_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), d, sb))
+            
+            jpeg_metadata_options_button.setMenu(jpeg_metadata_options_menu)
+            jpeg_settings_page_layout.addWidget(jpeg_metadata_options_button)
             
             jpeg_metadata_checkbox = CheckToolButton(icon=app.icon('view-list-details'), checked=s["jpeg_metadata"], tooltip="store metadata")
             jpeg_metadata_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_metadata", checked, d, sb))
