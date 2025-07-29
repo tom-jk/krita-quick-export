@@ -19,10 +19,10 @@ id="metadata7">
 <dc:format>image/svg+xml</dc:format>
 <dc:type
 rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-<dc:date>2021</dc:date>
+<dc:date>2025</dc:date>
 <dc:creator>
 <cc:Agent>
-<dc:title>Timothée Giet</dc:title>
+<dc:title>Thomas Knowles</dc:title>
 </cc:Agent>
 </dc:creator>
 <cc:license
@@ -46,6 +46,6 @@ rdf:resource="http://creativecommons.org/ns#ShareAlike" />
 </rdf:RDF>
 </metadata>
 <path
-style="display:inline;vector-effect:none;fill:#d2d2d2;fill-opacity:1;fill-rule:evenodd;stroke:none;"
-d="M 2,5 V 17 H 3 V 5 Z M 4,3 v 16 h 10 v -2 h -1 v 1 H 5 V 4 h 8 v 1 h 1 V 3 Z m 8,9 h 8 v 2 h -8 z m -3,0 h 2 v 2 H 9 Z m 3,-4 h 8 v 2 H 12 Z M 9,8 h 2 v 2 H 9 Z" />
+style="fill:#373737;fill-rule:evenodd"
+d="M 10,13 C 8.5,13 7.5,13.4 7,14 6.4,14.6 6,15.5 6,17 v 1 H 16 V 17 C 16,15.5 15.7,14.6 15,14 14.5,13.4 13.5,13 12,13 Z m -5,6 h 12 v -2 c 0,-3.3 -1.7,-5 -5,-5 H 10 C 6.7,12 5,13.7 5,17 Z M 15,7 a 4,4 0 0 1 -4,4 4,4 0 0 1 -4,-4 4,4 0 0 1 4,-4 4,4 0 0 1 4,4 z" />
 </svg>
