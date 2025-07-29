@@ -170,9 +170,9 @@ class CheckToolButton(QToolButton):
         if mouse_is_over:
             self.style().drawPrimitive(QStyle.PE_PanelButtonCommand, style_option, painter)
         
-        painter.setOpacity(0.85 if self.isChecked() else 0.33 if mouse_is_over else 0.15)
+        painter.setOpacity(0.95 if self.isChecked() else 0.65 if mouse_is_over else 0.25)
         
-        style_option.rect.adjust(2,2,-2,-2)
+        #style_option.rect.adjust(2,2,-2,-2)
         if not self.isChecked():
             style_option.rect.adjust(2,2,-2,-2)
         
