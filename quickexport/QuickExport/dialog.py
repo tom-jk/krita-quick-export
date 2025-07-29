@@ -2,9 +2,9 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate, QMenu,
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
                              QActionGroup, QToolButton, QComboBox, QStackedWidget, QStyle, QStyleOption,
-                             QStyleOptionButton, QSpinBox, QStyleOptionSpinBox)
-from PyQt5.QtCore import Qt, QRegExp, QModelIndex, pyqtSignal
-from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette
+                             QStyleOptionButton, QSpinBox, QStyleOptionSpinBox, QGraphicsOpacityEffect)
+from PyQt5.QtCore import Qt, QObject, QRegExp, QModelIndex, pyqtSignal, QEvent
+from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette, QMouseEvent, QTabletEvent
 from pathlib import Path
 from functools import partial
 from enum import IntEnum, auto
@@ -34,6 +34,20 @@ class QEMenu(QMenu):
                     event.accept()
                     return
         super().mouseReleaseEvent(event)
+
+class FadingStackedWidget(QStackedWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self._opacity = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self._opacity)
+        self.setOpacity(hover=False)
+    
+    def setOpacity(self, opacity=-1, hover=False):
+        fade = int(app.readSetting("TomJK_QuickExport", "unhovered_fade", "75")) / 100.0
+        if opacity == -1:
+            opacity = 1.0 if hover else fade
+        self._opacity.setOpacity(opacity)
 
 class SpinBoxSlider(QSpinBox):
     def __init__(self, label_text="", label_suffix="", range_min=0, range_max=100, snap_interval=1, *args, **kwargs):
@@ -307,6 +321,25 @@ class MyTreeWidgetItem(QTreeWidgetItem):
             return d
         return self.text(column)
 
+class QETreeFilter(QObject):
+    def eventFilter(self, tree, event):
+        #print(f"eventFilter {self=} {tree=} {event=}")
+        
+        if not (isinstance(event, QMouseEvent) or isinstance(event, QTabletEvent)):
+            return False
+        
+        #print("mouse/tablet event")
+        pos = tree.viewport().mapFromGlobal(event.globalPos())
+        item = tree.itemAt(pos)
+        #print(f"{pos=}: {item.text(QECols.SOURCE_FILENAME_COLUMN) if item else 'no item'}")
+        if item != tree.hovered_item:
+            if tree.hovered_item:
+                tree.itemWidget(tree.hovered_item, QECols.SETTINGS_COLUMN).setOpacity(hover=False)
+            tree.hovered_item = item
+            if tree.hovered_item:
+                tree.itemWidget(tree.hovered_item, QECols.SETTINGS_COLUMN).setOpacity(hover=True)
+        return False
+
 class QECols(IntEnum):
     STORE_SETTINGS_COLUMN = 0
     OPEN_FILE_COLUMN = auto()
@@ -324,6 +357,11 @@ class QERoles(IntEnum):
 
 class QETree(QTreeWidget):
     instance = None
+    
+    def leaveEvent(self, event):
+        if self.hovered_item:
+            self.itemWidget(self.hovered_item, QECols.SETTINGS_COLUMN).setOpacity(hover=False)
+        self.hovered_item = None
     
     def refilter(self):
         for index, s in enumerate(qe_settings):
@@ -431,6 +469,12 @@ class QETree(QTreeWidget):
         self.setAlternatingRowColors(True)
         from PyQt5.QtCore import QItemSelectionModel
         self.setSelectionMode(QTreeWidget.NoSelection)
+        
+        self.setMouseTracking(True)
+        self.filter = QETreeFilter()
+        self.installEventFilter(self.filter)
+        
+        self.hovered_item = None
     
     def _on_item_clicked(self, item, column):
         widget = self.itemWidget(item, column)
@@ -618,7 +662,7 @@ class QETree(QTreeWidget):
             self.setItemWidget(item, QECols.OUTPUT_FILETYPE_COLUMN, outputext_widget)
             item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, s["ext"])
             
-            settings_stack = QStackedWidget()
+            settings_stack = FadingStackedWidget()
             
             png_settings_page = QWidget()
             png_settings_page_layout = QHBoxLayout()
@@ -827,6 +871,26 @@ class QEDialog(QDialog):
         self.show_non_kra_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_non_kra", "false") == "true" else Qt.Unchecked)
         self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
 
+        # slider for settings fade for unhovered rows.
+        unhovered_fade_widget = QWidget()
+        unhovered_fade_layout = QHBoxLayout()
+
+        unhovered_fade_widget.setMinimumWidth(64)
+        unhovered_fade_widget.setMaximumWidth(256)
+
+        unhovered_fade_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        unhovered_fade_label = QLabel("Fade")
+        unhovered_fade_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        unhovered_fade_layout.addWidget(unhovered_fade_label)
+
+        self.unhovered_fade_slider = SnapSlider(5, 0, 100, Qt.Horizontal)
+        self.unhovered_fade_slider.setValue(int(app.readSetting("TomJK_QuickExport", "unhovered_fade", "75")))
+        self.unhovered_fade_slider.setMinimumWidth(64)
+        self.unhovered_fade_slider.valueChanged.connect(self._on_unhovered_fade_slider_value_changed)
+        unhovered_fade_layout.addWidget(self.unhovered_fade_slider)
+
+        unhovered_fade_widget.setLayout(unhovered_fade_layout)
+
         # slider for row highlight intensity for stored settings.
         stored_highlight_widget = QWidget()
         stored_highlight_layout = QHBoxLayout()
@@ -851,6 +915,7 @@ class QEDialog(QDialog):
         view_buttons_layout.addWidget(self.show_unopened_button)
         view_buttons_layout.addWidget(self.show_unstored_button)
         view_buttons_layout.addStretch()
+        view_buttons_layout.addWidget(unhovered_fade_widget)
         view_buttons_layout.addWidget(stored_highlight_widget)
 
         view_buttons_layout.setContentsMargins(0,0,0,0)
@@ -1068,6 +1133,13 @@ class QEDialog(QDialog):
     def _on_show_non_kra_button_clicked(self, checked):
         app.writeSetting("TomJK_QuickExport", "show_non_kra", bool2str(checked))
         self.tree.refilter()
+    
+    def _on_unhovered_fade_slider_value_changed(self):
+        app.writeSetting("TomJK_QuickExport", "unhovered_fade", str(self.unhovered_fade_slider.value()))
+        root = self.tree.invisibleRootItem()
+        for item in (root.child(i) for i in range(root.childCount())):
+            self.tree.itemWidget(item, QECols.SETTINGS_COLUMN).setOpacity(hover=False)
+        self.tree.redraw()
     
     def _on_stored_highlight_slider_value_changed(self):
         app.writeSetting("TomJK_QuickExport", "highlight_alpha", str(self.stored_highlight_slider.value()))
