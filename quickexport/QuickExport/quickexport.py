@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QAction, QMessageBox, QDialog
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, pyqtSignal
 from functools import partial
 from pathlib import Path
 from krita import *
@@ -13,6 +13,7 @@ app_notifier = app.notifier()
 app_notifier.setActive(True)
 
 class QuickExportExtension(Extension):
+    themeChanged = pyqtSignal()
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -26,20 +27,75 @@ class QuickExportExtension(Extension):
         print("QE: setup")
         
         plugin_dir = Path(app.getAppDataLocation()) / "pykrita/QuickExport"
+        icons_dir = plugin_dir / "icons"
         
         if not plugin_dir.is_dir():
             # do something about it
             pass
         
-        self.qe_icon_l = QIcon(str(plugin_dir / "light_document-quick-export.svg"))
-        self.qe_icon_d = QIcon(str(plugin_dir / "dark_document-quick-export.svg"))
-        self.qec_icon_l = QIcon(str(plugin_dir / "light_document-quick-export-configure.svg"))
-        self.qec_icon_d = QIcon(str(plugin_dir / "dark_document-quick-export-configure.svg"))
+        self.icons = {}
+        for theme in ("light", "dark"):
+            icon = lambda name: QIcon(str(icons_dir/f"{theme}_{name}.svg"))
+            self.icons[theme] = {
+                "qe":               icon("document-quick-export"),
+                "qec":              icon("document-quick-export-configure"),
+                "alpha":            app.icon("transparency-unlocked"),
+                "indexed":          icon("indexed"),
+                "progressive":      icon("progressive"),
+                "hdr":              icon("hdr"),
+                "embed_profile":    icon("embed-profile"),
+                "force_profile":    icon("force-profile"),
+                "force_8bit":       icon("force-8bit"),
+                "metadata_options": icon("metadata-options"),
+                "metadata":         icon("metadata"),
+                "author":           icon("author"),
+                "subsampling": {
+                    "1x1":          icon("subsampling-1x1"),
+                    "1x2":          icon("subsampling-1x2"),
+                    "2x1":          icon("subsampling-2x1"),
+                    "2x2":          icon("subsampling-2x2")
+                },
+                "jpeg_baseline":    icon("jpeg-baseline"),
+                "optimise":         icon("optimise")
+            }
+        
+        self.icons["default"] = {
+            "qe":                   None,
+            "qec":                  None,
+            "alpha":                app.icon("transparency-unlocked"),
+            "indexed":              app.icon("wheel-sectors"),
+            "progressive":          app.icon("krita_tool_grid"),
+            "hdr":                  app.icon("wheel-light"),
+            "embed_profile":        app.icon("curve-preset-s"),
+            "force_profile":        app.icon("locked"),
+            "force_8bit":           app.icon("merge-layer-below"),
+            "metadata_options":     app.icon("tag"),
+            "metadata":             app.icon("view-list-details"),
+            "author":               app.icon("im-user"),
+            "subsampling": {
+                "1x1":              app.icon("tool_similar_selection"),
+                "1x2":              app.icon("tool_similar_selection"),
+                "2x1":              app.icon("tool_similar_selection"),
+                "2x2":              app.icon("tool_similar_selection"),
+            },
+            "jpeg_baseline":        app.icon("krita_tool_rectangle"),
+            "optimise":             app.icon("tool_crop")
+        }
         
         self.default_export_action = None
         
         self.theme_name = ""
         self.theme_is_dark = False
+        self.use_custom_icons = False
+    
+    def get_icon(self,  *args):
+        return self._get_icons_internal(self.icons["default" if not self.use_custom_icons else "light" if self.theme_is_dark else "dark"], *args)
+    
+    def _get_icons_internal(self, sublist, *args):
+        if len(args) > 1:
+            return self._get_icons_internal(sublist[args[0]], *args[1:])
+        else:
+            return sublist[args[0]]
     
     def is_theme_dark(self, theme_name=None):
         # TODO: find out more common keywords used in dark theme names, including non-english.
@@ -54,24 +110,17 @@ class QuickExportExtension(Extension):
         self.theme_name = theme_name
         self.update_action_icons()
     
-    def set_action_default_icons(self):
-        self.qe_action.setIcon(self.qe_default_icon)
-        self.qec_action.setIcon(self.qec_default_icon)
-    
-    def set_action_custom_icons(self):
-        self.qe_action.setIcon(self.qe_icon_l if self.theme_is_dark else self.qe_icon_d)
-        self.qec_action.setIcon(self.qec_icon_l if self.theme_is_dark else self.qec_icon_d)
+    def set_action_icons(self):
+        self.qe_action.setIcon(self.get_icon("qe"))
+        self.qec_action.setIcon(self.get_icon("qec"))
     
     def update_action_icons(self):
-        use_custom_icons = str2bool(app.readSetting("TomJK_QuickExport", "use_custom_icons", "true"))
+        self.use_custom_icons = str2bool(app.readSetting("TomJK_QuickExport", "use_custom_icons", "true"))
         custom_icons_theme = app.readSetting("TomJK_QuickExport", "custom_icons_theme", "follow")
         
-        if not use_custom_icons:
-            self.set_action_default_icons()
-            return
-        
         self.theme_is_dark = True if custom_icons_theme == "dark" else False if custom_icons_theme == "light" else self.is_theme_dark()
-        self.set_action_custom_icons()
+        self.set_action_icons()
+        self.themeChanged.emit()
     
     def createActions(self, window):
         print("QE: createActions")
@@ -82,8 +131,8 @@ class QuickExportExtension(Extension):
         self.qec_action = window.createAction("tomjk_quick_export_configure", "Quick export configuration...", "file")
         self.qec_action.triggered.connect(self._on_quick_export_configuration_triggered)
         
-        self.qe_default_icon = self.qe_action.icon()
-        self.qec_default_icon = self.qec_action.icon()
+        self.icons["default"]["qe"] = self.qe_action.icon()
+        self.icons["default"]["qec"] = self.qec_action.icon()
         
         move_partial = partial(self.moveAction, [self.qe_action, self.qec_action], "file_export_advanced", window.qwindow())
         call_later = partial(self.finishCreateActions, move_partial)

@@ -145,15 +145,26 @@ class ColourToolButton(QToolButton):
         self.update()
 
 class CheckToolButton(QToolButton):
-    def __init__(self, icon=None, checked=False, tooltip=None, *args, **kwargs):
+    def __init__(self, icon_name=None, checked=False, tooltip=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setCheckable(True)
-        if icon:
-            self.setIcon(icon)
+        self.set_icon_name(icon_name)
+        extension().themeChanged.connect(self._on_theme_changed)
         if checked:
             self.setChecked(checked)
         if tooltip:
             self.setToolTip(tooltip)
+    
+    def _on_theme_changed(self):
+        self.setIcon(extension().get_icon(*self.icon_name))
+    
+    def set_icon_name(self, icon_name):
+        if icon_name:
+            self.icon_name = icon_name if isinstance(icon_name, tuple) else (icon_name,)
+            self.setIcon(extension().get_icon(*self.icon_name))
+        else:
+            self.icon_name = ""
+            self.setIcon(QIcon())
     
     def paintEvent(self, event):
         #print("paint", event)
@@ -434,6 +445,10 @@ class QETree(QTreeWidget):
         #item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["png_alpha"]))
         self.set_settings_modified(store_button)
     
+    def _on_jpeg_subsampling_menu_triggered(self, value, button, doc, store_button):
+        self._on_generic_setting_changed("jpeg_subsampling", value, doc, store_button)
+        button.set_icon_name(("subsampling", value))
+    
     def _on_generic_setting_changed(self, key, value, doc, store_button):
         doc[key] = value
         self.set_settings_modified(store_button)
@@ -667,7 +682,7 @@ class QETree(QTreeWidget):
             png_settings_page = QWidget()
             png_settings_page_layout = QHBoxLayout()
             
-            png_alpha_checkbox = CheckToolButton(icon=app.icon('transparency-unlocked'), checked=s["png_alpha"], tooltip="store alpha channel (transparency)")
+            png_alpha_checkbox = CheckToolButton(icon_name="alpha", checked=s["png_alpha"], tooltip="store alpha channel (transparency)")
             png_alpha_checkbox.toggled.connect(lambda checked, d=s, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_toggled(checked, d, i, sb))
             png_settings_page_layout.addWidget(png_alpha_checkbox)
             
@@ -682,35 +697,35 @@ class QETree(QTreeWidget):
             png_compression_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_compression", value, d, sb))
             png_settings_page_layout.addWidget(png_compression_slider)
             
-            png_indexed_checkbox = CheckToolButton(icon=app.icon('wheel-sectors'), checked=s["png_indexed"], tooltip="Save as indexed PNG, if possible")
+            png_indexed_checkbox = CheckToolButton(icon_name="indexed", checked=s["png_indexed"], tooltip="Save as indexed PNG, if possible")
             png_indexed_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_indexed", checked, d, sb))
             png_settings_page_layout.addWidget(png_indexed_checkbox)
             
-            png_interlaced_checkbox = CheckToolButton(icon=app.icon('krita_tool_grid'), checked=s["png_interlaced"], tooltip="interlacing")
+            png_interlaced_checkbox = CheckToolButton(icon_name="progressive", checked=s["png_interlaced"], tooltip="interlacing")
             png_interlaced_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_interlaced", checked, d, sb))
             png_settings_page_layout.addWidget(png_interlaced_checkbox)
             
-            png_hdr_checkbox = CheckToolButton(icon=app.icon('wheel-light'), checked=s["png_hdr"], tooltip="save as HDR image (Rec. 2020 PQ)")
+            png_hdr_checkbox = CheckToolButton(icon_name="hdr", checked=s["png_hdr"], tooltip="save as HDR image (Rec. 2020 PQ)")
             png_hdr_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_hdr", checked, d, sb))
             png_settings_page_layout.addWidget(png_hdr_checkbox)
             
-            png_embed_srgb_checkbox = CheckToolButton(icon=app.icon('curve-preset-s'), checked=s["png_embed_srgb"], tooltip="embed sRGB profile")
+            png_embed_srgb_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["png_embed_srgb"], tooltip="embed sRGB profile")
             png_embed_srgb_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_embed_srgb", checked, d, sb))
             png_settings_page_layout.addWidget(png_embed_srgb_checkbox)
             
-            png_force_srgb_checkbox = CheckToolButton(icon=app.icon('locked'), checked=s["png_force_srgb"], tooltip="force convert to sRGB")
+            png_force_srgb_checkbox = CheckToolButton(icon_name="force_profile", checked=s["png_force_srgb"], tooltip="force convert to sRGB")
             png_force_srgb_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_srgb", checked, d, sb))
             png_settings_page_layout.addWidget(png_force_srgb_checkbox)
             
-            png_force_8bit_checkbox = CheckToolButton(icon=app.icon('merge-layer-below'), checked=s["png_force_8bit"], tooltip="force convert to 8bits/channel")
+            png_force_8bit_checkbox = CheckToolButton(icon_name="force_8bit", checked=s["png_force_8bit"], tooltip="force convert to 8bits/channel")
             png_force_8bit_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_8bit", checked, d, sb))
             png_settings_page_layout.addWidget(png_force_8bit_checkbox)
             
-            png_metadata_checkbox = CheckToolButton(icon=app.icon('view-list-details'), checked=s["png_metadata"], tooltip="store metadata")
+            png_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["png_metadata"], tooltip="store metadata")
             png_metadata_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_metadata", checked, d, sb))
             png_settings_page_layout.addWidget(png_metadata_checkbox)
             
-            png_author_checkbox = CheckToolButton(icon=app.icon('im-user'), checked=s["png_author"], tooltip="sign with author data")
+            png_author_checkbox = CheckToolButton(icon_name="author", checked=s["png_author"], tooltip="sign with author data")
             png_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_author", checked, d, sb))
             png_settings_page_layout.addWidget(png_author_checkbox)
             
@@ -720,7 +735,7 @@ class QETree(QTreeWidget):
             jpeg_settings_page = QWidget()
             jpeg_settings_page_layout = QHBoxLayout()
             
-            jpeg_icc_profile_checkbox = CheckToolButton(icon=app.icon('configure'), checked=s["jpeg_icc_profile"], tooltip="save ICC profile")
+            jpeg_icc_profile_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["jpeg_icc_profile"], tooltip="save ICC profile")
             jpeg_icc_profile_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_icc_profile", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_icc_profile_checkbox)
             
@@ -733,7 +748,7 @@ class QETree(QTreeWidget):
             jpeg_quality_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_quality", value, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_quality_slider)
             
-            jpeg_progressive_checkbox = CheckToolButton(icon=app.icon('krita_tool_grid'), checked=s["jpeg_progressive"], tooltip="progressive")
+            jpeg_progressive_checkbox = CheckToolButton(icon_name="progressive", checked=s["jpeg_progressive"], tooltip="progressive")
             jpeg_progressive_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_progressive", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_progressive_checkbox)
             
@@ -742,7 +757,7 @@ class QETree(QTreeWidget):
             jpeg_smooth_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_smooth", value, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_smooth_slider)
             
-            jpeg_subsampling_button = CheckToolButton(icon=app.icon('tool_similar_selection'), checked=True, tooltip="subsampling")
+            jpeg_subsampling_button = CheckToolButton(icon_name=("subsampling", s["jpeg_subsampling"]), checked=True, tooltip="subsampling")
             jpeg_subsampling_button.setPopupMode(QToolButton.InstantPopup)
             
             jpeg_subsampling_menu = QEMenu(keep_open=False)
@@ -755,20 +770,20 @@ class QETree(QTreeWidget):
                 action.setCheckable(True)
                 action.setActionGroup(jpeg_subsampling_action_group)
                 action.setChecked(action.data() == s["jpeg_subsampling"])
-            jpeg_subsampling_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_subsampling", a.data(), d, sb))
+            jpeg_subsampling_menu.triggered.connect(lambda a, b=jpeg_subsampling_button, d=s, sb=btn_store_forget: self._on_jpeg_subsampling_menu_triggered(a.data(), b, d, sb))
             
             jpeg_subsampling_button.setMenu(jpeg_subsampling_menu)
             jpeg_settings_page_layout.addWidget(jpeg_subsampling_button)
             
-            jpeg_force_baseline_checkbox = CheckToolButton(icon=app.icon('krita_tool_rectangle'), checked=s["jpeg_force_baseline"], tooltip="force baseline JPEG")
+            jpeg_force_baseline_checkbox = CheckToolButton(icon_name="jpeg_baseline", checked=s["jpeg_force_baseline"], tooltip="force baseline JPEG")
             jpeg_force_baseline_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_force_baseline", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_force_baseline_checkbox)
             
-            jpeg_optimise_checkbox = CheckToolButton(icon=app.icon('tool_crop'), checked=s["jpeg_optimise"], tooltip="optimise")
+            jpeg_optimise_checkbox = CheckToolButton(icon_name="optimise", checked=s["jpeg_optimise"], tooltip="optimise")
             jpeg_optimise_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_optimise", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_optimise_checkbox)
             
-            jpeg_metadata_options_button = CheckToolButton(icon=app.icon('tag'), checked=True, tooltip="formats")
+            jpeg_metadata_options_button = CheckToolButton(icon_name="metadata_options", checked=True, tooltip="formats")
             jpeg_metadata_options_button.setPopupMode(QToolButton.InstantPopup)
             
             jpeg_metadata_options_menu = QEMenu()
@@ -794,11 +809,11 @@ class QETree(QTreeWidget):
             jpeg_metadata_options_button.setMenu(jpeg_metadata_options_menu)
             jpeg_settings_page_layout.addWidget(jpeg_metadata_options_button)
             
-            jpeg_metadata_checkbox = CheckToolButton(icon=app.icon('view-list-details'), checked=s["jpeg_metadata"], tooltip="store metadata")
+            jpeg_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["jpeg_metadata"], tooltip="store metadata")
             jpeg_metadata_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_metadata", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_metadata_checkbox)
             
-            jpeg_author_checkbox = CheckToolButton(icon=app.icon('im-user'), checked=s["jpeg_author"], tooltip="sign with author data")
+            jpeg_author_checkbox = CheckToolButton(icon_name="author", checked=s["jpeg_author"], tooltip="sign with author data")
             jpeg_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_author", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_author_checkbox)
             
