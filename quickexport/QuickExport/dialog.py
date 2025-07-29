@@ -850,6 +850,8 @@ class QEDialog(QDialog):
         view_buttons = QWidget()
         view_buttons_layout = QHBoxLayout()
 
+        # TODO: inform user that some items are currently hidden, and how many.
+
         # show unstored button.
         self.show_unstored_button = QCheckBox("Show unstored")
         self.show_unstored_button.setToolTip("Enable this to pick the images you're interested in exporting, then disable it to hide the rest.")
@@ -1064,6 +1066,7 @@ class QEDialog(QDialog):
         options_button.setMenu(options_menu)
         
         # status bar.
+        # TODO: allow custom prompt messages on startup to be reset once eg. an image has been exported?
         self.sbar = QStatusBar()
         sbar_ready_label = QLabel(" Ready." if msg == "" else " "+msg) # extra space to align with showmessage.
         self.sbar.insertWidget(0, sbar_ready_label)
