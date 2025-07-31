@@ -218,6 +218,15 @@ def tokenize_settings_string(s, tokens):
         tokens.append(mo.group())
         i += mo.end()
 
+export_failed_msg_ = ""
+
+def export_failed_msg():
+    return export_failed_msg_
+
+def set_export_failed_msg(msg):
+    global export_failed_msg_
+    export_failed_msg_ = msg
+
 def export_image(settings, document=None):
     exportParameters = InfoObject()
     

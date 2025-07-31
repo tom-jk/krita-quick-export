@@ -313,8 +313,9 @@ class QuickExportExtension(Extension):
         result = export_image(file_settings, doc)
         
         if not result:
-            print("QE: Export failed!")
-            app.activeWindow().activeView().showFloatingMessage("Export failed!", app.icon('warning'), 5000, 0)
+            failed_msg = export_failed_msg()
+            print(f"QE: Export failed! {failed_msg}")
+            app.activeWindow().activeView().showFloatingMessage(f"Export failed! {failed_msg}", app.icon('warning'), 5000, 0)
         else:
             export_path = file_settings['path'].with_name(file_settings['output']).with_suffix(file_settings['ext'])
             print(f"QE: Exported to '{str(export_path)}'")

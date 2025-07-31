@@ -416,8 +416,9 @@ class QETree(QTreeWidget):
         result = export_image(doc)
         
         if not result:
-            self.sender().setText("Export failed!")
-            self.dialog.sbar.showMessage(f"Export failed", 5000)
+            failed_msg = export_failed_msg()
+            self.sender().setText("Failed!")
+            self.dialog.sbar.showMessage(f"Export failed. {failed_msg}")
         else:
             self.sender().setText("Done!")
             self.dialog.sbar.showMessage(f"Exported to '{str(doc['path'].with_name(doc['output']).with_suffix(doc['ext']))}'")
