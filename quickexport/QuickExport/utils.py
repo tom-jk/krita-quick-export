@@ -9,6 +9,8 @@ qe_settings = []
 
 qe_extension = None
 
+filter_strategy_store_strings = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BS":"BSpline", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
+
 def set_extension(extension):
     global qe_extension
     qe_extension = extension
@@ -28,7 +30,8 @@ def bool2flag(*args):
 def flag2bool(strval):
     return True if strval == "1" else False
 
-def default_settings(document=None, doc_index=1024, store=False, path=None, output="", ext=".png"):
+def default_settings(document=None, doc_index=1024, store=False, path=None, output="", ext=".png", set_scale=False, scale_filter="Auto"):
+    set_scale = set_scale and document
     settings = {
         "document":document,
         "doc_index":doc_index,
@@ -36,6 +39,13 @@ def default_settings(document=None, doc_index=1024, store=False, path=None, outp
         "path":path,
         "output":output,
         "ext":ext,
+        "scale":False,
+        "scale_width":document.width() if set_scale else -1,
+        "scale_height":document.height() if set_scale else -1,
+        "scale_filter":scale_filter,
+        "scale_xres":document.xRes() if set_scale else -1,
+        "scale_yres":document.yRes() if set_scale else -1,
+        "scale_res":document.resolution() if set_scale else -1,
         "png_alpha":False,
         "png_fillcolour":QColor('white'),
         "png_compression":9,
@@ -68,8 +78,8 @@ def default_settings(document=None, doc_index=1024, store=False, path=None, outp
 def load_settings_from_config():
     """
     read in settings string from kritarc.
-    example: "path=a/b.kra,output=b,ext=.png,png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
-    becomes: settings[{"document":<obj>, "store":True, "path":"a/b.kra", "output":"b", "ext":".png", "png_fillcolour":QColor('#ffffff'), "compression":9, "png_alpha":True, "png_indexed":True, "png_interlaced":False ... etc.}]
+    example: "path=a/b.kra,output=b,ext=.png,scale=[e=1,w=1024,h=768,f=Bic,xr=100.0,yr=100.0,r=72.0],png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
+    becomes: settings[{"document":<obj>, "store":True, "path":"a/b.kra", "output":"b", "ext":".png", "scale":True, "scale_width":1024, ... "png_fillcolour":QColor('#ffffff'), "png_compression":9, "png_alpha":True, "png_indexed":True, ... etc.}]
     """
     qe_settings.clear()
     
@@ -123,6 +133,21 @@ def load_settings_from_config():
                         break
             elif k in ("output", "ext"):
                 settings[k] = v
+            elif k == "scale_e":
+                settings["scale"] = flag2bool(v)
+            elif k == "scale_w":
+                settings["scale_width"] = int(v)
+            elif k == "scale_h":
+                settings["scale_height"] = int(v)
+            elif k == "scale_f":
+                sf = [fk for fk,fv in filter_strategy_store_strings.items() if fv == v]
+                settings["scale_filter"] = sf[0] if len(sf) > 0 else v
+            elif k == "scale_xr":
+                settings["scale_xres"] = float(v)
+            elif k == "scale_yr":
+                settings["scale_yres"] = float(v)
+            elif k == "scale_r":
+                settings["scale_res"] = float(v)
             elif k == "png_fc":
                 settings["png_fillcolour"] = QColor(v)
             elif k == "png_co":
@@ -177,10 +202,23 @@ def generate_save_string():
         if not s["store"]:
             continue
         
+        scale_filter = filter_strategy_store_strings[s['scale_filter']] if s['scale_filter'] in filter_strategy_store_strings else s['scale_filter']
+        scale_strings = []
+        scale_strings.append(f"w={s['scale_width']}" if s['scale_width'] != -1 else "")
+        scale_strings.append(f"h={s['scale_height']}" if s['scale_height'] != -1 else "")
+        scale_strings.append(f"f={scale_filter}")
+        scale_strings.append(f"xr={s['scale_xres']}" if s['scale_xres'] != -1 else "")
+        scale_strings.append(f"yr={s['scale_yres']}" if s['scale_yres'] != -1 else "")
+        scale_strings.append(f"r={s['scale_res']}" if s['scale_res'] != -1 else "")
+        scale_string = ",".join([x for x in scale_strings if x != ""])
+        
         save_strings.append(
             f"path={str(s['path'])},"
             f"output={s['output']},"
             f"ext={s['ext']},"
+            f"scale=["
+            f"e={bool2flag(s['scale'])},{scale_string}"
+            f"],"
             f"png=["
             f"fc={s['png_fillcolour'].name(QColor.HexRgb)},"
             f"co={s['png_compression']},"
@@ -217,6 +255,24 @@ def tokenize_settings_string(s, tokens):
             tokens.append(subs[:mo.end()-1])
         tokens.append(mo.group())
         i += mo.end()
+
+def auto_filter_strategy(original_width, original_height, desired_width, desired_height):
+    """Python copy of krita/libs/image/kis_filter_strategy.cc method KisFilterStrategyRegistry::autoFilterStrategy."""
+
+    # Default to nearest neighbor scaling for tiny source images. (i.e: icons or small sprite sheets.)
+    pixel_art_threshold = 256
+    if original_width <= pixel_art_threshold or original_height <= pixel_art_threshold:
+        return "NearestNeighbor"
+
+    x_scale_factor = desired_width / original_width
+    y_scale_factor = desired_height / original_height
+
+    if x_scale_factor > 1.0 or y_scale_factor > 1.0: # Enlargement.
+        return "Bicubic"
+    elif x_scale_factor < 1.0 or y_scale_factor < 1.0: # Reduction.
+        return "Bicubic"
+
+    return "NearestNeighbor"
 
 export_failed_msg_ = ""
 
@@ -266,10 +322,43 @@ def export_image(settings, document=None):
     if not document:
         document = settings["document"]
     
-    document.setBatchmode(True)
-    document.waitForDone()
-    result = document.exportImage(str(export_path), exportParameters)
-    document.setBatchmode(False)
+    scale_width = settings["scale_width"] if settings["scale_width"] != -1 else document.width()
+    scale_height = settings["scale_height"] if settings["scale_height"] != -1 else document.height()
+    scale_filter = settings["scale_filter"]
+    
+    do_resize = settings["scale"] and (scale_width != document.width() or scale_height != document.height())
+    
+    if do_resize:
+        if scale_filter == "Auto":
+            scale_filter = auto_filter_strategy(document.width(), document.height(), scale_width, scale_height)
+        
+        if scale_filter not in app.filterStrategies():
+            set_export_failed_msg(f"Chosen filter strategy '{scale_filter}' not recognised.")
+            return False
+        
+        scale_xres = settings["scale_xres"] if settings["scale_xres"] != -1 else document.xRes()
+        scale_yres = settings["scale_yres"] if settings["scale_yres"] != -1 else document.yRes()
+        scale_res = settings["scale_res"] if settings["scale_res"] != -1 else document.resolution()
+        
+        doc_copy = document.clone()
+
+        doc_copy.flatten()
+        doc_copy.scaleImage(scale_width, scale_height, int(scale_xres), int(scale_yres), scale_filter)
+
+        doc_copy.setBatchmode(True)
+        doc_copy.waitForDone()
+        result = doc_copy.exportImage(str(export_path), exportParameters)
+        doc_copy.setBatchmode(False)
+
+        if doc_copy.close() == False:
+            print("Export copy of document didn't close?")
+
+    else:
+
+        document.setBatchmode(True)
+        document.waitForDone()
+        result = document.exportImage(str(export_path), exportParameters)
+        document.setBatchmode(False)
     
     return result
 
