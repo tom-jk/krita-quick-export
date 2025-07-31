@@ -221,9 +221,9 @@ def tokenize_settings_string(s, tokens):
 def export_image(settings, document=None):
     exportParameters = InfoObject()
     
-    extension = settings["ext"]
+    ext = settings["ext"]
     
-    if extension == ".png":
+    if ext == ".png":
         exportParameters.setProperty("alpha",                 settings["png_alpha"])
         exportParameters.setProperty("compression",           int(settings["png_compression"]))
         exportParameters.setProperty("forceSRGB",             settings["png_force_srgb"])
@@ -232,9 +232,9 @@ def export_image(settings, document=None):
         exportParameters.setProperty("saveSRGBProfile",       settings["png_embed_srgb"])
         exportParameters.setProperty("transparencyFillcolor", settings["png_fillcolour"])
         exportParameters.setProperty("downsample",            settings["png_force_8bit"])       # not documented.
-        exportParameters.setProperty("StoreMetaData",         settings["png_metadata"])         # not documented.
-        exportParameters.setProperty("StoreAuthor",           settings["png_author"])           # not documented.
-    elif extension == ".jpg":
+        exportParameters.setProperty("storeMetaData",         settings["png_metadata"])         # not documented.
+        exportParameters.setProperty("storeAuthor",           settings["png_author"])           # not documented.
+    elif ext == ".jpg":
         exportParameters.setProperty("baseline",              settings["jpeg_force_baseline"])
         exportParameters.setProperty("exif",                  settings["jpeg_exif"])
         exportParameters.setProperty("filters",               ",".join(filter(lambda item: bool(item), ["ToolInfo" * settings['jpeg_tool_information'], "Anonymizer" * settings["jpeg_anonymiser"]])))
@@ -249,8 +249,8 @@ def export_image(settings, document=None):
         exportParameters.setProperty("subsampling",           ("2x2","2x1","1x2","1x1").index(settings["jpeg_subsampling"]))
         exportParameters.setProperty("transparencyFillcolor", settings["jpeg_fillcolour"])
         exportParameters.setProperty("xmp",                   settings["jpeg_xmp"])
-        exportParameters.setProperty("StoreMetaData",         settings["jpeg_metadata"])        # not documented.
-        exportParameters.setProperty("StoreAuthor",           settings["jpeg_author"])          # not documented.
+        exportParameters.setProperty("storeMetaData",         settings["jpeg_metadata"])        # not documented.
+        exportParameters.setProperty("storeAuthor",           settings["jpeg_author"])          # not documented.
     
     export_path = settings["path"].with_name(settings["output"]).with_suffix(settings["ext"])
     
