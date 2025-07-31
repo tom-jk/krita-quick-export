@@ -383,7 +383,7 @@ class QETree(QTreeWidget):
                 or (self.dialog.show_non_kra_button.checkState() == Qt.Unchecked and s["path"].suffix != ".kra")
             )
     
-    def _on_btn_open_clicked(self, checked, btn, export_btn, doc, item):
+    def _on_btn_open_clicked(self, checked, btn, disabled_buttons, doc, item):
         print("_on_btn_open_clicked for", doc)
         print("opening doc")
         new_doc = app.openDocument(str(doc['path']))
@@ -400,7 +400,8 @@ class QETree(QTreeWidget):
         item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(doc['doc_index']))
         new_doc.waitForDone()
         item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(new_doc.thumbnail(64,64))))
-        export_btn.setDisabled(False)
+        for db in disabled_buttons:
+            db.setDisabled(False)
         print("done")
     
     def _on_output_lineedit_editing_finished(self, doc, lineedit, item, store_button):
@@ -638,7 +639,7 @@ class QETree(QTreeWidget):
                 btn_open.setIcon(app.icon('document-open'))
                 btn_open.setStyleSheet("QPushButton {border:none; background:transparent;}")
                 self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open)
-                btn_open.clicked.connect(lambda checked, b=btn_open, be=btns_export, d=s, i=item: self._on_btn_open_clicked(checked, b, be, d, i))
+                btn_open.clicked.connect(lambda checked, b=btn_open, db=[btns_export], d=s, i=item: self._on_btn_open_clicked(checked, b, db, d, i))
             
             item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(s["doc_index"]))
             
