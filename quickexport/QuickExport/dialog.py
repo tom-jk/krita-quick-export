@@ -608,6 +608,8 @@ class QETree(QTreeWidget):
         
         post_setup = []
         
+        self.thumbnail_queue = []
+        
         # TODO: should probably have an option to force removal of extensions from output name.
         #       an *option* because user could wish to export myfile.kra as myfile.kra.png, so output
         #       text would be myfile.kra. could instead only automatically remove an extension matching
@@ -677,7 +679,7 @@ class QETree(QTreeWidget):
                     self.store_button_groups[btn_group_key].btnLastChecked = btn_store_forget
             
             if s["document"] != None:
-                item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(s["document"].thumbnail(64,64))))
+                self.thumbnail_queue.append([s["document"], item])
                 if s["document"] == app.activeDocument():
                     item.setText(QECols.OPEN_FILE_COLUMN, "*")
                     item.setTextAlignment(QECols.OPEN_FILE_COLUMN, Qt.AlignCenter)
@@ -907,6 +909,39 @@ class QETree(QTreeWidget):
         
         for i in range(0, QECols.COLUMN_COUNT):
             self.resizeColumnToContents(i)
+
+        if len(self.thumbnail_queue) == 0:
+            return
+        
+        self.thumbnail_worker = self.thumbnail_worker_process()
+        self.thumbnail_worker_timer = QTimer(self)
+        self.thumbnail_worker_timer.setInterval(0)
+        self.thumbnail_worker_timer.setSingleShot(True)
+        self.thumbnail_worker_timer.timeout.connect(lambda: next(self.thumbnail_worker, None))
+        self.thumbnail_worker_timer.start()
+
+    def thumbnail_worker_process(self):
+        print("thumbnail worker: start.")
+        while len(self.thumbnail_queue) > 0:
+            job = self.thumbnail_queue.pop(0)
+            
+            doc = job[0]
+            item = job[1]
+            
+            print(f"thumbnail_worker: do job for {doc.fileName()=}")
+            
+            icon = QIcon(QPixmap.fromImage(doc.thumbnail(64,64)))
+            item.setIcon(QECols.THUMBNAIL_COLUMN, icon)
+            
+            print ("thumbnail_worker: job done.")
+            
+            if len(self.thumbnail_queue) == 0:
+                break
+            yield self.thumbnail_worker_timer.start()
+            
+        self.thumbnail_worker_timer.deleteLater()
+        del self.thumbnail_worker_timer
+        print("thumbnail worker: end.")
 
 
 class QEDialog(QDialog):
@@ -1202,6 +1237,9 @@ class QEDialog(QDialog):
             return
         elif ret == QMessageBox.Save:
             save_settings_to_config()
+        
+        if len(self.tree.thumbnail_queue) > 0:
+            self.tree.thumbnail_queue = []
         
         extension().update_quick_export_display()
         event.accept()
