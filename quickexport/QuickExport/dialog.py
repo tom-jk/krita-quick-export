@@ -427,6 +427,43 @@ class QETree(QTreeWidget):
         if self.dialog.auto_store_on_export_button.checkState() == Qt.Checked:
             store_button.setCheckState(Qt.Checked)
     
+    def _on_item_scale_checkbox_action_triggered(self, checked, doc, checkboxes, store_button):
+        doc["scale"] = checked
+        for checkbox in checkboxes:
+            checkbox.setChecked(checked)
+        self.set_settings_modified(store_button)
+    
+    def _on_item_scale_reset_action_triggered(self, checked, doc, store_button):
+        doc["scale_width"]  = -1
+        doc["scale_height"] = -1
+        doc["scale_filter"] = "Auto"
+        doc["scale_res"]    = -1
+        self.set_settings_modified(store_button)
+    
+    def _on_item_scale_settings_action_triggered(self, checked, doc, store_button):
+        document = doc['document']
+        
+        w  = document.width()      if doc['scale_width'] == -1  else doc['scale_width']
+        h  = document.height()     if doc['scale_height'] == -1 else doc['scale_height']
+        f  = doc['scale_filter']
+        r  = document.resolution() if doc['scale_res'] == -1    else doc['scale_res']
+        
+        print(f"start scale dialog with {w=} {h=} {f=} {r=}")
+        
+        from .scaledialog import ScaleDialog
+        sd = ScaleDialog(parent=self, doc=document, width=w, height=h, filter_=f, res=r)
+        
+        sd.exec_()
+        
+        if sd.result_accepted:
+            doc["scale_width"]  = sd.result_width
+            doc["scale_height"] = sd.result_height
+            doc["scale_filter"] = sd.result_filter
+            doc["scale_res"]    = sd.result_res
+        del sd
+        
+        self.set_settings_modified(store_button)
+    
     def _on_item_btn_store_forget_clicked(self, checked, btn, doc, filename, item):
         #print("store/forget changed ->", checked, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["store"] = not doc["store"]
@@ -623,6 +660,17 @@ class QETree(QTreeWidget):
             self.setItemWidget(item, QECols.STORE_SETTINGS_COLUMN, btn_store_widget)
             item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+s["store"]))
             
+            scale_menu = QEMenu(keep_open=False)
+            scale_checkbox_action = scale_menu.addAction("Enabled")
+            scale_checkbox_action.setCheckable(True)
+            scale_checkbox_action.setChecked(s["scale"])
+            scale_reset_action = scale_menu.addAction("Reset to current size and resolution")
+            scale_reset_action.setDisabled(s["document"] == None)
+            scale_reset_action.triggered.connect(lambda checked, d=s, sb=btn_store_forget: self._on_item_scale_reset_action_triggered(checked, d, sb))
+            scale_settings_action = scale_menu.addAction("Settings...")
+            scale_settings_action.setDisabled(s["document"] == None)
+            scale_settings_action.triggered.connect(lambda checked, d=s, sb=btn_store_forget: self._on_item_scale_settings_action_triggered(checked, d, sb))
+            
             if (btn_group_key := str(s["path"])) in self.store_button_groups:
                 self.store_button_groups[btn_group_key].addButton(btn_store_forget)
                 if s["store"] and self.store_button_groups[btn_group_key].btnLastChecked == None:
@@ -639,7 +687,7 @@ class QETree(QTreeWidget):
                 btn_open.setIcon(app.icon('document-open'))
                 btn_open.setStyleSheet("QPushButton {border:none; background:transparent;}")
                 self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open)
-                btn_open.clicked.connect(lambda checked, b=btn_open, db=[btns_export], d=s, i=item: self._on_btn_open_clicked(checked, b, db, d, i))
+                btn_open.clicked.connect(lambda checked, b=btn_open, db=[btns_export,scale_reset_action,scale_settings_action], d=s, i=item: self._on_btn_open_clicked(checked, b, db, d, i))
             
             item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(s["doc_index"]))
             
@@ -735,6 +783,12 @@ class QETree(QTreeWidget):
             png_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_author", checked, d, sb))
             png_settings_page_layout.addWidget(png_author_checkbox)
             
+            png_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
+            png_scale_button.setPopupMode(QToolButton.InstantPopup)
+            
+            png_scale_button.setMenu(scale_menu)
+            png_settings_page_layout.addWidget(png_scale_button)
+            
             png_settings_page.setLayout(png_settings_page_layout)
             settings_stack.addWidget(png_settings_page)
             
@@ -823,17 +877,26 @@ class QETree(QTreeWidget):
             jpeg_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_author", checked, d, sb))
             jpeg_settings_page_layout.addWidget(jpeg_author_checkbox)
             
+            jpeg_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
+            jpeg_scale_button.setPopupMode(QToolButton.InstantPopup)
+            
+            jpeg_scale_button.setMenu(scale_menu)
+            jpeg_settings_page_layout.addWidget(jpeg_scale_button)
+            
             jpeg_settings_page.setLayout(jpeg_settings_page_layout)
             settings_stack.addWidget(jpeg_settings_page)
             
             self.setItemWidget(item, QECols.SETTINGS_COLUMN, settings_stack)
             settings_stack.setCurrentIndex(self.settings_stack_page_order.index(s["ext"]))
             
+            scale_checkbox_action.triggered.connect(lambda checked, d=s, cb=[png_scale_button,jpeg_scale_button], sb=btn_store_forget: self._on_item_scale_checkbox_action_triggered(checked, d, cb, sb))
+            
             btns_widget = QWidget()
             btns_layout = QHBoxLayout()
             btns_export.setDisabled(s["document"] == None)
             btns_export.clicked.connect(lambda checked, d=s, fn=file_path.name, sb=btn_store_forget: self._on_item_btn_export_clicked(checked, d, fn, sb))
             btns_layout.addWidget(btns_export)
+            
             btns_widget.setLayout(btns_layout)
             
             self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)

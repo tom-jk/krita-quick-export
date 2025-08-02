@@ -49,6 +49,7 @@ class QuickExportExtension(Extension):
                 "metadata_options": icon("metadata-options"),
                 "metadata":         icon("metadata"),
                 "author":           icon("author"),
+                "scale":            icon("scale"),
                 "subsampling": {
                     "1x1":          icon("subsampling-1x1"),
                     "1x2":          icon("subsampling-1x2"),
@@ -72,6 +73,7 @@ class QuickExportExtension(Extension):
             "metadata_options":     app.icon("tag"),
             "metadata":             app.icon("view-list-details"),
             "author":               app.icon("im-user"),
+            "scale":                app.icon("transform_icons_liquify_resize"),
             "subsampling": {
                 "1x1":              app.icon("tool_similar_selection"),
                 "1x2":              app.icon("tool_similar_selection"),
