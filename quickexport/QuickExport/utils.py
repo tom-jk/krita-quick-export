@@ -43,9 +43,7 @@ def default_settings(document=None, doc_index=1024, store=False, path=None, outp
         "scale_width":document.width() if set_scale else -1,
         "scale_height":document.height() if set_scale else -1,
         "scale_filter":scale_filter,
-        "scale_xres":document.xRes() if set_scale else -1,
-        "scale_yres":document.yRes() if set_scale else -1,
-        "scale_res":document.resolution() if set_scale else -1,
+        "scale_res":document.xRes() if set_scale else -1,
         "png_alpha":False,
         "png_fillcolour":QColor('white'),
         "png_compression":9,
@@ -78,7 +76,7 @@ def default_settings(document=None, doc_index=1024, store=False, path=None, outp
 def load_settings_from_config():
     """
     read in settings string from kritarc.
-    example: "path=a/b.kra,output=b,ext=.png,scale=[e=1,w=1024,h=768,f=Bic,xr=100.0,yr=100.0,r=72.0],png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
+    example: "path=a/b.kra,output=b,ext=.png,scale=[e=1,w=1024,h=768,f=Bic,r=72],png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
     becomes: settings[{"document":<obj>, "store":True, "path":"a/b.kra", "output":"b", "ext":".png", "scale":True, "scale_width":1024, ... "png_fillcolour":QColor('#ffffff'), "png_compression":9, "png_alpha":True, "png_indexed":True, ... etc.}]
     """
     qe_settings.clear()
@@ -142,10 +140,6 @@ def load_settings_from_config():
             elif k == "scale_f":
                 sf = [fk for fk,fv in filter_strategy_store_strings.items() if fv == v]
                 settings["scale_filter"] = sf[0] if len(sf) > 0 else v
-            elif k == "scale_xr":
-                settings["scale_xres"] = float(v)
-            elif k == "scale_yr":
-                settings["scale_yres"] = float(v)
             elif k == "scale_r":
                 settings["scale_res"] = float(v)
             elif k == "png_fc":
@@ -207,9 +201,7 @@ def generate_save_string():
         scale_strings.append(f"w={s['scale_width']}" if s['scale_width'] != -1 else "")
         scale_strings.append(f"h={s['scale_height']}" if s['scale_height'] != -1 else "")
         scale_strings.append(f"f={scale_filter}")
-        scale_strings.append(f"xr={s['scale_xres']}" if s['scale_xres'] != -1 else "")
-        scale_strings.append(f"yr={s['scale_yres']}" if s['scale_yres'] != -1 else "")
-        scale_strings.append(f"r={s['scale_res']}" if s['scale_res'] != -1 else "")
+        scale_strings.append(f"r={s['scale_res']:.4f}".rstrip('0').rstrip('.') if s['scale_res'] != -1 else "")
         scale_string = ",".join([x for x in scale_strings if x != ""])
         
         save_strings.append(
@@ -336,14 +328,17 @@ def export_image(settings, document=None):
             set_export_failed_msg(f"Chosen filter strategy '{scale_filter}' not recognised.")
             return False
         
-        scale_xres = settings["scale_xres"] if settings["scale_xres"] != -1 else document.xRes()
-        scale_yres = settings["scale_yres"] if settings["scale_yres"] != -1 else document.yRes()
-        scale_res = settings["scale_res"] if settings["scale_res"] != -1 else document.resolution()
+        scale_xres = document.xRes()
+        scale_yres = document.yRes()
+        if settings["scale_res"] != -1:
+            aspect = scale_height / scale_width
+            scale_xres = settings["scale_res"]
+            scale_yres = settings["scale_res"] * aspect
         
         doc_copy = document.clone()
 
         doc_copy.flatten()
-        doc_copy.scaleImage(scale_width, scale_height, int(scale_xres), int(scale_yres), scale_filter)
+        doc_copy.scaleImage(scale_width, scale_height, int(scale_xres), int(scale_yres), scale_filter) # TODO: are these x/yres values correct?
 
         doc_copy.setBatchmode(True)
         doc_copy.waitForDone()
