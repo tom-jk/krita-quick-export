@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QDialog
+from PyQt5.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QWidget, QTreeWidget, QTreeWidgetItem, QItemDelegate
 from krita import *
 from timeit import default_timer
 app = Krita.instance()
@@ -32,73 +32,131 @@ if doc.fileName() != "":
 'consectetur '
 #012345678901
 
-class Dialog(QDialog):
+#text = "home/user/path/to/a/file/somewhere/on/their/computer"
+#text = app.activeDocument().fileName()
+text = "🙅🐂🐤🐧🐨👨📢💾👻"
+
+
+class MultiLineElidedText(QWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._text = ""
+        self._max_lines = 3
+        self._total_height = 0
+        self._invalidated = True
+        self._wrapped_text_words = []
+        self._old_size = QSize()
+    
+    def setText(self, text):
+        if self._text == text:
+            return
+        self._text = text
+        self._invalidated = True
+    
+    def setMaxLines(self, max_lines):
+        if self._max_lines == max_lines:
+            return
+        self._max_lines = max_lines
+        self._invalidated = True
+    
+    def resizeEvent(self, event):
+        if event.size().width() != self._old_size.width():
+            self._invalidated = True
+        self._old_size = event.size()
+    
+    def hasHeightForWidth(self):
+        return True
+    
+    def heightForWidth(self, w):
+        if self._old_size.width() != w:
+            self._invalidated = True
+        fm = QFontMetrics(self.parentWidget().font())
+        self.multi_line_elided_text(fm, self._text, w, self._max_lines)
+        #print(f"heightForWidth: {w=} h={self._total_height}")
+        return self._total_height
+    
     def paintEvent(self, event):
         super().paintEvent(event)
         r = event.rect()
         
-        if text == "":
-            return
+        parent = self.parentWidget()
         
         painter = QPainter(self)
-        fm = QFontMetrics(self.font())
-        h = fm.height()
         
-        # max_lines = 1, perform single line elide.
-        # max_lines = 2, elide on line 2,      elide post-ellipsis text on line 1 st from bottom
-        # max_lines = 3, elide on line 2,      elide post-ellipsis text on line 2 nd from bottom
-        # max_lines = 4, elide on line 3,      elide post-ellipsis text on line 2 nd from bottom
-        # max_lines = 5, elide on line 3,      elide post-ellipsis text on line 3 rd from bottom
-        # max_lines = 6, elide on line 4,      elide post-ellipsis text on line 3 rd from bottom
-        # max_lines = 7, elide on line 4,      elide post-ellipsis text on line 4 th from bottom
-        # max_lines = n, elide on line n//2+1, elide post-ellipsis text on line n - (n//2+1) + 1 from bottom
-        max_lines = 3
+        o = painter.opacity()
+        painter.setOpacity(0.1)
+        painter.drawLine(0, 0, 0, r.height())
+        painter.drawLine(r.width()-1, 0, r.width()-1, r.height())
+        painter.drawLine(0, 0, r.width()-1, 0)
+        painter.drawLine(0, r.height()-1, r.width()-1, r.height()-1)
+        painter.setOpacity(o)
+        
+        fm = QFontMetrics(parent.font())
+        self.multi_line_elided_text(fm, self._text, r.width(), self._max_lines)
+    
+        x_pos = 0
+        y_pos = 0
+        for word in self._wrapped_text_words:
+            x = word[0]
+            y = word[1]
+            #w = word[2]
+            t = word[3]
+            painter.drawText(x_pos+x, y_pos+y, t)
+    
+    def multi_line_elided_text(self, fm, text, width, max_lines):
+        if not self._invalidated:
+            return
+        
+        self._total_height = self._flow(fm, text, width, max_lines)
+        self.align_text(fm, width)
+        self._invalidated = False
+            
+    def _flow(self, fm, text, width, max_lines):
+    
+        h = fm.height()
+        #lineSpacing = fm.lineSpacing()
+        
+        if text == "":
+            self._wrapped_text_words = []
+            return h + fm.descent()
+    
+        if max_lines < 1:
+            self._wrapped_text_words = []
+            return h + fm.descent()
+    
+        if max_lines == 1:
+            # single line elide.
+            text = fm.elidedText(text, Qt.ElideMiddle, width)
+            self._wrapped_text_words = [[0, h, fm.horizontalAdvance(text), text]]
+            return h + fm.descent()
+    
+        if False:#width <= max(2, fm.horizontalAdvance("M")):
+            wrapped_text = []
+            wrapped_text.append([width//2 - fm.horizontalAdvance("…")//2, (max_lines//2+1)*h, fm.horizontalAdvance("…"), "…"])
+            self._wrapped_text_words = wrapped_text
+            return h*max_lines + fm.descent()
+    
         elide_at_line = (max_lines // 2) + 1
         elide_at_line_from_end = max_lines - elide_at_line + 1
-        
-        gw = 32
-        
+    
         ellipsis = "… …"
         ellipsis_w = fm.horizontalAdvance(ellipsis)
         ellipsis_hw = ellipsis_w // 2
-        ellipsis_sx = (r.width()-gw*2) // 2 - ellipsis_hw
-        ellipsis_ex = (r.width()-gw*2) // 2 + ellipsis_hw
-        
-        #pen = painter.pen()
-        #pen.setColor(QColor(255,255,255,64))
-        #painter.setPen(pen)
-        o = painter.opacity()
-        painter.setOpacity(0.1)
-        painter.drawLine(gw, 0, gw, r.height())
-        painter.drawLine(r.width()-gw, 0, r.width()-gw, r.height())
-        painter.setOpacity(o)
-        
-        if r.width() - gw*2 <= max(2, fm.horizontalAdvance("M")):
-            for y in range(1, max_lines+1):
-                painter.drawText(gw + (r.width()-gw*2)//2 - fm.horizontalAdvance("…")//2, y * h, "…")
-            return
-        
-        if max_lines < 1:
-            return
-        
-        if max_lines == 1:
-            # single line elide.
-            painter.drawText(gw, h, fm.elidedText(text, Qt.ElideMiddle, r.width()-gw*2))
-            return
-        
+        ellipsis_sx = width // 2 - ellipsis_hw
+        ellipsis_ex = width // 2 + ellipsis_hw
+    
         # test height of text, draw if fits.
-        wrapped_text = self.wrapped_text(r.width()-gw*2, soft_max_lines=max_lines+1)
+        wrapped_text = self.wrapped_text(fm, text, width, soft_max_lines=max_lines+1)
         if wrapped_text[-1][1] // h <= max_lines:
-            self.draw_words(gw, 0, 1, wrapped_text, ellipsis, ellipsis_w, ellipsis_hw, ellipsis_sx, ellipsis_ex, r, painter, fm, h)
-            return
-        
+            self._wrapped_text_words = wrapped_text
+            return self._wrapped_text_words[-1][1] + fm.descent()
+    
         # text taller than maxlines, perform multi-line elide.
-        
+    
         start_time = default_timer()
-        
-        wrapped_text = self.wrapped_text(r.width()-gw*2, soft_max_lines=elide_at_line+1, elide_at_line=elide_at_line, elide_at_x=ellipsis_sx)
-        #self.draw_words(gw, 0, 1, wrapped_text, ellipsis, ellipsis_w, ellipsis_hw, ellipsis_sx, ellipsis_ex, r, painter, fm, h)
-        
+    
+        wrapped_text = self.wrapped_text(fm, text, width, soft_max_lines=elide_at_line+1, elide_at_line=elide_at_line, elide_at_x=ellipsis_sx)
+    
         wrapped_text = [
             v
             for v in wrapped_text
@@ -106,14 +164,18 @@ class Dialog(QDialog):
         ]
         # truncate end of last word before ellipsis.
         if len(wrapped_text) > 0:
+            last_word_idx = len(wrapped_text) - 1
             last_word = wrapped_text[-1]
             if last_word[1]//h == elide_at_line and last_word[0] < ellipsis_sx:
                 while ((numloops1:=locals().get('numloops1',-1)+1) < 9999) and last_word[0] + last_word[2] > ellipsis_sx and len(last_word[3]) > 0:
                     last_word[3] = last_word[3][:-1]
                     last_word[2] = fm.horizontalAdvance(last_word[3])
                 if numloops1 == 100: print("truncate last word overran")
-        #wrapped_text.append([wrapped_text[-1][0]+wrapped_text[-1][2], 2*h, ellipsis_w, ellipsis])
-        wrapped_text_b = self.wrapped_text(r.width()-gw*2, direction=-1, soft_max_lines=elide_at_line_from_end+1, elide_at_line=elide_at_line_from_end, elide_at_x=ellipsis_ex)
+                if last_word[3] == "":
+                    wrapped_text.pop(last_word_idx)
+                    last_word_idx -= 1
+                    last_word = wrapped_text[last_word_idx]
+        wrapped_text_b = self.wrapped_text(fm, text, width, direction=-1, soft_max_lines=elide_at_line_from_end+1, elide_at_line=elide_at_line_from_end, elide_at_x=ellipsis_ex)
         wrapped_text_b = [
             [v[0],-v[1]+h+((max_lines)*h),v[2],v[3]]
             for v in reversed(wrapped_text_b)
@@ -130,111 +192,93 @@ class Dialog(QDialog):
                     first_word[2] = fm.horizontalAdvance(first_word[3])
                     first_word[0] = first_word_ex - first_word[2]
                 if numloops2 == 100: print("truncate first word overran")
-            # left-justify post-ellipsis text.
-            if True:
-                line_x = 0
-                word_idx = 0
-                word = wrapped_text_b[word_idx]
-                line = word[1] // h
-                while ((numloops3:=locals().get('numloops3',-1)+1) < 9999) and line == elide_at_line:
-                    word_idx += 1
-                    word = wrapped_text_b[word_idx]
-                    line = word[1] // h
-                if numloops3 == 100: print("loop3 overran")
-                line_x = word[0]
-                while ((numloops4:=locals().get('numloops4',-1)+1) < 9999) and word_idx < len(wrapped_text_b):
-                    word = wrapped_text_b[word_idx]
-                    if word[1] // h > line:
-                        line = word[1] // h
-                        line_x = word[0]
-                    word[0] -= line_x
-                    word_idx += 1
-                if numloops4 == 100: print("loop4 overran")
+                if first_word[3] == "":
+                    wrapped_text_b.pop(0)
+                    first_word = wrapped_text_b[0]
             wrapped_text.extend(wrapped_text_b)
         
-        if r.width()-gw*2 >= ellipsis_w*2:
-            painter.drawText(gw + last_word[0]+last_word[2], h*elide_at_line, "…")
-            painter.drawText(gw + first_word[0]-fm.horizontalAdvance("…"), h*elide_at_line, "…")
+        # if available width is less than that of any single char to be displayed, don't display text.
+        if len(wrapped_text)==0 or any(word[2]+1 >= width and len(word[3])==1 for word in wrapped_text):
+            wrapped_text = []
+            wrapped_text.append([width//2 - fm.horizontalAdvance("…")//2, (max_lines//2+1)*h, fm.horizontalAdvance("…"), "…"])
+            self._wrapped_text_words = wrapped_text
+            return h*max_lines + fm.descent()
+        
+        total_height = wrapped_text[-1][1] + fm.descent()
+        
+        if width >= ellipsis_w*2:
+            wrapped_text.insert(last_word_idx+1, [last_word[0]+last_word[2], h*elide_at_line, fm.horizontalAdvance("…"), "…"])
+            wrapped_text.insert(last_word_idx+2, [first_word[0]-fm.horizontalAdvance("…"), h*elide_at_line, fm.horizontalAdvance("…"), "…"])
         else:
-            painter.drawText(gw + (r.width()-gw*2)//2 - fm.horizontalAdvance("…")//2, h * elide_at_line, "…")
-        self.draw_words(gw, 0, 1, wrapped_text, ellipsis, ellipsis_w, ellipsis_hw, ellipsis_sx, ellipsis_ex, r, painter, fm, h)
-        
-        end_time = default_timer()
-        print(f"multi-line text elide took {1000*(end_time-start_time):.4} ms.")
-        
-        
-    def draw_words(self, x_pos, y_pos, y_dir, wrapped_text, ellipsis, ellipsis_w, ellipsis_hw, ellipsis_sx, ellipsis_ex, r, painter, fm, h):
-        line_count = wrapped_text[-1][1]//h
-        #print(f"{line_count=}")
-        word_idx = 0
-        y_offset = 0
-        while word_idx < len(wrapped_text):
-            word = wrapped_text[word_idx]
-            x = word[0]
-            y = word[1]
-            w = word[2]
-            t = word[3]
-            
-            line = y // h
-            if False:#line_count > 3:
-                if line == 2:
-                    if x+w >= ellipsis_sx:
-                        # truncate current word to fit on left side of ellipsis.
-                        numloops=0
-                        while x+w >= ellipsis_sx:
-                            t = t[:-1]
-                            w = fm.horizontalAdvance(t)
-                            numloops += 1
-                            if numloops > 128:
-                                print("too many loops 1")
-                                return
-                        painter.drawText(x_pos+x,y_pos+y-y_offset if y_dir==1 else y_pos-y+y_offset, t)
-                        x_offset = x
-                        y_offset = -y
-                        while True:
-                            word_idx += 1
-                            if word_idx >= len(wrapped_text):
-                                print(f"something's gone awry, {word_idx=} at line={y//h} of {line_count=}")
-                                break
-                            word = wrapped_text[word_idx]
-                            x = word[0]
-                            y = word[1]
-                            w = word[2]
-                            line = y // h
-                            #print(f"check for {word_idx=} {x=} {y=} {w=}")
-                            if line == line_count-1:
-                                if x+w >= ellipsis_ex:
-                                    break
-                        t = word[3]
-                        ex = x+w
-                        # truncate current word to fit on right side of ellipsis.
-                        numloops=0
-                        while x < ellipsis_ex:
-                            t = t[1:]
-                            w = fm.horizontalAdvance(t)
-                            x = ex - w
-                            numloops += 1
-                            if numloops > 128:
-                                print("too many loops 2")
-                                return
-                        y_offset += y
-                        painter.drawText(x_pos+ellipsis_sx,y_pos+y-y_offset if y_dir==1 else y_pos-y+y_offset,ellipsis)
-            painter.drawText(x_pos+x, y_pos+y-y_offset if y_dir==1 else y_pos-y+y_offset, t)
-            
-            word_idx += 1
+            wrapped_text.insert(last_word_idx+1, [width//2 - fm.horizontalAdvance("…")//2, h*elide_at_line, fm.horizontalAdvance("…"), "…"])
     
-    def wrapped_text(self, width, direction=1, soft_max_lines=9999, elide_at_line=9999, elide_at_x=None):
-        if elide_at_x == None:
-            elide_at_x = 999999 if direction==1 else -999999
+        end_time = default_timer()
+        #print(f"multi-line text elide took {1000*(end_time-start_time):.4} ms.")
         
-        fm = QFontMetrics(self.font())
+        self._wrapped_text_words = wrapped_text
+        return total_height
+
+    def align_text(self, fm, width):
+        if len(self._wrapped_text_words) == 0:
+            return
+        
         h = fm.height()
         
         def print(*args):
             pass
         
+        # center-align all text.
+        if True:
+            print("//// begin text alignment ////")
+            print(f"wrapped text has {len(self._wrapped_text_words)} words")
+            line_sx = 0
+            line_ex = 0
+            line_si = 0
+            line_ei = 0
+            line = 0
+            word_idx = 0
+            while word_idx < len(self._wrapped_text_words):
+                word = self._wrapped_text_words[word_idx]
+                print(f"considering word id {word_idx}, text '{word[3]}'")
+                if word[1] // h > line:
+                    # start of new line.
+                    print(f"start of line {word[1]//h} at x={word[0]} with w={word[2]} with word id {word_idx}, text '{word[3]}'")
+                    line = word[1] // h
+                    line_sx = word[0]
+                    line_si = word_idx
+                    line_ex = word[0] + word[2]
+                    line_ei = word_idx
+                    word_idx += 1
+                    while word_idx < len(self._wrapped_text_words):
+                        word = self._wrapped_text_words[word_idx]
+                        print(f" scanning to line end, currently id {word_idx}, text '{word[3]}'")
+                        at_end_of_text = False
+                        if word[1] // h > line or (at_end_of_text := word_idx + 1 == len(self._wrapped_text_words)):
+                            if not at_end_of_text:
+                                word_idx -= 1
+                                word = self._wrapped_text_words[word_idx]
+                            print(f" scan found line end at id {word_idx}, text '{word[3]}'")
+                            line_ex = word[0] + word[2]
+                            line_ei = word_idx
+                            break
+                        word_idx += 1
+                    line_w = line_ex - line_sx
+                    line_disp_x = width//2 - line_w//2 - line_sx
+                    for wi in range(line_si, line_ei+1):
+                        self._wrapped_text_words[wi][0] += line_disp_x
+                word_idx += 1
+
+    def wrapped_text(self, fm, text, width, direction=1, soft_max_lines=9999, elide_at_line=9999, elide_at_x=None):
+        if elide_at_x == None:
+            elide_at_x = 999999 if direction==1 else -999999
+    
+        h = fm.height()
+    
+        def print(*args):
+            pass
+    
         words = []
-        
+    
         break_s = 0 if direction==1 else len(text)-1
         break_e = 0 if direction==1 else len(text)-1
         te = 0 if direction==1 else len(text)-1
@@ -327,9 +371,84 @@ class Dialog(QDialog):
                 break
         return words
 
-dialog = Dialog(app.activeWindow().qwindow())
-dialog.resize(176+64,670)
-#dialog.resize(36+64,670)
-#dialog.resize(18+64,670)
+dialog = QDialog(app.activeWindow().qwindow())
+layout = QVBoxLayout(dialog)
 
+class TreeWidget(QTreeWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.header().sectionResized.connect(self._on_column_resized)
+    
+    def _on_column_resized(self, column, old_size, new_size):
+        #print("columnResized")
+        if column == 1:
+            try:
+                insertion_item.setData(Qt.SizeHintRole, 0, text_widget.heightForWidth(tree.columnWidth(1)))
+            except NameError:
+                print("nameerror")
+
+# https://stackoverflow.com/a/56098838
+class ItemDelegate(QItemDelegate):
+    def __init__(self, iHeight=-1, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.m_iHeight = iHeight
+
+    def setHeight(self, iHeight):
+        self.m_iHeight = iHeight
+
+    # Use this for setting tree item height.
+    def sizeHint(self, option, index):
+        oSize = super().sizeHint(option, index)
+
+        print(f"itemDelegate:sizeHint: {self.m_iHeight=} {oSize=}")
+
+        if self.m_iHeight != -1:
+            # Set tree item height.
+            oSize.setHeight(self.m_iHeight)
+        else:
+            item = tree.itemFromIndex(index)
+            height = item.data(Qt.SizeHintRole, 0)
+            if height:
+                oSize.setHeight(height)
+
+        return oSize;
+
+tree = TreeWidget()
+item_delegate = ItemDelegate()
+tree.setItemDelegate(item_delegate)
+tree.setColumnCount(3)
+insertion_item = None
+for i in range(3):
+    item = QTreeWidgetItem(tree)
+    #item.setData(Qt.SizeHintRole, 0, 5*(i+1))
+    if i == 1:
+        insertion_item = item
+layout.addWidget(tree)
+
+class MultiLineElidedButton(QPushButton):
+    def __init__(self, text, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.layout = QHBoxLayout(self)
+        self.text_widget = MultiLineElidedText()
+        self.text_widget.setText(text)
+        self.layout.addWidget(self.text_widget)
+        self.setLayout(self.layout)
+    
+    def hasHeightForWidth(self):
+        return True
+    
+    def heightForWidth(self, w):
+        margins = self.layout.contentsMargins()
+        h = self.text_widget.heightForWidth(w - margins.left() - margins.right()) + margins.top() + margins.bottom()
+        return h
+
+text_widget = MultiLineElidedButton(text)
+insertion_item.setText(2, "0")
+text_widget.clicked.connect(lambda: insertion_item.setText(2, str(int(insertion_item.text(2))+1)))
+
+tree.setItemWidget(insertion_item, 1, text_widget)
+insertion_item.setData(Qt.SizeHintRole, 0, text_widget.heightForWidth(tree.columnWidth(1)))
+
+dialog.resize(680,160)
 dialog.show()
