@@ -291,7 +291,7 @@ def export_image(settings, document=None):
         exportParameters.setProperty("downsample",            settings["png_force_8bit"])       # not documented.
         exportParameters.setProperty("storeMetaData",         settings["png_metadata"])         # not documented.
         exportParameters.setProperty("storeAuthor",           settings["png_author"])           # not documented.
-    elif ext == ".jpg":
+    elif ext in (".jpg", ".jpeg"):
         exportParameters.setProperty("baseline",              settings["jpeg_force_baseline"])
         exportParameters.setProperty("exif",                  settings["jpeg_exif"])
         exportParameters.setProperty("filters",               ",".join(filter(lambda item: bool(item), ["ToolInfo" * settings['jpeg_tool_information'], "Anonymizer" * settings["jpeg_anonymiser"]])))

@@ -471,12 +471,24 @@ class QETree(QTreeWidget):
         self.redraw()
         self.set_settings_modified()
     
-    def _on_outputext_combobox_activated(self, index, combobox, settings_stack, doc, item, store_button):
+    def _on_outputext_combobox_current_index_changed(self, index, combobox, settings_stack, doc, item, store_button):
         ext = combobox.itemText(index)
         doc["ext"] = ext
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
-        settings_stack.setCurrentIndex(self.settings_stack_page_order.index(ext))
+        self.set_item_settings_stack_page_for_extension(settings_stack, ext)
         self.set_settings_modified(store_button)
+    
+    def set_item_settings_stack_page_for_extension(self, settings_stack, ext):
+        settings_stack.setCurrentIndex(self.settings_stack_page_index_for_extension(ext))
+    
+    def settings_stack_page_index_for_extension(self, ext):
+        try:
+            return self.settings_stack_page_order.index(ext)
+        except ValueError:
+            for i,v in enumerate(self.settings_stack_page_order):
+                if ext in v:
+                    return i
+            print(f"couldn't find settings stack page index for extension '{ext}'.")
     
     def _on_png_alpha_checkbox_toggled(self, checked, doc, item, store_button):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
@@ -626,7 +638,7 @@ class QETree(QTreeWidget):
             if len(output) > len(longest_output):
                 longest_output = output
         
-        self.settings_stack_page_order = [".png", ".jpg"]
+        self.settings_stack_page_order = [".png", [".jpg",".jpeg"]]
         
         def centered_checkbox_widget(checkbox):
             widget = QWidget()
@@ -725,6 +737,7 @@ class QETree(QTreeWidget):
             outputext_combobox = QComboBox()
             outputext_combobox.addItem(".png", ".png")
             outputext_combobox.addItem(".jpg", ".jpg")
+            outputext_combobox.addItem(".jpeg", ".jpeg")
             outputext_combobox.setCurrentIndex(outputext_combobox.findData(s["ext"]))
             
             outputext_layout.addWidget(outputext_combobox)
@@ -889,7 +902,7 @@ class QETree(QTreeWidget):
             settings_stack.addWidget(jpeg_settings_page)
             
             self.setItemWidget(item, QECols.SETTINGS_COLUMN, settings_stack)
-            settings_stack.setCurrentIndex(self.settings_stack_page_order.index(s["ext"]))
+            self.set_item_settings_stack_page_for_extension(settings_stack, s["ext"])
             
             scale_checkbox_action.triggered.connect(lambda checked, d=s, cb=[png_scale_button,jpeg_scale_button], sb=btn_store_forget: self._on_item_scale_checkbox_action_triggered(checked, d, cb, sb))
             
@@ -903,7 +916,7 @@ class QETree(QTreeWidget):
             
             self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
             
-            outputext_combobox.activated.connect(lambda index, cb=outputext_combobox, ss=settings_stack, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_activated(index, cb, ss, d, i, sb))
+            outputext_combobox.currentIndexChanged.connect(lambda index, cb=outputext_combobox, ss=settings_stack, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_current_index_changed(index, cb, ss, d, i, sb))
             
             self.items.append(item)
         
