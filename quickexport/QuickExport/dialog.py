@@ -677,7 +677,10 @@ class QETree(QTreeWidget):
             item.setFlags(item.flags() | Qt.ItemIsEditable)
             self.setItemDelegate(item_delegate)
             
-            btns_export = QPushButton("Export now")
+            btns_export = QToolButton()
+            btns_export.setAutoRaise(True)
+            btns_export.setIcon(app.icon('document-export'))
+            btns_export.setToolTip("Export now")
             
             btn_store_forget = QCheckBox()
             btn_store_forget.setChecked(s["store"])
