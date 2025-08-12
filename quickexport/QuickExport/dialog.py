@@ -14,6 +14,19 @@ from .utils import *
 
 app = Krita.instance()
 
+class QEComboBox(QComboBox):
+    def paintEvent(self, event):
+        painter = QStylePainter(self)
+        painter.setPen(self.palette().color(QPalette.Text))
+        
+        opt = QStyleOptionComboBox()
+        self.initStyleOption(opt)
+        
+        painter.drawControl(QStyle.CE_ComboBoxLabel, opt)
+        
+        if bool(opt.state & QStyle.State_MouseOver) or bool(opt.state & QStyle.State_HasFocus):
+            super().paintEvent(event)
+
 class QEMenu(QMenu):
     def __init__(self, keep_open=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -734,7 +747,7 @@ class QETree(QTreeWidget):
             outputext_widget = QWidget()
             outputext_layout = QHBoxLayout()
             
-            outputext_combobox = QComboBox()
+            outputext_combobox = QEComboBox()
             outputext_combobox.addItem(".png", ".png")
             outputext_combobox.addItem(".jpg", ".jpg")
             outputext_combobox.addItem(".jpeg", ".jpeg")
