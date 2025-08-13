@@ -965,35 +965,40 @@ class QETree(QTreeWidget):
 
     def thumbnail_worker_process(self):
         print("thumbnail worker: start.")
-        while len(self.thumbnail_queue) > 0:
-            job = self.thumbnail_queue.pop(0)
-            
-            item = job[1]
-            
-            if isinstance(job[0], Path):
-                file_path = job[0]
-                
-                print(f"thumbnail_worker: do job for unopened document {file_path=}")
-                
-                self._make_thumbnail_for_file(file_path, item)
-            else:
-                doc = job[0]
-            
-                print(f"thumbnail_worker: do job for open document {doc.fileName()=}")
-            
-                self._make_thumbnail(doc, item)
-            
-            print("thumbnail_worker: job done.")
-            
-            if not self.thumbnail_column_resized_to_contents_once:
-                self.resizeColumnToContents(QECols.THUMBNAIL_COLUMN)
-                self.thumbnail_column_resized_to_contents_once = True
-            
-            if len(self.thumbnail_queue) == 0:
-                break
-            yield self.thumbnail_worker_timer.start()
         
-        print("thumbnail worker: end.")
+        try:
+            while True:
+                while len(self.thumbnail_queue) == 0:
+                    print("thumbnail worker: job queue empty.")
+                    yield
+                
+                job = self.thumbnail_queue.pop(0)
+                
+                item = job[1]
+                
+                if isinstance(job[0], Path):
+                    file_path = job[0]
+                    
+                    print(f"thumbnail_worker: do job for unopened document {file_path=}")
+                    
+                    self._make_thumbnail_for_file(file_path, item)
+                else:
+                    doc = job[0]
+                
+                    print(f"thumbnail_worker: do job for open document {doc.fileName()=}")
+                
+                    self._make_thumbnail(doc, item)
+                
+                print("thumbnail_worker: job done.")
+                
+                if not self.thumbnail_column_resized_to_contents_once:
+                    self.resizeColumnToContents(QECols.THUMBNAIL_COLUMN)
+                    self.thumbnail_column_resized_to_contents_once = True
+                
+                yield self.thumbnail_worker_timer.start()
+        
+        finally:
+            print("thumbnail worker: end.")
     
     def _make_thumbnail(self, doc, item):
         thumbnail = QPixmap.fromImage(doc.thumbnail(self.thumb_height, self.thumb_height))
@@ -1319,11 +1324,11 @@ class QEDialog(QDialog):
         if ret == QMessageBox.Cancel:
             event.ignore()
             return
-        elif ret == QMessageBox.Save:
-            save_settings_to_config()
         
-        if len(self.tree.thumbnail_queue) > 0:
-            self.tree.thumbnail_queue = []
+        self.tree.thumbnail_worker.close()
+        
+        if ret == QMessageBox.Save:
+            save_settings_to_config()
         
         extension().update_quick_export_display()
         event.accept()
