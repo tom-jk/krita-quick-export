@@ -18,11 +18,20 @@ def set_extension(extension):
 def extension():
     return qe_extension
 
+def readSetting(setting, default_value):
+    return app.readSetting("TomJK_QuickExport", setting, default_value)
+
+def writeSetting(setting, value):
+    app.writeSetting("TomJK_QuickExport", setting, value)
+
 def bool2str(boolval):
     return "true" if boolval else "false"
 
 def str2bool(strval):
     return True if strval == "true" else False
+
+def str2qtcheckstate(strval, true="true"):
+    return Qt.Checked if strval == true else Qt.Unchecked
 
 def bool2flag(*args):
     return reduce(lambda a,b: a+b, (("1" if b else "0") for b in args))
@@ -83,7 +92,7 @@ def load_settings_from_config():
     qe_settings.clear()
     
     # TODO: will break if a filename contains a comma ',' char.
-    settings_string = app.readSetting("TomJK_QuickExport", "settings", "")
+    settings_string = readSetting("settings", "")
     #print(f"{settings_string=}")
     
     if settings_string == "":
@@ -236,7 +245,7 @@ def save_settings_to_config():
     save_string = generate_save_string()
 
     print(f"{save_string=}")
-    app.writeSetting("TomJK_QuickExport", "settings", save_string)
+    writeSetting("settings", save_string)
 
 def tokenize_settings_string(s, tokens):
     i = 0

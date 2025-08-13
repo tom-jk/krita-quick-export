@@ -58,7 +58,7 @@ class FadingStackedWidget(QStackedWidget):
         self.setOpacity(hover=False)
     
     def setOpacity(self, opacity=-1, hover=False):
-        fade = int(app.readSetting("TomJK_QuickExport", "unhovered_fade", "75")) / 100.0
+        fade = int(readSetting("unhovered_fade", "75")) / 100.0
         if opacity == -1:
             opacity = 1.0 if hover else fade
         self._opacity.setOpacity(opacity)
@@ -535,7 +535,7 @@ class QETree(QTreeWidget):
         if not self.dialog.tree_is_ready:
             return
         
-        if generate_save_string() != app.readSetting("TomJK_QuickExport", "settings", ""):
+        if generate_save_string() != readSetting("settings", ""):
             if not self.dialog.save_button.isEnabled():
                 self.dialog.save_button.setText("Save Settings*")
                 self.dialog.save_button.setDisabled(False)
@@ -1063,19 +1063,19 @@ class QEDialog(QDialog):
         # show unstored button.
         self.show_unstored_button = QCheckBox("Show unstored")
         self.show_unstored_button.setToolTip("Enable this to pick the images you're interested in exporting, then disable it to hide the rest.")
-        self.show_unstored_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unstored", "true") == "true" else Qt.Unchecked)
+        self.show_unstored_button.setCheckState(str2qtcheckstate(readSetting("show_unstored", "true")))
         self.show_unstored_button.clicked.connect(self._on_show_unstored_button_clicked)
 
         # show unopened button.
         self.show_unopened_button = QCheckBox("Show unopened")
         self.show_unopened_button.setToolTip("Show the export settings of every file - currently open or not - for which settings have been saved.")
-        self.show_unopened_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unopened", "false") == "true" else Qt.Unchecked)
+        self.show_unopened_button.setCheckState(str2qtcheckstate(readSetting("show_unopened", "false")))
         self.show_unopened_button.clicked.connect(self._on_show_unopened_button_clicked)
 
         # show .png files button.
         self.show_non_kra_button = QCheckBox("Show non-kra files")
         self.show_non_kra_button.setToolTip("Show export settings for files of usually exported types, such as .png and .jpg. Disabled by default because it's kind of redundant.")
-        self.show_non_kra_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_non_kra", "false") == "true" else Qt.Unchecked)
+        self.show_non_kra_button.setCheckState(str2qtcheckstate(readSetting("show_non_kra", "false")))
         self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
 
         # slider for settings fade for unhovered rows.
@@ -1091,7 +1091,7 @@ class QEDialog(QDialog):
         unhovered_fade_layout.addWidget(unhovered_fade_label)
 
         self.unhovered_fade_slider = SnapSlider(5, 0, 100, Qt.Horizontal)
-        self.unhovered_fade_slider.setValue(int(app.readSetting("TomJK_QuickExport", "unhovered_fade", "75")))
+        self.unhovered_fade_slider.setValue(int(readSetting("unhovered_fade", "75")))
         self.unhovered_fade_slider.setMinimumWidth(64)
         self.unhovered_fade_slider.valueChanged.connect(self._on_unhovered_fade_slider_value_changed)
         unhovered_fade_layout.addWidget(self.unhovered_fade_slider)
@@ -1111,7 +1111,7 @@ class QEDialog(QDialog):
         stored_highlight_layout.addWidget(stored_highlight_label)
 
         self.stored_highlight_slider = SnapSlider(8, 0, 64, Qt.Horizontal)
-        self.stored_highlight_slider.setValue(int(app.readSetting("TomJK_QuickExport", "highlight_alpha", "64")))
+        self.stored_highlight_slider.setValue(int(readSetting("highlight_alpha", "64")))
         self.stored_highlight_slider.setMinimumWidth(64)
         self.stored_highlight_slider.valueChanged.connect(self._on_stored_highlight_slider_value_changed)
         stored_highlight_layout.addWidget(self.stored_highlight_slider)
@@ -1135,25 +1135,25 @@ class QEDialog(QDialog):
         # advanced mode button.
         self.advanced_mode_button = QCheckBox("Advanced mode")
         self.advanced_mode_button.setToolTip("Basic mode: export settings are saved by default (recommended).\nAdvanced mode: configure how settings are stored.")
-        self.advanced_mode_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "advanced_mode", "false") == "true" else Qt.Unchecked)
+        self.advanced_mode_button.setCheckState(str2qtcheckstate(readSetting("advanced_mode", "false")))
         self.advanced_mode_button.clicked.connect(self._on_advanced_mode_button_clicked)
 
         # auto store for modified button.
         self.auto_store_on_modify_button = QCheckBox("Store on modify")
         self.auto_store_on_modify_button.setToolTip("Automatically check the store button for a file when you modify any of its export settings.")
-        self.auto_store_on_modify_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_modify", "true") == "true" else Qt.Unchecked)
+        self.auto_store_on_modify_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_modify", "true")))
         self.auto_store_on_modify_button.clicked.connect(self._on_auto_store_on_modify_button_clicked)
 
         # auto store for exported button.
         self.auto_store_on_export_button = QCheckBox("Store on export")
         self.auto_store_on_export_button.setToolTip("Automatically check the store button for a file when you export it.")
-        self.auto_store_on_export_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_export", "true") == "true" else Qt.Unchecked)
+        self.auto_store_on_export_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_export", "true")))
         self.auto_store_on_export_button.clicked.connect(self._on_auto_store_on_export_button_clicked)
 
         # auto save settings on close button.
         self.auto_save_on_close_button = QCheckBox("Save settings on close")
         self.auto_save_on_close_button.setToolTip("Automatically save changes to settings without asking when you close the dialog.")
-        self.auto_save_on_close_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_save_on_close", "true") == "true" else Qt.Unchecked)
+        self.auto_save_on_close_button.setCheckState(str2qtcheckstate(readSetting("auto_save_on_close", "true")))
         self.auto_save_on_close_button.clicked.connect(self._on_auto_save_on_close_button_clicked)
 
         # save button.
@@ -1194,7 +1194,7 @@ class QEDialog(QDialog):
 
         use_custom_icons_action = options_menu.addAction("Use custom icons")
         use_custom_icons_action.setCheckable(True)
-        use_custom_icons_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "use_custom_icons", "true") == "true" else Qt.Unchecked)
+        use_custom_icons_action.setChecked(str2qtcheckstate(readSetting("use_custom_icons", "true")))
         use_custom_icons_action.toggled.connect(self._on_use_custom_icons_action_toggled)
 
         options_menu.addSeparator()
@@ -1208,17 +1208,17 @@ class QEDialog(QDialog):
                                              "If there are no such keywords, assumes light theme. You can force a theme if the guess is wrong.")
         icons_follow_theme_action.setActionGroup(custom_icons_theme_action_group)
         icons_follow_theme_action.setCheckable(True)
-        icons_follow_theme_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "custom_icons_theme", "follow") == "follow" else Qt.Unchecked)
+        icons_follow_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme", "follow"), "follow"))
 
         icons_light_theme_action = options_menu.addAction("Use light theme icons")
         icons_light_theme_action.setActionGroup(custom_icons_theme_action_group)
         icons_light_theme_action.setCheckable(True)
-        icons_light_theme_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "custom_icons_theme", "follow") == "light" else Qt.Unchecked)
+        icons_light_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme", "follow"), "light"))
 
         icons_dark_theme_action = options_menu.addAction("Use dark theme icons")
         icons_dark_theme_action.setActionGroup(custom_icons_theme_action_group)
         icons_dark_theme_action.setCheckable(True)
-        icons_dark_theme_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "custom_icons_theme", "follow") == "dark" else Qt.Unchecked)
+        icons_dark_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme", "follow"), "dark"))
 
         options_menu.addSeparator()
         
@@ -1226,7 +1226,7 @@ class QEDialog(QDialog):
         show_export_name_in_menu_action.setToolTip("When possible, show in the File menu as 'Quick Export to 'myImageName.png'.\n" \
                                                    "Otherwise show as 'Quick Export' only.")
         show_export_name_in_menu_action.setCheckable(True)
-        show_export_name_in_menu_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_export_name_in_menu", "true") == "true" else Qt.Unchecked)
+        show_export_name_in_menu_action.setChecked(str2qtcheckstate(readSetting("show_export_name_in_menu", "true")))
         show_export_name_in_menu_action.toggled.connect(self._on_show_export_name_in_menu_action_toggled)
         
         options_menu.addSeparator()
@@ -1235,7 +1235,7 @@ class QEDialog(QDialog):
         default_export_unsaved_action.setToolTip("Run the normal Krita exporter for not-yet-saved images.\n" \
                                                  "Otherwise don't export, just show a reminder to save the file.")
         default_export_unsaved_action.setCheckable(True)
-        default_export_unsaved_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "default_export_unsaved", "false") == "true" else Qt.Unchecked)
+        default_export_unsaved_action.setChecked(str2qtcheckstate(readSetting("default_export_unsaved", "false")))
         default_export_unsaved_action.toggled.connect(self._on_default_export_unsaved_action_toggled)
         
         options_menu.addSeparator()
@@ -1249,27 +1249,27 @@ class QEDialog(QDialog):
         use_previous_version_settings_copy_action.setToolTip("Make a copy of the old version settings. Separate export settings will be kept for each version of the image you export.")
         use_previous_version_settings_copy_action.setActionGroup(use_previous_version_settings_action_group)
         use_previous_version_settings_copy_action.setCheckable(True)
-        use_previous_version_settings_copy_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "use_previous_version_settings", "replace") == "copy" else Qt.Unchecked)
-        use_previous_version_settings_copy_action.triggered.connect(lambda checked: app.writeSetting("TomJK_QuickExport", "use_previous_version_settings", "copy"))
+        use_previous_version_settings_copy_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "copy"))
+        use_previous_version_settings_copy_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "copy"))
         
         use_previous_version_settings_replace_action = options_menu.addAction("Always replace settings of previous version (Recommended)")
         use_previous_version_settings_replace_action.setToolTip("Replace the old version settings. Only settings for the most recently exported version will be kept.")
         use_previous_version_settings_replace_action.setActionGroup(use_previous_version_settings_action_group)
         use_previous_version_settings_replace_action.setCheckable(True)
-        use_previous_version_settings_replace_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "use_previous_version_settings", "replace") == "replace" else Qt.Unchecked)
-        use_previous_version_settings_replace_action.triggered.connect(lambda checked: app.writeSetting("TomJK_QuickExport", "use_previous_version_settings", "replace"))
+        use_previous_version_settings_replace_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "replace"))
+        use_previous_version_settings_replace_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "replace"))
         
         use_previous_version_settings_ignore_action = options_menu.addAction("Always ignore previous versions")
         use_previous_version_settings_ignore_action.setActionGroup(use_previous_version_settings_action_group)
         use_previous_version_settings_ignore_action.setCheckable(True)
-        use_previous_version_settings_ignore_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "use_previous_version_settings", "replace") == "ignore" else Qt.Unchecked)
-        use_previous_version_settings_ignore_action.triggered.connect(lambda checked: app.writeSetting("TomJK_QuickExport", "use_previous_version_settings", "ignore"))
+        use_previous_version_settings_ignore_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "ignore"))
+        use_previous_version_settings_ignore_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "ignore"))
         
         use_previous_version_settings_ask_action = options_menu.addAction("Always ask")
         use_previous_version_settings_ask_action.setActionGroup(use_previous_version_settings_action_group)
         use_previous_version_settings_ask_action.setCheckable(True)
-        use_previous_version_settings_ask_action.setChecked(Qt.Checked if app.readSetting("TomJK_QuickExport", "use_previous_version_settings", "replace") == "ask" else Qt.Unchecked)
-        use_previous_version_settings_ask_action.triggered.connect(lambda checked: app.writeSetting("TomJK_QuickExport", "use_previous_version_settings", "ask"))
+        use_previous_version_settings_ask_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "ask"))
+        use_previous_version_settings_ask_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "ask"))
 
         options_button.setMenu(options_menu)
         
@@ -1294,13 +1294,13 @@ class QEDialog(QDialog):
         # create dialog and show it
         self.setLayout(layout)
         self.setWindowTitle("Quick Export")
-        dialog_width = int(app.readSetting("TomJK_QuickExport", "dialogWidth", "1024"))
-        dialog_height = int(app.readSetting("TomJK_QuickExport", "dialogHeight", "640"))
+        dialog_width = int(readSetting("dialogWidth", "1024"))
+        dialog_height = int(readSetting("dialogHeight", "640"))
         self.resize(dialog_width, dialog_height)
 
     def resizeEvent(self, event):
-        app.writeSetting("TomJK_QuickExport", "dialogWidth", str(event.size().width()))
-        app.writeSetting("TomJK_QuickExport", "dialogHeight", str(event.size().height()))
+        writeSetting("dialogWidth", str(event.size().width()))
+        writeSetting("dialogHeight", str(event.size().height()))
     
     def reject(self):
         self.close()
@@ -1334,43 +1334,43 @@ class QEDialog(QDialog):
         event.accept()
 
     def _on_show_unstored_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "show_unstored", bool2str(checked))
+        writeSetting("show_unstored", bool2str(checked))
         self.tree.refilter()
 
     def _on_show_unopened_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "show_unopened", bool2str(checked))
+        writeSetting("show_unopened", bool2str(checked))
         self.tree.refilter()
 
     def _on_show_non_kra_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "show_non_kra", bool2str(checked))
+        writeSetting("show_non_kra", bool2str(checked))
         self.tree.refilter()
     
     def _on_unhovered_fade_slider_value_changed(self):
-        app.writeSetting("TomJK_QuickExport", "unhovered_fade", str(self.unhovered_fade_slider.value()))
+        writeSetting("unhovered_fade", str(self.unhovered_fade_slider.value()))
         root = self.tree.invisibleRootItem()
         for item in (root.child(i) for i in range(root.childCount())):
             self.tree.itemWidget(item, QECols.SETTINGS_COLUMN).setOpacity(hover=False)
         self.tree.redraw()
     
     def _on_stored_highlight_slider_value_changed(self):
-        app.writeSetting("TomJK_QuickExport", "highlight_alpha", str(self.stored_highlight_slider.value()))
+        writeSetting("highlight_alpha", str(self.stored_highlight_slider.value()))
         self.tree.redraw()
 
     def _on_advanced_mode_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "advanced_mode", bool2str(checked))
+        writeSetting("advanced_mode", bool2str(checked))
         self.set_advanced_mode(checked)
 
     def set_advanced_mode(self, enabled):
         if enabled:
             self.tree.showColumn(QECols.STORE_SETTINGS_COLUMN)
             self.show_unstored_button.show()
-            self.show_unstored_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "show_unstored", "true") == "true" else Qt.Unchecked)
+            self.show_unstored_button.setCheckState(str2qtcheckstate(readSetting("show_unstored", "true")))
             self.auto_store_on_modify_button.show()
-            self.auto_store_on_modify_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_modify", "true") == "true" else Qt.Unchecked)
+            self.auto_store_on_modify_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_modify", "true")))
             self.auto_store_on_export_button.show()
-            self.auto_store_on_export_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_store_on_export", "true") == "true" else Qt.Unchecked)
+            self.auto_store_on_export_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_export", "true")))
             self.auto_save_on_close_button.show()
-            self.auto_save_on_close_button.setCheckState(Qt.Checked if app.readSetting("TomJK_QuickExport", "auto_save_on_close", "true") == "true" else Qt.Unchecked)
+            self.auto_save_on_close_button.setCheckState(str2qtcheckstate(readSetting("auto_save_on_close", "true")))
             self.save_button.show()
         else:
             self.tree.hideColumn(QECols.STORE_SETTINGS_COLUMN)
@@ -1385,28 +1385,28 @@ class QEDialog(QDialog):
             self.save_button.hide()
 
     def _on_auto_store_on_modify_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "auto_store_on_modify", bool2str(checked))
+        writeSetting("auto_store_on_modify", bool2str(checked))
 
     def _on_auto_store_on_export_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "auto_store_on_export", bool2str(checked))
+        writeSetting("auto_store_on_export", bool2str(checked))
 
     def _on_auto_save_on_close_button_clicked(self, checked):
-        app.writeSetting("TomJK_QuickExport", "auto_save_on_close", bool2str(checked))
+        writeSetting("auto_save_on_close", bool2str(checked))
 
     def _on_use_custom_icons_action_toggled(self, checked):
-        app.writeSetting("TomJK_QuickExport", "use_custom_icons", bool2str(checked))
+        writeSetting("use_custom_icons", bool2str(checked))
         extension().update_action_icons()
 
     def _on_custom_icons_theme_action_group_triggered(self, action, group):
-        app.writeSetting("TomJK_QuickExport", "custom_icons_theme", ["follow","light","dark"][group.actions().index(action)])
+        writeSetting("custom_icons_theme", ["follow","light","dark"][group.actions().index(action)])
         extension().update_action_icons()
     
     def _on_show_export_name_in_menu_action_toggled(self, checked):
-        app.writeSetting("TomJK_QuickExport", "show_export_name_in_menu", bool2str(checked))
+        writeSetting("show_export_name_in_menu", bool2str(checked))
         extension().update_quick_export_display()
     
     def _on_default_export_unsaved_action_toggled(self, checked):
-        app.writeSetting("TomJK_QuickExport", "default_export_unsaved", bool2str(checked))
+        writeSetting("default_export_unsaved", bool2str(checked))
         extension().update_quick_export_display()
 
     def _on_save_button_clicked(self, checked):

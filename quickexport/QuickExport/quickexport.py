@@ -117,8 +117,8 @@ class QuickExportExtension(Extension):
         self.qec_action.setIcon(self.get_icon("qec"))
     
     def update_action_icons(self):
-        self.use_custom_icons = str2bool(app.readSetting("TomJK_QuickExport", "use_custom_icons", "true"))
-        custom_icons_theme = app.readSetting("TomJK_QuickExport", "custom_icons_theme", "follow")
+        self.use_custom_icons = str2bool(readSetting("use_custom_icons", "true"))
+        custom_icons_theme = readSetting("custom_icons_theme", "follow")
         
         self.theme_is_dark = True if custom_icons_theme == "dark" else False if custom_icons_theme == "light" else self.is_theme_dark()
         self.set_action_icons()
@@ -190,7 +190,7 @@ class QuickExportExtension(Extension):
                     file_settings = find_settings_for_file(Path(doc.fileName()))
                     if file_settings:
                         # file has QE settings.
-                        show_export_name_in_menu = app.readSetting("TomJK_QuickExport", "show_export_name_in_menu", "true") == "true"
+                        show_export_name_in_menu = str2bool(readSetting("show_export_name_in_menu", "true"))
                         if show_export_name_in_menu:
                             output_filename = file_settings["output_name"] + file_settings["ext"]
                             self.qe_action.setText(f"Quick export to '{output_filename}'")
@@ -202,7 +202,7 @@ class QuickExportExtension(Extension):
                     return
         # no doc or unsaved doc.
         self.qe_action.setText("Quick export")
-        default_export_unsaved = app.readSetting("TomJK_QuickExport", "default_export_unsaved", "false") == "true"
+        default_export_unsaved = str2bool(readSetting("default_export_unsaved", "false"))
         self.qe_action.setEnabled(default_export_unsaved)
     
     def _on_quick_export_triggered(self):
@@ -212,7 +212,7 @@ class QuickExportExtension(Extension):
             return
         
         if doc.fileName() == "":
-            default_export_unsaved = app.readSetting("TomJK_QuickExport", "default_export_unsaved", "false") == "true"
+            default_export_unsaved = str2bool(readSetting("default_export_unsaved", "false"))
             if not default_export_unsaved:
                 msg = "Quick Export: image must be saved first."
                 app.activeWindow().activeView().showFloatingMessage(msg, app.icon('document-export'), 5000, 2)
@@ -269,7 +269,7 @@ class QuickExportExtension(Extension):
                 for i, p in enumerate(possible_previous_paths):
                     print(f" {i} {repr(p)}")
                 
-                use_previous_version_settings = app.readSetting("TomJK_QuickExport", "use_previous_version_settings", "replace")
+                use_previous_version_settings = readSetting("use_previous_version_settings", "replace")
                 result = CopySettingsDialogResult.NONE
                 selected_item_index = 0
                 
