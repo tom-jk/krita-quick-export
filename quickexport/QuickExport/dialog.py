@@ -317,6 +317,14 @@ class ItemDelegate(QStyledItemDelegate):
         else:
             return super().createEditor(parent, option, index)
     
+    def sizeHint(self, option, index):
+        size = super().sizeHint(option, index)
+        
+        tree = QETree.instance
+        
+        size.setHeight(tree.min_row_height)
+        return size
+    
     def paint(self, painter, option, index):
         # TODO: lightly highlight row if mouse over.
         is_highlighted = index.model().index(index.row(), QECols.OPEN_FILE_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == QETree.instance.highlighted_doc_index
@@ -411,10 +419,11 @@ class QETree(QTreeWidget):
         doc['document'] = new_doc
         doc['doc_index'] = app.documents().index(new_doc)
         item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(doc['doc_index']))
-        new_doc.waitForDone()
-        item.setIcon(QECols.THUMBNAIL_COLUMN, QIcon(QPixmap.fromImage(new_doc.thumbnail(64,64))))
         for db in disabled_buttons:
             db.setDisabled(False)
+        new_doc.waitForDone()
+        self.thumbnail_queue.append([new_doc, item])
+        self.thumbnail_worker_timer.start()
         print("done")
     
     def _on_output_lineedit_editing_finished(self, doc, lineedit, item, store_button):
@@ -558,6 +567,10 @@ class QETree(QTreeWidget):
         self.installEventFilter(self.filter)
         
         self.hovered_item = None
+        
+        fm = QFontMetrics(self.font())
+        self.thumb_height = fm.height() * 4
+        self.min_row_height = fm.height() * 5
     
     def _on_item_clicked(self, item, column):
         widget = self.itemWidget(item, column)
@@ -942,6 +955,7 @@ class QETree(QTreeWidget):
         if len(self.thumbnail_queue) == 0:
             return
         
+        self.thumbnail_column_resized_to_contents_once = False
         self.thumbnail_worker = self.thumbnail_worker_process()
         self.thumbnail_worker_timer = QTimer(self)
         self.thumbnail_worker_timer.setInterval(0)
@@ -959,19 +973,25 @@ class QETree(QTreeWidget):
             
             print(f"thumbnail_worker: do job for {doc.fileName()=}")
             
-            icon = QIcon(QPixmap.fromImage(doc.thumbnail(64,64)))
-            item.setIcon(QECols.THUMBNAIL_COLUMN, icon)
+            self._make_thumbnail(doc, item)
             
-            print ("thumbnail_worker: job done.")
+            print("thumbnail_worker: job done.")
+            
+            if not self.thumbnail_column_resized_to_contents_once:
+                self.resizeColumnToContents(QECols.THUMBNAIL_COLUMN)
+                self.thumbnail_column_resized_to_contents_once = True
             
             if len(self.thumbnail_queue) == 0:
                 break
             yield self.thumbnail_worker_timer.start()
             
-        self.thumbnail_worker_timer.deleteLater()
-        del self.thumbnail_worker_timer
         print("thumbnail worker: end.")
-
+    
+    def _make_thumbnail(self, doc, item):
+        thumbnail = QPixmap.fromImage(doc.thumbnail(self.thumb_height, self.thumb_height))
+        label = QLabel()
+        label.setPixmap(thumbnail)
+        self.setItemWidget(item, QECols.THUMBNAIL_COLUMN, label)
 
 class QEDialog(QDialog):
     instance = None
