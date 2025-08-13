@@ -726,7 +726,8 @@ class QETree(QTreeWidget):
                     item.setText(QECols.OPEN_FILE_COLUMN, "*")
                     item.setTextAlignment(QECols.OPEN_FILE_COLUMN, Qt.AlignCenter)
             else:
-                self.thumbnail_queue.append([s["path"], item])
+                if str2bool(readSetting("show_thumbnails_for_unopened", "true")):
+                    self.thumbnail_queue.append([s["path"], item])
                 item.setDisabled(True)
                 btn_open = QPushButton("")
                 btn_open.setIcon(app.icon('document-open'))
@@ -1270,6 +1271,14 @@ class QEDialog(QDialog):
         use_previous_version_settings_ask_action.setCheckable(True)
         use_previous_version_settings_ask_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "ask"))
         use_previous_version_settings_ask_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "ask"))
+        
+        options_menu.addSeparator()
+        
+        show_thumbnails_for_unopened_images_action = options_menu.addAction("Show thumbnails for unopened images")
+        show_thumbnails_for_unopened_images_action.setToolTip("Will take effect when this dialog next runs.")
+        show_thumbnails_for_unopened_images_action.setCheckable(True)
+        show_thumbnails_for_unopened_images_action.setChecked(str2qtcheckstate(readSetting("show_thumbnails_for_unopened", "true")))
+        show_thumbnails_for_unopened_images_action.toggled.connect(lambda checked: writeSetting("show_thumbnails_for_unopened", bool2str(checked)))
 
         options_button.setMenu(options_menu)
         
