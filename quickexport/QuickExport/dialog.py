@@ -681,6 +681,7 @@ class QETree(QTreeWidget):
         checkbox_stylesheet = "QCheckBox::indicator:unchecked {border: 1px solid rgba(255,255,255,0.1);}"
         
         item_delegate = ItemDelegate()
+        self.setItemDelegate(item_delegate)
         
         self.itemClicked.connect(self._on_item_clicked)
         
@@ -689,7 +690,6 @@ class QETree(QTreeWidget):
             
             item = MyTreeWidgetItem(self)
             item.setFlags(item.flags() | Qt.ItemIsEditable)
-            self.setItemDelegate(item_delegate)
             
             btns_export = QToolButton()
             btns_export.setAutoRaise(True)
