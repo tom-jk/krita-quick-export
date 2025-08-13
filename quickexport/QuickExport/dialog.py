@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
                              QStyleOptionButton, QSpinBox, QStyleOptionSpinBox, QGraphicsOpacityEffect)
 from PyQt5.QtCore import Qt, QObject, QRegExp, QModelIndex, pyqtSignal, QEvent
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette, QMouseEvent, QTabletEvent
+import zipfile
 from pathlib import Path
 from functools import partial
 from enum import IntEnum, auto
@@ -725,6 +726,7 @@ class QETree(QTreeWidget):
                     item.setText(QECols.OPEN_FILE_COLUMN, "*")
                     item.setTextAlignment(QECols.OPEN_FILE_COLUMN, Qt.AlignCenter)
             else:
+                self.thumbnail_queue.append([s["path"], item])
                 item.setDisabled(True)
                 btn_open = QPushButton("")
                 btn_open.setIcon(app.icon('document-open'))
@@ -968,12 +970,20 @@ class QETree(QTreeWidget):
         while len(self.thumbnail_queue) > 0:
             job = self.thumbnail_queue.pop(0)
             
-            doc = job[0]
             item = job[1]
             
-            print(f"thumbnail_worker: do job for {doc.fileName()=}")
+            if isinstance(job[0], Path):
+                file_path = job[0]
+                
+                print(f"thumbnail_worker: do job for unopened document {file_path=}")
+                
+                self._make_thumbnail_for_file(file_path, item)
+            else:
+                doc = job[0]
             
-            self._make_thumbnail(doc, item)
+                print(f"thumbnail_worker: do job for open document {doc.fileName()=}")
+            
+                self._make_thumbnail(doc, item)
             
             print("thumbnail_worker: job done.")
             
@@ -984,11 +994,38 @@ class QETree(QTreeWidget):
             if len(self.thumbnail_queue) == 0:
                 break
             yield self.thumbnail_worker_timer.start()
-            
+        
         print("thumbnail worker: end.")
     
     def _make_thumbnail(self, doc, item):
         thumbnail = QPixmap.fromImage(doc.thumbnail(self.thumb_height, self.thumb_height))
+        label = QLabel()
+        label.setPixmap(thumbnail)
+        self.setItemWidget(item, QECols.THUMBNAIL_COLUMN, label)
+    
+    # borrowed from the Last Documents Docker.
+    def _make_thumbnail_for_file(self, path, item):
+        thumbnail = QPixmap()
+        extension = path.suffix
+        try:
+            if extension == '.kra':
+                page = zipfile.ZipFile(path, "r")
+                thumbnail.loadFromData(page.read("preview.png"))
+            else:
+                thumbnail = QPixmap(str(path))
+        except FileNotFoundError:
+            print(f"file '{path}' not found.")
+        except Exception as e:
+            print(f"error trying to read file '{path}'. the error is:\n{type(e).__name__}: {e}")
+
+        if thumbnail.isNull():
+            print(f"couldn't make thumbnail for file '{path}'.")
+            thumbnail = app.icon('window-close').pixmap(self.thumb_height, self.thumb_height)
+
+        thumb_size = QSize(int(self.thumb_height*self.devicePixelRatioF()), int(self.thumb_height*self.devicePixelRatioF()))
+        thumbnail = thumbnail.scaled(thumb_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        thumbnail.setDevicePixelRatio(self.devicePixelRatioF()) # TODO: should do for doc.thumbnail thumbs too?
+        
         label = QLabel()
         label.setPixmap(thumbnail)
         self.setItemWidget(item, QECols.THUMBNAIL_COLUMN, label)
