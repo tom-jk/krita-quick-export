@@ -427,9 +427,9 @@ class QETree(QTreeWidget):
         self.thumbnail_worker_timer.start()
         print("done")
     
-    def _on_output_lineedit_editing_finished(self, doc, lineedit, item, store_button):
-        doc["output"] = lineedit.text()
-        item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output"].lower())
+    def _on_output_name_lineedit_editing_finished(self, doc, lineedit, item, store_button):
+        doc["output_name"] = lineedit.text()
+        item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output_name"].lower())
         #print("_on_output_lineedit_changed ->", doc["output"])
         self.set_settings_modified(store_button)
     
@@ -445,7 +445,7 @@ class QETree(QTreeWidget):
             self.dialog.sbar.showMessage(f"Export failed. {failed_msg}")
         else:
             self.sender().setText("Done!")
-            self.dialog.sbar.showMessage(f"Exported to '{str(doc['path'].with_name(doc['output']).with_suffix(doc['ext']))}'")
+            self.dialog.sbar.showMessage(f"Exported to '{str(doc['path'].with_name(doc['output_name']).with_suffix(doc['ext']))}'")
         
         if self.dialog.auto_store_on_export_button.checkState() == Qt.Checked:
             store_button.setCheckState(Qt.Checked)
@@ -629,7 +629,7 @@ class QETree(QTreeWidget):
             if doc_is_in_settings:
                 continue
             
-            qe_settings.append(default_settings(document=doc, doc_index=i, path=path, output=path.stem))
+            qe_settings.append(default_settings(document=doc, doc_index=i, path=path, output_name=path.stem))
         
         # TODO: detect if multiple documents would export to the same output file.
         
@@ -739,28 +739,26 @@ class QETree(QTreeWidget):
             item.setText(QECols.SOURCE_FILENAME_COLUMN, file_path.name)
             item.setData(QECols.SOURCE_FILENAME_COLUMN, QERoles.CustomSortRole, file_path.name.lower())
             
-            # TODO: move caret to before .extension when user clicks on unfocused textbox?
-            #       maybe only if they click anywhere after the '.'?
-            output_widget = QWidget()
-            output_layout = QHBoxLayout()
-            output_edit = MyLineEdit(s["output"])
-            output_edit.settings = s
-            output_edit.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
+            output_name_widget = QWidget()
+            output_name_layout = QHBoxLayout()
+            output_name_edit = MyLineEdit(s["output_name"])
+            output_name_edit.settings = s
+            output_name_edit.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
             
-            input_validator = QRegExpValidator(filename_regex, output_edit)
-            output_edit.setValidator(input_validator)
+            input_validator = QRegExpValidator(filename_regex, output_name_edit)
+            output_name_edit.setValidator(input_validator)
             
             text = longest_output + "PAD"
-            fm = QFontMetrics(output_edit.font())
+            fm = QFontMetrics(output_name_edit.font())
             pixelsWide = fm.width(text)
-            output_edit.setMinimumWidth(pixelsWide)
-            output_edit.editingFinished.connect(lambda d=s, oe=output_edit, i=item, sb=btn_store_forget: self._on_output_lineedit_editing_finished(d, oe, i, sb))
+            output_name_edit.setMinimumWidth(pixelsWide)
+            output_name_edit.editingFinished.connect(lambda d=s, oe=output_name_edit, i=item, sb=btn_store_forget: self._on_output_name_lineedit_editing_finished(d, oe, i, sb))
             
-            output_layout.addWidget(output_edit)
-            output_widget.setLayout(output_layout)
+            output_name_layout.addWidget(output_name_edit)
+            output_name_widget.setLayout(output_name_layout)
             
-            self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_widget)
-            item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output"].lower())
+            self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_name_widget)
+            item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output_name"].lower())
             
             outputext_widget = QWidget()
             outputext_layout = QHBoxLayout()

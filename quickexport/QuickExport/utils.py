@@ -30,14 +30,14 @@ def bool2flag(*args):
 def flag2bool(strval):
     return True if strval == "1" else False
 
-def default_settings(document=None, doc_index=1024, store=False, path=None, output="", ext=".png", set_scale=False, scale_filter="Auto"):
+def default_settings(document=None, doc_index=1024, store=False, path=None, output_name="", ext=".png", set_scale=False, scale_filter="Auto"):
     set_scale = set_scale and document
     settings = {
         "document":document,
         "doc_index":doc_index,
         "store":store,
         "path":path,
-        "output":output,
+        "output_name":output_name,
         "ext":ext,
         "scale":False,
         "scale_width":document.width() if set_scale else -1,
@@ -76,8 +76,9 @@ def default_settings(document=None, doc_index=1024, store=False, path=None, outp
 def load_settings_from_config():
     """
     read in settings string from kritarc.
-    example: "path=a/b.kra,output=b,ext=.png,scale=[e=1,w=1024,h=768,f=Bic,r=72],png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
-    becomes: settings[{"document":<obj>, "store":True, "path":"a/b.kra", "output":"b", "ext":".png", "scale":True, "scale_width":1024, ... "png_fillcolour":QColor('#ffffff'), "png_compression":9, "png_alpha":True, "png_indexed":True, ... etc.}]
+    example: "path=/a/b.kra,output=b,ext=.png,scale=[e=1,w=1024,h=768,f=Bic,r=72],png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
+    becomes: settings[{"document":<obj>, "store":True, "path":Path("/a/b.kra"), "output_name":"b", "ext":".png", "scale":True,
+                       "scale_width":1024, ... "png_fillcolour":QColor('#ffffff'), "png_compression":9, "png_alpha":True, "png_indexed":True, ... etc.}]
     """
     qe_settings.clear()
     
@@ -129,8 +130,10 @@ def load_settings_from_config():
                         settings["document"] = d
                         settings["doc_index"] = i
                         break
-            elif k in ("output", "ext"):
-                settings[k] = v
+            elif k == "output":
+                settings["output_name"] = v
+            elif k == "ext":
+                settings["ext"] = v
             elif k == "scale_e":
                 settings["scale"] = flag2bool(v)
             elif k == "scale_w":
@@ -206,7 +209,7 @@ def generate_save_string():
         
         save_strings.append(
             f"path={str(s['path'])},"
-            f"output={s['output']},"
+            f"output={s['output_name']},"
             f"ext={s['ext']},"
             f"scale=["
             f"e={bool2flag(s['scale'])},{scale_string}"
@@ -309,7 +312,7 @@ def export_image(settings, document=None):
         exportParameters.setProperty("storeMetaData",         settings["jpeg_metadata"])        # not documented.
         exportParameters.setProperty("storeAuthor",           settings["jpeg_author"])          # not documented.
     
-    export_path = settings["path"].with_name(settings["output"]).with_suffix(settings["ext"])
+    export_path = settings["path"].with_name(settings["output_name"]).with_suffix(settings["ext"])
     
     if not document:
         document = settings["document"]
