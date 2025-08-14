@@ -12,6 +12,7 @@ from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
+from .filenameedit import FileNameEdit
 
 app = Krita.instance()
 
@@ -280,37 +281,6 @@ class UncheckableButtonGroup(QButtonGroup):
         self.checkedButton().setChecked(False)
         self.setExclusive(is_exclusive)
 
-class MyLineEdit(QLineEdit):
-    def focusInEvent(self, event):
-        self.setStyleSheet("")
-        super().focusInEvent(event)
-    
-    def focusOutEvent(self, event):
-        self.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
-        super().focusOutEvent(event)
-    
-    def contextMenuEvent(self, event):
-        menu = self.createStandardContextMenu()
-        menu.addSeparator()
-        header = menu.addAction("Suggestions")
-        header.setDisabled(True)
-        text = (self.settings['path'].stem)
-        suggestions = truncated_name_suggestions(text)
-        
-        t = suggestions[0]
-        suggestion_actions = []
-        suggestion_actions.append(menu.addAction(t))
-        for i in range(1, len(suggestions)):
-            t += suggestions[i]
-            if suggestions[i] in "._-+":
-                continue
-            suggestion_actions.append(menu.addAction(t))
-        
-        result = menu.exec(event.globalPos(), header)
-        
-        if result in suggestion_actions:
-            self.setText(result.text())
-
 class ItemDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         if index.column() in (QECols.OPEN_FILE_COLUMN, QECols.THUMBNAIL_COLUMN, QECols.SOURCE_FILENAME_COLUMN, QECols.BUTTONS_COLUMN):
@@ -320,10 +290,35 @@ class ItemDelegate(QStyledItemDelegate):
     
     def sizeHint(self, option, index):
         size = super().sizeHint(option, index)
-        
+
         tree = QETree.instance
+        item = tree.itemFromIndex(index)
         
         size.setHeight(tree.min_row_height)
+        #return size
+        
+        try:
+            wgt = tree.itemWidget(item, index.column())
+            #print("a: wgt:", wgt)
+            if wgt:
+                h = -1
+                if wgt.hasHeightForWidth():
+                    w = tree.columnWidth(index.column())
+                    h = wgt.heightForWidth(w)
+                    #print(f"b1: wgt has height {h} for width {w}")
+                else:
+                    pass
+                    #h = -1#wgt.height()
+                    #print(f"b2: wgt does not have height for width, use height {h}")
+                item.setData(Qt.SizeHintRole, index.column(), h)
+        except:
+            print("problem")
+        height = item.data(Qt.SizeHintRole, index.column())
+        if height and height > size.height():
+            size.setHeight(height)
+        
+        #print(f"{'ItemDelegate:':18}{'sizeHint:':18} index:row {index.row()}, col {index.column()} {size=}")
+
         return size
     
     def paint(self, painter, option, index):
@@ -427,8 +422,8 @@ class QETree(QTreeWidget):
         self.thumbnail_worker_timer.start()
         print("done")
     
-    def _on_output_name_lineedit_editing_finished(self, doc, lineedit, item, store_button):
-        doc["output_name"] = lineedit.text()
+    def _on_output_name_edit_editing_finished(self, doc, edit, item, store_button):
+        doc["output_name"] = edit.text()
         item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output_name"].lower())
         #print("_on_output_lineedit_changed ->", doc["output"])
         self.set_settings_modified(store_button)
@@ -572,6 +567,23 @@ class QETree(QTreeWidget):
         fm = QFontMetrics(self.font())
         self.thumb_height = fm.height() * 4
         self.min_row_height = fm.height() * 5
+        
+        self.header().sectionResized.connect(self._on_column_resized)
+    
+    def _on_column_resized(self, column, old_size, new_size):
+        #print("columnResized")
+        if column not in (QECols.OUTPUT_FILENAME_COLUMN,):
+            return
+        
+        try:
+            for item in self.items:
+                wgt = self.itemWidget(item, column)
+                if wgt:
+                    if wgt.hasHeightForWidth():
+                        colwidth = self.columnWidth(column)
+                        item.setData(Qt.SizeHintRole, column, wgt.heightForWidth(colwidth))
+        except:
+            print("_on_column_resized: something went wrong")
     
     def _on_item_clicked(self, item, column):
         widget = self.itemWidget(item, column)
@@ -741,25 +753,18 @@ class QETree(QTreeWidget):
             item.setText(QECols.SOURCE_FILENAME_COLUMN, file_path.name)
             item.setData(QECols.SOURCE_FILENAME_COLUMN, QERoles.CustomSortRole, file_path.name.lower())
             
-            output_name_widget = QWidget()
-            output_name_layout = QHBoxLayout()
-            output_name_edit = MyLineEdit(s["output_name"])
-            output_name_edit.settings = s
-            output_name_edit.setStyleSheet("QLineEdit {background: rgba(0,0,0,0);}")
             
-            input_validator = QRegExpValidator(filename_regex, output_name_edit)
-            output_name_edit.setValidator(input_validator)
             
-            text = longest_output + "PAD"
-            fm = QFontMetrics(output_name_edit.font())
-            pixelsWide = fm.width(text)
-            output_name_edit.setMinimumWidth(pixelsWide)
-            output_name_edit.editingFinished.connect(lambda d=s, oe=output_name_edit, i=item, sb=btn_store_forget: self._on_output_name_lineedit_editing_finished(d, oe, i, sb))
+            output_name_edit = FileNameEdit(s["output_name"])
+            output_name_edit.edit.settings = s
             
-            output_name_layout.addWidget(output_name_edit)
-            output_name_widget.setLayout(output_name_layout)
             
-            self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_name_widget)
+            output_name_edit.edit.editingFinished.connect(lambda d=s, e=output_name_edit.edit, i=item, sb=btn_store_forget: self._on_output_name_edit_editing_finished(d, e, i, sb))
+            
+            output_name_edit.edit.document().contentsChanged.connect(output_name_edit.edit.recalc_height)
+            output_name_edit.edit.document().contentsChanged.connect(self.scheduleDelayedItemsLayout)
+            
+            self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_name_edit)
             item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output_name"].lower())
             
             outputext_widget = QWidget()
