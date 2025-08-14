@@ -436,10 +436,10 @@ class QETree(QTreeWidget):
         
         if not result:
             failed_msg = export_failed_msg()
-            self.sender().setText("Failed!")
+            self.sender().setIcon(app.icon('window-close'))
             self.dialog.sbar.showMessage(f"Export failed. {failed_msg}")
         else:
-            self.sender().setText("Done!")
+            self.sender().setIcon(app.icon('dialog-ok'))
             self.dialog.sbar.showMessage(f"Exported to '{str(doc['path'].with_name(doc['output_name']).with_suffix(doc['ext']))}'")
         
         if self.dialog.auto_store_on_export_button.checkState() == Qt.Checked:
