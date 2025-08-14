@@ -665,7 +665,7 @@ class QETree(QTreeWidget):
             if len(output) > len(longest_output):
                 longest_output = output
         
-        self.settings_stack_page_order = [".png", [".jpg",".jpeg"]]
+        self.settings_stack_page_order = [[".gif", ".pbm", ".pgm", ".ppm", ".tga", ".bmp", ".ico", ".xbm", ".xpm"], ".png", [".jpg",".jpeg"]]
         
         def centered_checkbox_widget(checkbox):
             widget = QWidget()
@@ -765,9 +765,9 @@ class QETree(QTreeWidget):
             outputext_layout = QHBoxLayout()
             
             outputext_combobox = QEComboBox()
-            outputext_combobox.addItem(".png", ".png")
-            outputext_combobox.addItem(".jpg", ".jpg")
-            outputext_combobox.addItem(".jpeg", ".jpeg")
+            for e in supported_extensions():
+                outputext_combobox.addItem(e, e)
+            
             outputext_combobox.setCurrentIndex(outputext_combobox.findData(s["ext"]))
             
             outputext_layout.addWidget(outputext_combobox)
@@ -777,6 +777,21 @@ class QETree(QTreeWidget):
             item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, s["ext"])
             
             settings_stack = FadingStackedWidget()
+            
+            no_settings_page = QWidget()
+            no_settings_page_layout = QHBoxLayout()
+            
+            no_settings_label = QLabel("(No settings.)")
+            no_settings_page_layout.addWidget(no_settings_label)
+            
+            no_settings_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
+            no_settings_scale_button.setPopupMode(QToolButton.InstantPopup)
+            
+            no_settings_scale_button.setMenu(scale_menu)
+            no_settings_page_layout.addWidget(no_settings_scale_button)
+            
+            no_settings_page.setLayout(no_settings_page_layout)
+            settings_stack.addWidget(no_settings_page)
             
             png_settings_page = QWidget()
             png_settings_page_layout = QHBoxLayout()
@@ -934,7 +949,7 @@ class QETree(QTreeWidget):
             self.setItemWidget(item, QECols.SETTINGS_COLUMN, settings_stack)
             self.set_item_settings_stack_page_for_extension(settings_stack, s["ext"])
             
-            scale_checkbox_action.triggered.connect(lambda checked, d=s, cb=[png_scale_button,jpeg_scale_button], sb=btn_store_forget: self._on_item_scale_checkbox_action_triggered(checked, d, cb, sb))
+            scale_checkbox_action.triggered.connect(lambda checked, d=s, cb=[no_settings_scale_button,png_scale_button,jpeg_scale_button], sb=btn_store_forget: self._on_item_scale_checkbox_action_triggered(checked, d, cb, sb))
             
             btns_widget = QWidget()
             btns_layout = QHBoxLayout()

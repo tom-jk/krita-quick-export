@@ -39,6 +39,11 @@ def bool2flag(*args):
 def flag2bool(strval):
     return True if strval == "1" else False
 
+qe_supported_extensions = (".gif", ".jpg", ".jpeg", ".pbm", ".pgm", ".png", ".ppm", ".tga", ".bmp", ".ico", ".xbm", ".xpm")
+
+def supported_extensions():
+    return qe_supported_extensions
+
 def default_settings(document=None, doc_index=1024, store=False, path=None, output_name="", ext=".png", set_scale=False, scale_filter="Auto"):
     set_scale = set_scale and document
     settings = {
