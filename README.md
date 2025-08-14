@@ -15,13 +15,13 @@ Click "Export now" to export the image. The exported file will be saved to the s
 The settings for each image are saved in Krita's config file (kritarc) and will persist between Krita sessions.
 
 #### Features:
-- export as png or jpeg
+- export as png or jpeg, plus some minor formats (gif, bmp, ico, tga, pbm/pgm/ppm, xbm/xpm)
 - choose output file name
 - adjust all export settings, including scale
 - choose to keep or forget export settings for each image
 
 #### Missing/To-Do:
-- can't currently export as any type other than png and jpeg
+- can't currently export as any type other than those mentioned above
 - can't export the image to a different directory than that of the source image
 - can't automatically export a chain of dependent images (eg. when exporting a texture atlas, first update file layers)
 - can't group images together in list or enforce a specific custom sort order
