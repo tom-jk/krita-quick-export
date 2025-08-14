@@ -57,7 +57,7 @@ class WrappingLineEdit(QPlainTextEdit):
             print("NEWLINE")
             self.clearFocus()
             return
-        if any(char in "^<>:;,?\*|/" for char in event.text()):
+        if any(char in "^<>:;?\*|/" for char in event.text()):
             print("FORBIDDEN CHAR")
             return
         super().keyPressEvent(event)

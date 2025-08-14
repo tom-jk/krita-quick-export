@@ -93,10 +93,14 @@ def load_settings_from_config():
     example: "path=/a/b.kra,output=b,ext=.png,scale=[e=1,w=1024,h=768,f=Bic,r=72],png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
     becomes: settings[{"document":<obj>, "store":True, "path":Path("/a/b.kra"), "output_name":"b", "ext":".png", "scale":True,
                        "scale_width":1024, ... "png_fillcolour":QColor('#ffffff'), "png_compression":9, "png_alpha":True, "png_indexed":True, ... etc.}]
+    
+    commas (,) in file paths and names are replaced with slash-comma (/,).
+    example: settings[{"path":Path("path=/pa,th/to/,a/file.kra", "output_name":"file,", "ext":".png", ... }]
+    becomes: "path=/pa/,th/to//,a/file.kra,output=file/,,ext=.png ... "
     """
+    
     qe_settings.clear()
     
-    # TODO: will break if a filename contains a comma ',' char.
     settings_string = readSetting("settings", "")
     #print(f"{settings_string=}")
     
@@ -105,6 +109,7 @@ def load_settings_from_config():
     
     settings_tokens = []
     tokenize_settings_string(settings_string, settings_tokens)
+    unescape_tokenized_settings_string(settings_tokens)
     
     if settings_tokens[-1] != ";":
         settings_tokens.append(";")
@@ -222,8 +227,8 @@ def generate_save_string():
         scale_string = ",".join([x for x in scale_strings if x != ""])
         
         save_strings.append(
-            f"path={str(s['path'])},"
-            f"output={s['output_name']},"
+            f"path={escape_settings_string(str(s['path']))},"
+            f"output={escape_settings_string(s['output_name'])},"
             f"ext={s['ext']},"
             f"scale=["
             f"e={bool2flag(s['scale'])},{scale_string}"
@@ -264,6 +269,20 @@ def tokenize_settings_string(s, tokens):
             tokens.append(subs[:mo.end()-1])
         tokens.append(mo.group())
         i += mo.end()
+
+def unescape_tokenized_settings_string(tokens):
+    token_id = 0
+    while token_id < len(tokens)-1:
+        if tokens[token_id].endswith("/") and tokens[token_id+1] == ",":
+            tokens[token_id] = tokens[token_id][:-1] + ","
+            tokens.pop(token_id+1)
+            if not tokens[token_id+1] == ",":
+                tokens[token_id] += tokens.pop(token_id+1)
+            continue
+        token_id += 1
+
+def escape_settings_string(s):
+    return s.replace(",", "/,")
 
 def auto_filter_strategy(original_width, original_height, desired_width, desired_height):
     """Python copy of krita/libs/image/kis_filter_strategy.cc method KisFilterStrategyRegistry::autoFilterStrategy."""
