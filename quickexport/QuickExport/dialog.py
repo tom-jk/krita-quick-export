@@ -644,6 +644,7 @@ class QETree(QTreeWidget):
         self.setHeaderLabels(["", "", "", "Filename", "Export to", "Type", "Settings", "Actions"])
         self.headerItem().setIcon(QECols.STORE_SETTINGS_COLUMN, app.icon('document-save'))
         self.items = []
+        self.extension_comboboxes = []
         
         post_setup = []
         
@@ -765,6 +766,7 @@ class QETree(QTreeWidget):
             outputext_layout = QHBoxLayout()
             
             outputext_combobox = QEComboBox()
+            self.extension_comboboxes.append(outputext_combobox)
             for e in supported_extensions():
                 outputext_combobox.addItem(e, e)
             
@@ -1294,7 +1296,26 @@ class QEDialog(QDialog):
         show_thumbnails_for_unopened_images_action.setCheckable(True)
         show_thumbnails_for_unopened_images_action.setChecked(str2qtcheckstate(readSetting("show_thumbnails_for_unopened", "true")))
         show_thumbnails_for_unopened_images_action.toggled.connect(lambda checked: writeSetting("show_thumbnails_for_unopened", bool2str(checked)))
-
+        
+        self.show_extensions_in_list_menu = QEMenu()
+        visible_extensions = readSetting("visible_types", ".jpg .jpeg .png").split(" ")
+        
+        if len(visible_extensions) == 0 or not any(test in supported_extensions() for test in visible_extensions):
+            # bad config, reset to default.
+            writeSetting("visible_types", ".jpg .jpeg .png")
+            visible_extensions = (".jpg", ".jpeg", ".png")
+        
+        for ext in supported_extensions():
+            action = self.show_extensions_in_list_menu.addAction(ext)
+            action.setCheckable(True)
+            action.setChecked(ext in visible_extensions)
+        
+        self.show_extensions_in_list_menu.triggered.connect(self._on_show_extensions_in_list_menu_triggered)
+        show_extensions_in_list_action = options_menu.addAction("Visible file types")
+        show_extensions_in_list_action.setMenu(self.show_extensions_in_list_menu)
+        
+        self.update_show_extensions_in_list_for_all_types()
+        
         options_button.setMenu(options_menu)
         
         # status bar.
@@ -1432,6 +1453,48 @@ class QEDialog(QDialog):
     def _on_default_export_unsaved_action_toggled(self, checked):
         writeSetting("default_export_unsaved", bool2str(checked))
         extension().update_quick_export_display()
+
+    def update_show_extensions_in_list_for_all_types(self):
+        for action in self.show_extensions_in_list_menu.actions():
+            self.update_show_extensions_in_list_for_type(action.text(), action.isChecked())
+        self.post_update_show_extensions_in_list()
+
+    def _on_show_extensions_in_list_menu_triggered(self, action):
+        self.update_show_extensions_in_list_for_type(action.text(), action.isChecked())
+        self.post_update_show_extensions_in_list()
+
+    def post_update_show_extensions_in_list(self):
+        last_checked = None
+        last_disabled = None
+        visible_types = []
+        checked_count = 0
+        for a in self.show_extensions_in_list_menu.actions():
+            if not a.isEnabled():
+                last_disabled = a
+            if a.isChecked():
+                visible_types.append(a.text())
+                checked_count += 1
+                last_checked = a
+        
+        if checked_count < 2:
+            last_checked.setDisabled(True)
+        else:
+            if last_disabled:
+                last_disabled.setDisabled(False)
+        
+        writeSetting("visible_types", " ".join(visible_types))
+
+    def update_show_extensions_in_list_for_type(self, ext, show):
+        for combobox in self.tree.extension_comboboxes:
+            model = combobox.model()
+            for item_idx in range(combobox.count()):
+                t = combobox.itemText(item_idx)
+                if t != ext:
+                    continue
+                combobox.view().setRowHidden(item_idx, not show)
+                item = model.item(item_idx)
+                flags = item.flags()
+                item.setFlags((flags & ~Qt.ItemIsEnabled) if not show else (flags | Qt.ItemIsEnabled))
 
     def _on_save_button_clicked(self, checked):
         save_settings_to_config()
