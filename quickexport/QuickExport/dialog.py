@@ -1021,6 +1021,7 @@ class QETree(QTreeWidget):
     def _make_thumbnail(self, doc, item):
         thumbnail = QPixmap.fromImage(doc.thumbnail(self.thumb_height, self.thumb_height))
         label = QLabel()
+        label.setAlignment(Qt.AlignCenter)
         label.setPixmap(thumbnail)
         self.setItemWidget(item, QECols.THUMBNAIL_COLUMN, label)
     
@@ -1048,6 +1049,7 @@ class QETree(QTreeWidget):
         thumbnail.setDevicePixelRatio(self.devicePixelRatioF()) # TODO: should do for doc.thumbnail thumbs too?
         
         label = QLabel()
+        label.setAlignment(Qt.AlignCenter)
         label.setPixmap(thumbnail)
         self.setItemWidget(item, QECols.THUMBNAIL_COLUMN, label)
 
