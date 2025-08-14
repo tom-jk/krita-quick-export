@@ -1212,17 +1212,20 @@ class QEDialog(QDialog):
         options_menu = QEMenu()
         options_menu.setToolTipsVisible(True)
 
-        use_custom_icons_action = options_menu.addAction("Use custom icons")
+        custom_icons_menu = QEMenu()
+        custom_icons_menu.setToolTipsVisible(True)
+
+        use_custom_icons_action = custom_icons_menu.addAction("Use custom icons")
         use_custom_icons_action.setCheckable(True)
         use_custom_icons_action.setChecked(str2qtcheckstate(readSetting("use_custom_icons", "true")))
         use_custom_icons_action.toggled.connect(self._on_use_custom_icons_action_toggled)
 
-        options_menu.addSeparator()
+        custom_icons_menu.addSeparator()
 
-        custom_icons_theme_action_group = QActionGroup(options_menu)
+        custom_icons_theme_action_group = QActionGroup(custom_icons_menu)
         custom_icons_theme_action_group.triggered.connect(lambda action, grp=custom_icons_theme_action_group: self._on_custom_icons_theme_action_group_triggered(action, grp))
 
-        icons_follow_theme_action = options_menu.addAction("Try to follow theme")
+        icons_follow_theme_action = custom_icons_menu.addAction("Try to follow theme")
         icons_follow_theme_action.setToolTip("If using one of the themes bundled with Krita, the correct icons will be used.\n" \
                                              "If not, guesses which icons to use based on keywords in the theme name ('dark', 'black', etc.)\n" \
                                              "If there are no such keywords, assumes light theme. You can force a theme if the guess is wrong.")
@@ -1230,15 +1233,18 @@ class QEDialog(QDialog):
         icons_follow_theme_action.setCheckable(True)
         icons_follow_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme", "follow"), "follow"))
 
-        icons_light_theme_action = options_menu.addAction("Use light theme icons")
+        icons_light_theme_action = custom_icons_menu.addAction("Use light theme icons")
         icons_light_theme_action.setActionGroup(custom_icons_theme_action_group)
         icons_light_theme_action.setCheckable(True)
         icons_light_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme", "follow"), "light"))
 
-        icons_dark_theme_action = options_menu.addAction("Use dark theme icons")
+        icons_dark_theme_action = custom_icons_menu.addAction("Use dark theme icons")
         icons_dark_theme_action.setActionGroup(custom_icons_theme_action_group)
         icons_dark_theme_action.setCheckable(True)
         icons_dark_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme", "follow"), "dark"))
+
+        custom_icons_action = options_menu.addAction("Custom icons")
+        custom_icons_action.setMenu(custom_icons_menu)
 
         options_menu.addSeparator()
         
@@ -1249,10 +1255,8 @@ class QEDialog(QDialog):
         show_export_name_in_menu_action.setChecked(str2qtcheckstate(readSetting("show_export_name_in_menu", "true")))
         show_export_name_in_menu_action.toggled.connect(self._on_show_export_name_in_menu_action_toggled)
         
-        options_menu.addSeparator()
-
         default_export_unsaved_action = options_menu.addAction("Default export for unsaved images")
-        default_export_unsaved_action.setToolTip("Run the normal Krita exporter for not-yet-saved images.\n" \
+        default_export_unsaved_action.setToolTip("Run the normal Krita exporter when you press Quick Export for not-yet-saved images.\n" \
                                                  "Otherwise don't export, just show a reminder to save the file.")
         default_export_unsaved_action.setCheckable(True)
         default_export_unsaved_action.setChecked(str2qtcheckstate(readSetting("default_export_unsaved", "false")))
@@ -1260,36 +1264,39 @@ class QEDialog(QDialog):
         
         options_menu.addSeparator()
         
-        use_previous_version_settings_action_group = QActionGroup(options_menu)
+        use_previous_version_settings_menu = QEMenu(keep_open=False)
+        use_previous_version_settings_menu.setToolTipsVisible(True)
         
-        use_previous_version_settings_prompt_header = options_menu.addAction("When first exporting a new version of an image:")
-        use_previous_version_settings_prompt_header.setDisabled(True)
+        use_previous_version_settings_action_group = QActionGroup(use_previous_version_settings_menu)
         
-        use_previous_version_settings_copy_action = options_menu.addAction("Always copy settings from previous version")
+        use_previous_version_settings_copy_action = use_previous_version_settings_menu.addAction("Always copy settings from previous version")
         use_previous_version_settings_copy_action.setToolTip("Make a copy of the old version settings. Separate export settings will be kept for each version of the image you export.")
         use_previous_version_settings_copy_action.setActionGroup(use_previous_version_settings_action_group)
         use_previous_version_settings_copy_action.setCheckable(True)
         use_previous_version_settings_copy_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "copy"))
         use_previous_version_settings_copy_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "copy"))
         
-        use_previous_version_settings_replace_action = options_menu.addAction("Always replace settings of previous version (Recommended)")
+        use_previous_version_settings_replace_action = use_previous_version_settings_menu.addAction("Always replace settings of previous version (Recommended)")
         use_previous_version_settings_replace_action.setToolTip("Replace the old version settings. Only settings for the most recently exported version will be kept.")
         use_previous_version_settings_replace_action.setActionGroup(use_previous_version_settings_action_group)
         use_previous_version_settings_replace_action.setCheckable(True)
         use_previous_version_settings_replace_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "replace"))
         use_previous_version_settings_replace_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "replace"))
         
-        use_previous_version_settings_ignore_action = options_menu.addAction("Always ignore previous versions")
+        use_previous_version_settings_ignore_action = use_previous_version_settings_menu.addAction("Always ignore previous versions")
         use_previous_version_settings_ignore_action.setActionGroup(use_previous_version_settings_action_group)
         use_previous_version_settings_ignore_action.setCheckable(True)
         use_previous_version_settings_ignore_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "ignore"))
         use_previous_version_settings_ignore_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "ignore"))
         
-        use_previous_version_settings_ask_action = options_menu.addAction("Always ask")
+        use_previous_version_settings_ask_action = use_previous_version_settings_menu.addAction("Always ask")
         use_previous_version_settings_ask_action.setActionGroup(use_previous_version_settings_action_group)
         use_previous_version_settings_ask_action.setCheckable(True)
         use_previous_version_settings_ask_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "ask"))
         use_previous_version_settings_ask_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "ask"))
+        
+        use_previous_version_settings_action = options_menu.addAction("When first exporting a new version of an image")
+        use_previous_version_settings_action.setMenu(use_previous_version_settings_menu)
         
         options_menu.addSeparator()
         
