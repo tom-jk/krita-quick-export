@@ -36,7 +36,7 @@ class QEMenu(QMenu):
     
     def addAction(self, text, data=None):
         action = super().addAction(text)
-        if data:
+        if data is not None:
             action.setData(data)
         return action
 
