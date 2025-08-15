@@ -2,7 +2,8 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
                              QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate, QMenu,
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
                              QActionGroup, QToolButton, QComboBox, QStackedWidget, QStyle, QStyleOption,
-                             QStyleOptionButton, QSpinBox, QStyleOptionSpinBox, QGraphicsOpacityEffect)
+                             QStyleOptionButton, QSpinBox, QStyleOptionSpinBox, QGraphicsOpacityEffect,
+                             QFileDialog)
 from PyQt5.QtCore import Qt, QObject, QRegExp, QModelIndex, pyqtSignal, QEvent
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette, QMouseEvent, QTabletEvent
 import zipfile
@@ -12,6 +13,7 @@ from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
+from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
 
 app = Krita.instance()
@@ -372,7 +374,9 @@ class QECols(IntEnum):
     STORE_SETTINGS_COLUMN = 0
     OPEN_FILE_COLUMN = auto()
     THUMBNAIL_COLUMN = auto()
+    SOURCE_FILEPATH_COLUMN = auto()
     SOURCE_FILENAME_COLUMN = auto()
+    OUTPUT_FILEPATH_COLUMN = auto()
     OUTPUT_FILENAME_COLUMN = auto()
     OUTPUT_FILETYPE_COLUMN = auto()
     SETTINGS_COLUMN = auto()
@@ -440,7 +444,7 @@ class QETree(QTreeWidget):
             self.dialog.sbar.showMessage(f"Export failed. {failed_msg}")
         else:
             self.sender().setIcon(app.icon('dialog-ok'))
-            self.dialog.sbar.showMessage(f"Exported to '{str(doc['path'].with_name(doc['output_name']).with_suffix(doc['ext']))}'")
+            self.dialog.sbar.showMessage(f"Exported to '{str(doc['output_abs_dir'].joinpath(doc['output_name']).with_suffix(doc['ext']))}'")
         
         if self.dialog.auto_store_on_export_button.checkState() == Qt.Checked:
             store_button.setCheckState(Qt.Checked)
@@ -488,6 +492,44 @@ class QETree(QTreeWidget):
         item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+doc["store"]))
         self.redraw()
         self.set_settings_modified()
+    
+    def _on_output_path_menu_triggered(self, value, path_button, name_edit, ext_combobox, doc, store_button):
+        if value in (True, False):
+            print("Selected absolute/relative:", value)
+            doc["output_is_abs"] = value
+            
+        elif value == "change":
+            print("Selected Change...")
+            
+            if False:
+                if path_button.text() == "." or path_button.text().startswith("./"):
+                    file_path = doc["path"].with_name(Path(doc["output_name"]).name).with_suffix(doc["ext"])
+                else:
+                    file_path = Path(doc["output_name"]).with_suffix(doc["ext"])
+            else:
+                file_path = doc["output_abs_dir"].joinpath(doc["output_name"]).with_suffix(doc["ext"])
+            
+            file_path_string = QFileDialog.getSaveFileName(
+                parent = self,
+                directory = str(file_path),
+                filter = f"Images ({' '.join(['*'+ext for ext in supported_extensions()])});;" + ";;".join([ext[1:]+' (*'+ext+')' for ext in supported_extensions()])
+            )[0]
+            
+            if file_path_string == "":
+                return
+            
+            ext = Path(file_path_string).suffix
+            file_path = Path(file_path_string).with_suffix("")
+            
+            doc["output_abs_dir"] = file_path.parent
+            doc["output_name"] = file_path.name
+            path_button.setText(str(file_path.parent) if file_path.parent != doc["path"].parent else ".")
+            name_edit.setText(file_path.name)
+            
+            if ext and ext in supported_extensions():
+                ext_combobox.setCurrentIndex(ext_combobox.findData(ext))
+            
+        self.set_settings_modified(store_button)
     
     def _on_outputext_combobox_current_index_changed(self, index, combobox, settings_stack, doc, item, store_button):
         ext = combobox.itemText(index)
@@ -572,7 +614,7 @@ class QETree(QTreeWidget):
     
     def _on_column_resized(self, column, old_size, new_size):
         #print("columnResized")
-        if column not in (QECols.OUTPUT_FILENAME_COLUMN,):
+        if column not in (QECols.SOURCE_FILEPATH_COLUMN, QECols.SOURCE_FILENAME_COLUMN, QECols.OUTPUT_FILEPATH_COLUMN, QECols.OUTPUT_FILENAME_COLUMN):
             return
         
         try:
@@ -653,7 +695,7 @@ class QETree(QTreeWidget):
                     break
         
         self.setColumnCount(QECols.COLUMN_COUNT)
-        self.setHeaderLabels(["", "", "", "Filename", "Export to", "Type", "Settings", "Actions"])
+        self.setHeaderLabels(["", "", "", "File Path", "File Name", "Export Path", "Export Name", "Type", "Settings", ""])
         self.headerItem().setIcon(QECols.STORE_SETTINGS_COLUMN, app.icon('document-save'))
         self.items = []
         self.extension_comboboxes = []
@@ -746,18 +788,55 @@ class QETree(QTreeWidget):
                 btn_open.setIcon(app.icon('document-open'))
                 btn_open.setStyleSheet("QPushButton {border:none; background:transparent;}")
                 self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open)
-                btn_open.clicked.connect(lambda checked, b=btn_open, db=[btns_export,scale_reset_action,scale_settings_action], d=s, i=item: self._on_btn_open_clicked(checked, b, db, d, i))
             
             item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(s["doc_index"]))
             
-            item.setText(QECols.SOURCE_FILENAME_COLUMN, file_path.name)
+            file_path_parent = str(file_path.parent)
+            if False and file_path_parent.startswith(str(Path.home())):
+                file_path_parent = file_path_parent.replace(str(Path.home()), "/home")
+            
+            filepath_widget = MultiLineElidedText(file_path_parent, margin=5)
+            filepath_widget.setDisabled(s["document"] == None)
+            
+            self.setItemWidget(item, QECols.SOURCE_FILEPATH_COLUMN, filepath_widget)
+            item.setData(QECols.SOURCE_FILEPATH_COLUMN, QERoles.CustomSortRole, file_path_parent.lower())
+            
+            filename_widget = MultiLineElidedText(file_path.name, margin=5)
+            filename_widget.setDisabled(s["document"] == None)
+            
+            self.setItemWidget(item, QECols.SOURCE_FILENAME_COLUMN, filename_widget)
             item.setData(QECols.SOURCE_FILENAME_COLUMN, QERoles.CustomSortRole, file_path.name.lower())
             
+            if s["document"] == None:
+                btn_open.clicked.connect(lambda checked, b=btn_open, db=[btns_export,scale_reset_action,scale_settings_action,filepath_widget,filename_widget], d=s, i=item: self._on_btn_open_clicked(checked, b, db, d, i))
             
+            output_path_button = MultiLineElidedButton(str(s["output_abs_dir"]) if s["output_abs_dir"] != s["path"].parent else ".", margin=0)
             
             output_name_edit = FileNameEdit(s["output_name"])
             output_name_edit.edit.settings = s
             
+            outputext_combobox = QEComboBox()
+            self.extension_comboboxes.append(outputext_combobox)
+            
+            output_path_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
+            output_path_button.setPopupMode(QToolButton.InstantPopup)
+            
+            output_path_menu = QEMenu(keep_open=False)
+            output_path_action_group = QActionGroup(output_path_menu)
+            output_path_absolute_action = output_path_menu.addAction("Absolute", True)
+            output_path_relative_action = output_path_menu.addAction("Relative", False)
+            for i, action in enumerate(output_path_menu.actions()):
+                action.setCheckable(True)
+                action.setActionGroup(output_path_action_group)
+                action.setChecked(action.data() == s["output_is_abs"])
+            output_path_menu.addSeparator()
+            output_path_change_action = output_path_menu.addAction("Change...", "change")
+            output_path_menu.triggered.connect(lambda a, pb=output_path_button, ne=output_name_edit, ec=outputext_combobox, d=s, sb=btn_store_forget: self._on_output_path_menu_triggered(a.data(), pb, ne, ec, d, sb))
+            
+            output_path_button.setMenu(output_path_menu)
+            
+            self.setItemWidget(item, QECols.OUTPUT_FILEPATH_COLUMN, output_path_button)
+            item.setData(QECols.OUTPUT_FILEPATH_COLUMN, QERoles.CustomSortRole, file_path_parent.lower())
             
             output_name_edit.edit.editingFinished.connect(lambda d=s, e=output_name_edit.edit, i=item, sb=btn_store_forget: self._on_output_name_edit_editing_finished(d, e, i, sb))
             
@@ -770,8 +849,6 @@ class QETree(QTreeWidget):
             outputext_widget = QWidget()
             outputext_layout = QHBoxLayout()
             
-            outputext_combobox = QEComboBox()
-            self.extension_comboboxes.append(outputext_combobox)
             for e in supported_extensions():
                 outputext_combobox.addItem(e, e)
             

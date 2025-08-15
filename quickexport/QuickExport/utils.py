@@ -1,5 +1,6 @@
 from PyQt5.QtGui import QColor
 from pathlib import Path
+from os.path import relpath
 from functools import reduce
 import re
 from krita import *
@@ -39,6 +40,78 @@ def bool2flag(*args):
 def flag2bool(strval):
     return True if strval == "1" else False
 
+def deserialize_stored_output_string(base, s):
+    """
+    arguments
+        base    Path    path that s is relative to, if s is relative.
+                        note this is the source path, not the source file (eg. Path("/home/user/Pictures"), not Path("/home/user/Pictures/pic.kra")).
+        s       str     stored file path string to deserialize.
+                        note this is the output file without extension (eg. "pic", "./../pic", "/home/user/pic").
+    returns tuple
+                bool    if path is stored absolute.
+                Path    path as absolute, without file name.
+                str     file name without extension.
+    
+    output path can be:
+            same as source: no leading slash, no slashes anywhere (name only)
+        relative to source: leading dot-slash (./)
+             absolute path: leading slash (/)
+    examples:
+    path=/home/user/a/b.kra,output=b,ext=.png             ->  base = Path("/home/user/a"), s="b"             ->  returns (False, Path("/home/user/a"),  "b")  ->  same as source:     /home/user/a/b.png, shortened path for special case of same directory
+    path=/home/user/a/b.kra,output=./b,ext=.png           ->  base = Path("/home/user/a"), s="./b"           ->  returns (False, Path("/home/user/a"),  "b")  ->  relative to source: /home/user/a/b.png, equivalent but redundant version of above
+    path=/home/user/a/b.kra,output=./../b,ext=.png        ->  base = Path("/home/user/a"), s="./../b"        ->  returns (False, Path("/home/user"),    "b")  ->  relative to source: /home/user/b.png
+    path=/home/user/a/b.kra,output=./../x/b,ext=.png      ->  base = Path("/home/user/a"), s="./../x/b"      ->  returns (False, Path("/home/user/x"),  "b")  ->  relative to source: /home/user/x/b.png, which succeeds only if x already exists
+    path=/home/user/a/b.kra,output=./../../b,ext=.png     ->  base = Path("/home/user/a"), s="./../../b"     ->  returns (False, Path("/home"),         "b")  ->  relative to source: /home/b.png, which I think would fail
+    path=/home/user/a/b.kra,output=./f/b,ext=.png         ->  base = Path("/home/user/a"), s="./f/b"         ->  returns (False, Path("/home/user/a/f), "b")  ->  relative to source: /home/user/a/f/b.png, which succeeds only if f already exists
+    path=/home/user/a/b.kra,output=/home/user/b,ext=.png  ->  base = Path("/home/user/a"), s="/home/user/b"  ->  returns (True,  Path("/home/user),     "b")  ->  absolute path:      /home/user/b.png
+    """
+    
+    p = Path(s)
+    
+    if s.startswith("./"):
+        # relative to base path.
+        #print(f"deserialize_stored_output_string:\n args\n  {base=}\n  {s=}\n returns (1. relative to base path)\n  {(False, base.joinpath(p.parent).resolve(), p.name)}")
+        return (False, base.joinpath(p.parent).resolve(), p.name)
+    
+    if s.startswith("/"):
+        # absolute path.
+        #print(f"deserialize_stored_output_string:\n args\n  {base=}\n  {s=}\n returns (2. absolute path)\n  {(True, p.parent, p.name)}")
+        return (True, p.parent, p.name)
+    
+    # special case of same directory as base.
+    #print(f"deserialize_stored_output_string:\n args\n  {base=}\n  {s=}\n returns (3. same directory as base)\n  {(False, base, s)}")
+    return (False, base, s)
+
+def serialize_stored_output_string(base, is_abs, abs_dir, name):
+    """
+    arguments
+        base        Path    path that abs_dir is relative to, if is_abs is True.
+                            note this is the source path, not the source file (eg. Path("/home/user/Pictures"), not Path("/home/user/Pictures/pic.png")).
+        is_abs      bool    if path is stored absolute.
+        abs_dir     Path    path as absolute, without file name.
+        name        str     file name without extension.
+    returns
+                    str     string to be stored.
+    
+    examples:
+    base = Path("/home/user/Pictures"), is_abs = False, abs_dir = Path("/home/user"),                 name = "pic" -> returns "./../pic"
+    base = Path("/home/user/Pictures"), is_abs = False, abs_dir = Path("/home/user/Pictures/subdir"), name = "pic" -> returns "./subdir/pic"
+    base = Path("/home/user/Pictures"), is_abs = False, abs_dir = Path("/home/user/Pictures"),        name = "pic" -> returns "pic"
+    base = Path("/home/user/Pictures"), is_abs = True,  abs_dir = Path("/home/user/Pictures"),        name = "pic" -> returns "/home/user/Pictures/pic"
+    """
+    
+    if is_abs:
+        # absolute path.
+        return str(abs_dir.joinpath(name))
+    
+    if base == abs_dir:
+        # special case of same directory as base.
+        return name
+    
+    else:
+        # relative to base path.
+        return "./" + relpath(abs_dir.joinpath(name), base)
+
 qe_supported_extensions = (".gif", ".jpg", ".jpeg", ".pbm", ".pgm", ".png", ".ppm", ".tga", ".bmp", ".ico", ".xbm", ".xpm")
 
 def supported_extensions():
@@ -51,6 +124,8 @@ def default_settings(document=None, doc_index=1024, store=False, path=None, outp
         "doc_index":doc_index,
         "store":store,
         "path":path,
+        "output_is_abs": False,
+        "output_abs_dir": path.parent if isinstance(path, Path) else None,
         "output_name":output_name,
         "ext":ext,
         "scale":False,
@@ -91,7 +166,7 @@ def load_settings_from_config():
     """
     read in settings string from kritarc.
     example: "path=/a/b.kra,output=b,ext=.png,scale=[e=1,w=1024,h=768,f=Bic,r=72],png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
-    becomes: settings[{"document":<obj>, "store":True, "path":Path("/a/b.kra"), "output_name":"b", "ext":".png", "scale":True,
+    becomes: settings[{"document":<obj>, "store":True, "path":Path("/a/b.kra"), "output_is_abs":False, "output_abs_dir":Path("/a"), "output_name":"b", "ext":".png", "scale":True,
                        "scale_width":1024, ... "png_fillcolour":QColor('#ffffff'), "png_compression":9, "png_alpha":True, "png_indexed":True, ... etc.}]
     
     commas (,) in file paths and names are replaced with slash-comma (/,).
@@ -141,6 +216,7 @@ def load_settings_from_config():
     for file_kvpairs in settings_per_file:
         #print("found file settings", file_kvpairs)
         settings = default_settings(store=True)
+        output_string = ""
         for k,v in file_kvpairs:
             if k == "path":
                 settings[k] = Path(v)
@@ -150,7 +226,7 @@ def load_settings_from_config():
                         settings["doc_index"] = i
                         break
             elif k == "output":
-                settings["output_name"] = v
+                output_string = v
             elif k == "ext":
                 settings["ext"] = v
             elif k == "scale_e":
@@ -202,6 +278,11 @@ def load_settings_from_config():
                 print(f" unrecognised parameter name '{k}'")
                 continue
             #print(f" found {k}:{v}")
+        if output_string:
+            output = deserialize_stored_output_string(settings["path"].parent, output_string)
+            settings["output_is_abs"] = output[0]
+            settings["output_abs_dir"] = output[1]
+            settings["output_name"] = output[2]
         qe_settings.append(settings)
         #print()
 
@@ -228,7 +309,7 @@ def generate_save_string():
         
         save_strings.append(
             f"path={escape_settings_string(str(s['path']))},"
-            f"output={escape_settings_string(s['output_name'])},"
+            f"output={escape_settings_string(serialize_stored_output_string(s['path'].parent, s['output_is_abs'], s['output_abs_dir'], s['output_name']))},"
             f"ext={s['ext']},"
             f"scale=["
             f"e={bool2flag(s['scale'])},{scale_string}"
@@ -345,7 +426,7 @@ def export_image(settings, document=None):
         exportParameters.setProperty("storeMetaData",         settings["jpeg_metadata"])        # not documented.
         exportParameters.setProperty("storeAuthor",           settings["jpeg_author"])          # not documented.
     
-    export_path = settings["path"].with_name(settings["output_name"]).with_suffix(settings["ext"])
+    export_path = settings["output_abs_dir"].joinpath(settings["output_name"]).with_suffix(settings["ext"])
     
     if not document:
         document = settings["document"]

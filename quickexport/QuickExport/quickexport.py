@@ -276,7 +276,7 @@ class QuickExportExtension(Extension):
                 if len(possible_previous_paths) > 1 or use_previous_version_settings == "ask":
                     csBox = CopySettingsDialog(
                         [p.name for p in possible_previous_paths],
-                        [f"Will export to '{find_settings_for_file(p)['output_name']}'." for p in possible_previous_paths],
+                        [f"Will export to '{find_settings_for_file(p)['output_abs_dir']}'." for p in possible_previous_paths],
                         app.activeWindow().qwindow()
                     )
                     ret = csBox.exec()
@@ -319,7 +319,7 @@ class QuickExportExtension(Extension):
             print(f"QE: Export failed! {failed_msg}")
             app.activeWindow().activeView().showFloatingMessage(f"Export failed! {failed_msg}", app.icon('warning'), 5000, 0)
         else:
-            export_path = file_settings['path'].with_name(file_settings['output_name']).with_suffix(file_settings['ext'])
+            export_path = file_settings['output_abs_dir'].joinpath(file_settings['output_name']).with_suffix(file_settings['ext'])
             print(f"QE: Exported to '{str(export_path)}'")
             app.activeWindow().activeView().showFloatingMessage(f"Exported to '{str(export_path)}'", app.icon('document-export'), 5000, 1)
     
