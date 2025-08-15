@@ -195,7 +195,7 @@ class WrappingLineEdit(QPlainTextEdit):
         suggestion_actions.append(action)
         for i in range(1, len(suggestions)):
             t += suggestions[i]
-            if suggestions[i] in "._-+":
+            if suggestions[i] in ",._-+":
                 continue
             action = menu.addAction(t)
             action.setData(t)

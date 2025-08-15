@@ -400,7 +400,7 @@ def truncated_name_suggestions(text):
     tlen = len(text)
     while ss < tlen:
         char = text[ss]
-        if char in "._-)]}+'":
+        if char in ",._-)]}+'":
             # Punctuation Mark: consume characters until character is not THAT punctuation mark.
             se = ss + 1
             while se < tlen:
@@ -433,7 +433,7 @@ def truncated_name_suggestions(text):
             #               possible version number (eg. 'v001' in 'myfilev001').
             se = ss + 1
             while se < tlen:
-                if text[se] in "._-()[]{}+'0123456789" or  (text[se] in "vV" and se+1 < tlen and text[se+1] in "0123456789"):
+                if text[se] in ",._-()[]{}+'0123456789" or  (text[se] in "vV" and se+1 < tlen and text[se+1] in "0123456789"):
                     break
                 se += 1
             l.append(text[ss:se])
