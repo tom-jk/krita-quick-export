@@ -596,6 +596,7 @@ class QETree(QTreeWidget):
         self.dialog = dialog
         
         self.setIndentation(False)
+        self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setAlternatingRowColors(True)
         from PyQt5.QtCore import QItemSelectionModel
         self.setSelectionMode(QTreeWidget.NoSelection)
