@@ -95,16 +95,19 @@ class MultiLineElidedText(QWidget):
         
         if text == "":
             self._wrapped_text_words = []
+            self.setToolTip("")
             return h + fm.descent()
     
         if max_lines < 1:
             self._wrapped_text_words = []
+            self.setToolTip("")
             return h + fm.descent()
     
         if max_lines == 1:
             # single line elide.
-            text = fm.elidedText(text, Qt.ElideMiddle, width)
-            self._wrapped_text_words = [[0, h, fm.horizontalAdvance(text), text]]
+            wrapped_text = fm.elidedText(text, Qt.ElideMiddle, width)
+            self._wrapped_text_words = [[0, h, fm.horizontalAdvance(wrapped_text), wrapped_text]]
+            self.setToolTip(text if text != wrapped_text else "")
             return h + fm.descent()
     
         if False:#width <= max(2, fm.horizontalAdvance("M")):
@@ -126,9 +129,11 @@ class MultiLineElidedText(QWidget):
         wrapped_text = self.wrapped_text(fm, text, width, soft_max_lines=max_lines+1)
         if wrapped_text[-1][1] // h <= max_lines:
             self._wrapped_text_words = wrapped_text
+            self.setToolTip("")
             return self._wrapped_text_words[-1][1] + fm.descent()
     
         # text taller than maxlines, perform multi-line elide.
+        self.setToolTip(text)
     
         start_time = default_timer()
     
