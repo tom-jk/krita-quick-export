@@ -751,7 +751,7 @@ class QETree(QTreeWidget):
             return widget
         
         # TODO: adapt to theme light/dark.
-        checkbox_stylesheet = "QCheckBox::indicator:unchecked {border: 1px solid rgba(255,255,255,0.1);}"
+        checkbox_stylesheet = "QCheckBox::indicator:unchecked {border: 1px solid rgba(255,255,255,0.1);}" if extension().theme_is_dark else ""
         
         file_path = s["path"]
         
