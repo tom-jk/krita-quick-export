@@ -49,7 +49,7 @@ class MultiLineElidedText(QWidget):
     
     def paintEvent(self, event):
         super().paintEvent(event)
-        r = event.rect()
+        r = self.geometry().translated(-self.visibleRegion().boundingRect().topLeft())
         
         parent = self.parentWidget()
         
