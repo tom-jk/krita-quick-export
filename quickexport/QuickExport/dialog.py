@@ -700,9 +700,14 @@ class QETree(QTreeWidget):
         self.items = []
         self.extension_comboboxes = []
         
-        post_setup = []
-        
         self.thumbnail_queue = []
+        
+        self.settings_stack_page_order = [[".gif", ".pbm", ".pgm", ".ppm", ".tga", ".bmp", ".ico", ".xbm", ".xpm"], ".png", [".jpg",".jpeg"]]
+                
+        item_delegate = ItemDelegate()
+        self.setItemDelegate(item_delegate)
+        
+        self.itemClicked.connect(self._on_item_clicked)
         
         # TODO: should probably have an option to force removal of extensions from output name.
         #       an *option* because user could wish to export myfile.kra as myfile.kra.png, so output
@@ -712,342 +717,10 @@ class QETree(QTreeWidget):
         #       the inner .png?
         #       ...I guess it could just check if output text starts with exact source filename
         #       and always leave that bit alone. Probably do that.
-        filename_regex = QRegExp("^[^<>:;,?\"*|/]+$")
-        
-        longest_output = ""
-        for s in qe_settings:
-            output = s["path"].stem
-            if len(output) > len(longest_output):
-                longest_output = output
-        
-        self.settings_stack_page_order = [[".gif", ".pbm", ".pgm", ".ppm", ".tga", ".bmp", ".ico", ".xbm", ".xpm"], ".png", [".jpg",".jpeg"]]
-        
-        def centered_checkbox_widget(checkbox):
-            widget = QWidget()
-            layout = QHBoxLayout()
-            layout.addStretch()
-            layout.addWidget(checkbox)
-            layout.addStretch()
-            layout.setContentsMargins(0,0,0,0)
-            widget.setLayout(layout)
-            return widget
-        
-        # TODO: adapt to theme light/dark.
-        checkbox_stylesheet = "QCheckBox::indicator:unchecked {border: 1px solid rgba(255,255,255,0.1);}"
-        
-        item_delegate = ItemDelegate()
-        self.setItemDelegate(item_delegate)
-        
-        self.itemClicked.connect(self._on_item_clicked)
+        #filename_regex = QRegExp("^[^<>:;,?\"*|/]+$")
         
         for s in qe_settings:
-            file_path = s["path"]
-            
-            item = MyTreeWidgetItem(self)
-            item.setFlags(item.flags() | Qt.ItemIsEditable)
-            
-            btns_export = QToolButton()
-            btns_export.setAutoRaise(True)
-            btns_export.setIcon(app.icon('document-export'))
-            btns_export.setToolTip("Export now")
-            
-            btn_store_forget = QCheckBox()
-            btn_store_forget.setChecked(s["store"])
-            btn_store_forget.setStyleSheet(checkbox_stylesheet)
-            btn_store_forget.toggled.connect(lambda checked, btn=btn_store_forget, d=s, fn=file_path.name, i=item: self._on_item_btn_store_forget_clicked(checked, btn, d, fn, i))
-            btn_store_widget = centered_checkbox_widget(btn_store_forget)
-            self.setItemWidget(item, QECols.STORE_SETTINGS_COLUMN, btn_store_widget)
-            item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+s["store"]))
-            
-            scale_menu = QEMenu(keep_open=False)
-            scale_checkbox_action = scale_menu.addAction("Enabled")
-            scale_checkbox_action.setCheckable(True)
-            scale_checkbox_action.setChecked(s["scale"])
-            scale_reset_action = scale_menu.addAction("Reset to current size and resolution")
-            scale_reset_action.setDisabled(s["document"] == None)
-            scale_reset_action.triggered.connect(lambda checked, d=s, sb=btn_store_forget: self._on_item_scale_reset_action_triggered(checked, d, sb))
-            scale_settings_action = scale_menu.addAction("Settings...")
-            scale_settings_action.setDisabled(s["document"] == None)
-            scale_settings_action.triggered.connect(lambda checked, d=s, sb=btn_store_forget: self._on_item_scale_settings_action_triggered(checked, d, sb))
-            
-            if (btn_group_key := str(s["path"])) in self.store_button_groups:
-                self.store_button_groups[btn_group_key].addButton(btn_store_forget)
-                if s["store"] and self.store_button_groups[btn_group_key].btnLastChecked == None:
-                    self.store_button_groups[btn_group_key].btnLastChecked = btn_store_forget
-            
-            if s["document"] != None:
-                self.thumbnail_queue.append([s["document"], item])
-                if s["document"] == app.activeDocument():
-                    item.setText(QECols.OPEN_FILE_COLUMN, "*")
-                    item.setTextAlignment(QECols.OPEN_FILE_COLUMN, Qt.AlignCenter)
-            else:
-                if str2bool(readSetting("show_thumbnails_for_unopened", "true")):
-                    self.thumbnail_queue.append([s["path"], item])
-                item.setDisabled(True)
-                btn_open = QPushButton("")
-                btn_open.setIcon(app.icon('document-open'))
-                btn_open.setStyleSheet("QPushButton {border:none; background:transparent;}")
-                self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open)
-            
-            item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(s["doc_index"]))
-            
-            file_path_parent = str(file_path.parent)
-            if False and file_path_parent.startswith(str(Path.home())):
-                file_path_parent = file_path_parent.replace(str(Path.home()), "/home")
-            
-            filepath_widget = MultiLineElidedText(file_path_parent, margin=5)
-            filepath_widget.setDisabled(s["document"] == None)
-            
-            self.setItemWidget(item, QECols.SOURCE_FILEPATH_COLUMN, filepath_widget)
-            item.setData(QECols.SOURCE_FILEPATH_COLUMN, QERoles.CustomSortRole, file_path_parent.lower())
-            
-            filename_widget = MultiLineElidedText(file_path.name, margin=5)
-            filename_widget.setDisabled(s["document"] == None)
-            
-            self.setItemWidget(item, QECols.SOURCE_FILENAME_COLUMN, filename_widget)
-            item.setData(QECols.SOURCE_FILENAME_COLUMN, QERoles.CustomSortRole, file_path.name.lower())
-            
-            if s["document"] == None:
-                btn_open.clicked.connect(lambda checked, b=btn_open, db=[btns_export,scale_reset_action,scale_settings_action,filepath_widget,filename_widget], d=s, i=item: self._on_btn_open_clicked(checked, b, db, d, i))
-            
-            output_path_button = MultiLineElidedButton(str(s["output_abs_dir"]) if s["output_abs_dir"] != s["path"].parent else ".", margin=0)
-            
-            output_name_edit = FileNameEdit(s["output_name"])
-            output_name_edit.edit.settings = s
-            
-            outputext_combobox = QEComboBox()
-            self.extension_comboboxes.append(outputext_combobox)
-            
-            output_path_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
-            output_path_button.setPopupMode(QToolButton.InstantPopup)
-            
-            output_path_menu = QEMenu(keep_open=False)
-            output_path_action_group = QActionGroup(output_path_menu)
-            output_path_absolute_action = output_path_menu.addAction("Absolute", True)
-            output_path_relative_action = output_path_menu.addAction("Relative", False)
-            for i, action in enumerate(output_path_menu.actions()):
-                action.setCheckable(True)
-                action.setActionGroup(output_path_action_group)
-                action.setChecked(action.data() == s["output_is_abs"])
-            output_path_menu.addSeparator()
-            output_path_change_action = output_path_menu.addAction("Change...", "change")
-            output_path_menu.triggered.connect(lambda a, pb=output_path_button, ne=output_name_edit, ec=outputext_combobox, d=s, sb=btn_store_forget: self._on_output_path_menu_triggered(a.data(), pb, ne, ec, d, sb))
-            
-            output_path_button.setMenu(output_path_menu)
-            
-            self.setItemWidget(item, QECols.OUTPUT_FILEPATH_COLUMN, output_path_button)
-            item.setData(QECols.OUTPUT_FILEPATH_COLUMN, QERoles.CustomSortRole, file_path_parent.lower())
-            
-            output_name_edit.edit.editingFinished.connect(lambda d=s, e=output_name_edit.edit, i=item, sb=btn_store_forget: self._on_output_name_edit_editing_finished(d, e, i, sb))
-            
-            output_name_edit.edit.document().contentsChanged.connect(output_name_edit.edit.recalc_height)
-            output_name_edit.edit.document().contentsChanged.connect(self.scheduleDelayedItemsLayout)
-            
-            self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_name_edit)
-            item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output_name"].lower())
-            
-            outputext_widget = QWidget()
-            outputext_layout = QHBoxLayout()
-            
-            for e in supported_extensions():
-                outputext_combobox.addItem(e, e)
-            
-            outputext_combobox.setCurrentIndex(outputext_combobox.findData(s["ext"]))
-            
-            outputext_layout.addWidget(outputext_combobox)
-            outputext_widget.setLayout(outputext_layout)
-            
-            self.setItemWidget(item, QECols.OUTPUT_FILETYPE_COLUMN, outputext_widget)
-            item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, s["ext"])
-            
-            settings_stack = FadingStackedWidget()
-            
-            no_settings_page = QWidget()
-            no_settings_page_layout = QHBoxLayout()
-            
-            no_settings_label = QLabel("(No settings.)")
-            no_settings_page_layout.addWidget(no_settings_label)
-            
-            no_settings_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
-            no_settings_scale_button.setPopupMode(QToolButton.InstantPopup)
-            
-            no_settings_scale_button.setMenu(scale_menu)
-            no_settings_page_layout.addWidget(no_settings_scale_button)
-            
-            no_settings_page.setLayout(no_settings_page_layout)
-            settings_stack.addWidget(no_settings_page)
-            
-            png_settings_page = QWidget()
-            png_settings_page_layout = QHBoxLayout()
-            
-            png_alpha_checkbox = CheckToolButton(icon_name="alpha", checked=s["png_alpha"], tooltip="store alpha channel (transparency)")
-            png_alpha_checkbox.toggled.connect(lambda checked, d=s, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_toggled(checked, d, i, sb))
-            png_settings_page_layout.addWidget(png_alpha_checkbox)
-            
-            png_fillcolour_button = ColourToolButton(colour=s["png_fillcolour"], tooltip="transparent colour")
-            png_fillcolour_button.setDisabled(png_alpha_checkbox.isChecked())
-            png_alpha_checkbox.toggled.connect(lambda checked, fcb=png_fillcolour_button: fcb.setDisabled(checked))
-            png_fillcolour_button.colourChanged.connect(lambda colour, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_fillcolour", colour, d, sb))
-            png_settings_page_layout.addWidget(png_fillcolour_button)
-            
-            png_compression_slider = SpinBoxSlider(label_text="Compression", range_min=1, range_max=9, snap_interval=1)
-            png_compression_slider.setValue(s["png_compression"])
-            png_compression_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_compression", value, d, sb))
-            png_settings_page_layout.addWidget(png_compression_slider)
-            
-            png_indexed_checkbox = CheckToolButton(icon_name="indexed", checked=s["png_indexed"], tooltip="Save as indexed PNG, if possible")
-            png_indexed_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_indexed", checked, d, sb))
-            png_settings_page_layout.addWidget(png_indexed_checkbox)
-            
-            png_interlaced_checkbox = CheckToolButton(icon_name="progressive", checked=s["png_interlaced"], tooltip="interlacing")
-            png_interlaced_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_interlaced", checked, d, sb))
-            png_settings_page_layout.addWidget(png_interlaced_checkbox)
-            
-            png_hdr_checkbox = CheckToolButton(icon_name="hdr", checked=s["png_hdr"], tooltip="save as HDR image (Rec. 2020 PQ)")
-            png_hdr_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_hdr", checked, d, sb))
-            png_settings_page_layout.addWidget(png_hdr_checkbox)
-            
-            png_embed_srgb_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["png_embed_srgb"], tooltip="embed sRGB profile")
-            png_embed_srgb_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_embed_srgb", checked, d, sb))
-            png_settings_page_layout.addWidget(png_embed_srgb_checkbox)
-            
-            png_force_srgb_checkbox = CheckToolButton(icon_name="force_profile", checked=s["png_force_srgb"], tooltip="force convert to sRGB")
-            png_force_srgb_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_srgb", checked, d, sb))
-            png_settings_page_layout.addWidget(png_force_srgb_checkbox)
-            
-            png_force_8bit_checkbox = CheckToolButton(icon_name="force_8bit", checked=s["png_force_8bit"], tooltip="force convert to 8bits/channel")
-            png_force_8bit_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_8bit", checked, d, sb))
-            png_settings_page_layout.addWidget(png_force_8bit_checkbox)
-            
-            png_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["png_metadata"], tooltip="store metadata")
-            png_metadata_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_metadata", checked, d, sb))
-            png_settings_page_layout.addWidget(png_metadata_checkbox)
-            
-            png_author_checkbox = CheckToolButton(icon_name="author", checked=s["png_author"], tooltip="sign with author data")
-            png_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_author", checked, d, sb))
-            png_settings_page_layout.addWidget(png_author_checkbox)
-            
-            png_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
-            png_scale_button.setPopupMode(QToolButton.InstantPopup)
-            
-            png_scale_button.setMenu(scale_menu)
-            png_settings_page_layout.addWidget(png_scale_button)
-            
-            png_settings_page.setLayout(png_settings_page_layout)
-            settings_stack.addWidget(png_settings_page)
-            
-            jpeg_settings_page = QWidget()
-            jpeg_settings_page_layout = QHBoxLayout()
-            
-            jpeg_icc_profile_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["jpeg_icc_profile"], tooltip="save ICC profile")
-            jpeg_icc_profile_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_icc_profile", checked, d, sb))
-            jpeg_settings_page_layout.addWidget(jpeg_icc_profile_checkbox)
-            
-            jpeg_fillcolour_checkbox = ColourToolButton(colour=s["jpeg_fillcolour"], tooltip="transparent pixel fill colour")
-            jpeg_fillcolour_checkbox.colourChanged.connect(lambda colour, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_fillcolour", colour, d, sb))
-            jpeg_settings_page_layout.addWidget(jpeg_fillcolour_checkbox)
-            
-            jpeg_quality_slider = SpinBoxSlider(label_text="Quality", label_suffix="%", range_min=0, range_max=100, snap_interval=5)
-            jpeg_quality_slider.setValue(s["jpeg_quality"])
-            jpeg_quality_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_quality", value, d, sb))
-            jpeg_settings_page_layout.addWidget(jpeg_quality_slider)
-            
-            jpeg_progressive_checkbox = CheckToolButton(icon_name="progressive", checked=s["jpeg_progressive"], tooltip="progressive")
-            jpeg_progressive_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_progressive", checked, d, sb))
-            jpeg_settings_page_layout.addWidget(jpeg_progressive_checkbox)
-            
-            jpeg_smooth_slider = SpinBoxSlider(label_text="Smooth", label_suffix="%", range_min=0, range_max=100, snap_interval=5)
-            jpeg_smooth_slider.setValue(s["jpeg_smooth"])
-            jpeg_smooth_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_smooth", value, d, sb))
-            jpeg_settings_page_layout.addWidget(jpeg_smooth_slider)
-            
-            jpeg_subsampling_button = CheckToolButton(icon_name=("subsampling", s["jpeg_subsampling"]), checked=True, tooltip="subsampling")
-            jpeg_subsampling_button.setPopupMode(QToolButton.InstantPopup)
-            
-            jpeg_subsampling_menu = QEMenu(keep_open=False)
-            jpeg_subsampling_action_group = QActionGroup(jpeg_subsampling_menu)
-            jpeg_subsampling_2x2_action = jpeg_subsampling_menu.addAction("2x2, 1x1, 1x1 (smallest file)", "2x2")
-            jpeg_subsampling_2x1_action = jpeg_subsampling_menu.addAction("2x1, 1x1, 1x1", "2x1")
-            jpeg_subsampling_1x2_action = jpeg_subsampling_menu.addAction("1x2, 1x1, 1x1", "1x2")
-            jpeg_subsampling_1x1_action = jpeg_subsampling_menu.addAction("1x1, 1x1, 1x1 (best quality)", "1x1")
-            for i, action in enumerate(jpeg_subsampling_menu.actions()):
-                action.setCheckable(True)
-                action.setActionGroup(jpeg_subsampling_action_group)
-                action.setChecked(action.data() == s["jpeg_subsampling"])
-            jpeg_subsampling_menu.triggered.connect(lambda a, b=jpeg_subsampling_button, d=s, sb=btn_store_forget: self._on_jpeg_subsampling_menu_triggered(a.data(), b, d, sb))
-            
-            jpeg_subsampling_button.setMenu(jpeg_subsampling_menu)
-            jpeg_settings_page_layout.addWidget(jpeg_subsampling_button)
-            
-            jpeg_force_baseline_checkbox = CheckToolButton(icon_name="jpeg_baseline", checked=s["jpeg_force_baseline"], tooltip="force baseline JPEG")
-            jpeg_force_baseline_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_force_baseline", checked, d, sb))
-            jpeg_settings_page_layout.addWidget(jpeg_force_baseline_checkbox)
-            
-            jpeg_optimise_checkbox = CheckToolButton(icon_name="optimise", checked=s["jpeg_optimise"], tooltip="optimise")
-            jpeg_optimise_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_optimise", checked, d, sb))
-            jpeg_settings_page_layout.addWidget(jpeg_optimise_checkbox)
-            
-            jpeg_metadata_options_button = CheckToolButton(icon_name="metadata_options", checked=s["jpeg_metadata"], tooltip="formats")
-            jpeg_metadata_options_button.setPopupMode(QToolButton.InstantPopup)
-            
-            jpeg_metadata_options_menu = QEMenu()
-            
-            jpeg_metadata_options_header_action = jpeg_metadata_options_menu.addAction("Metadata formats")
-            jpeg_metadata_options_header_action.setDisabled(True)
-            jpeg_metadata_options_Exif_action = jpeg_metadata_options_menu.addAction("Exif", "exif")
-            jpeg_metadata_options_IPTC_action = jpeg_metadata_options_menu.addAction("IPTC", "iptc")
-            jpeg_metadata_options_XMP_action = jpeg_metadata_options_menu.addAction("XMP", "xmp")
-            
-            jpeg_filters_header_action = jpeg_metadata_options_menu.addAction("Filters")
-            jpeg_filters_header_action.setDisabled(True)
-            jpeg_metadata_options_info_action = jpeg_metadata_options_menu.addAction("Tool information", "tool_information")
-            jpeg_metadata_options_anon_action = jpeg_metadata_options_menu.addAction("Anonymiser", "anonymiser")
-            
-            for action in jpeg_metadata_options_menu.actions():
-                if not action.data():
-                    continue
-                action.setCheckable(True)
-                action.setChecked(s[f"jpeg_{action.data()}"])
-            jpeg_metadata_options_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), d, sb))
-            
-            jpeg_metadata_options_button.setMenu(jpeg_metadata_options_menu)
-            jpeg_settings_page_layout.addWidget(jpeg_metadata_options_button)
-            
-            jpeg_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["jpeg_metadata"], tooltip="store metadata")
-            jpeg_metadata_checkbox.toggled.connect(lambda checked, mob=jpeg_metadata_options_button, d=s, sb=btn_store_forget: self._on_jpeg_metadata_checkbox_toggled(checked, mob, d, sb))
-            jpeg_settings_page_layout.addWidget(jpeg_metadata_checkbox)
-            
-            jpeg_author_checkbox = CheckToolButton(icon_name="author", checked=s["jpeg_author"], tooltip="sign with author data")
-            jpeg_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_author", checked, d, sb))
-            jpeg_settings_page_layout.addWidget(jpeg_author_checkbox)
-            
-            jpeg_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
-            jpeg_scale_button.setPopupMode(QToolButton.InstantPopup)
-            
-            jpeg_scale_button.setMenu(scale_menu)
-            jpeg_settings_page_layout.addWidget(jpeg_scale_button)
-            
-            jpeg_settings_page.setLayout(jpeg_settings_page_layout)
-            settings_stack.addWidget(jpeg_settings_page)
-            
-            self.setItemWidget(item, QECols.SETTINGS_COLUMN, settings_stack)
-            self.set_item_settings_stack_page_for_extension(settings_stack, s["ext"])
-            
-            scale_checkbox_action.triggered.connect(lambda checked, d=s, cb=[no_settings_scale_button,png_scale_button,jpeg_scale_button], sb=btn_store_forget: self._on_item_scale_checkbox_action_triggered(checked, d, cb, sb))
-            
-            btns_widget = QWidget()
-            btns_layout = QHBoxLayout()
-            btns_export.setDisabled(s["document"] == None)
-            btns_export.clicked.connect(lambda checked, d=s, fn=file_path.name, sb=btn_store_forget: self._on_item_btn_export_clicked(checked, d, fn, sb))
-            btns_layout.addWidget(btns_export)
-            
-            btns_widget.setLayout(btns_layout)
-            
-            self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
-            
-            outputext_combobox.currentIndexChanged.connect(lambda index, cb=outputext_combobox, ss=settings_stack, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_current_index_changed(index, cb, ss, d, i, sb))
-            
-            self.items.append(item)
+            self.add_item(s)
         
         for i in range(0, QECols.COLUMN_COUNT):
             self.resizeColumnToContents(i)
@@ -1062,6 +735,328 @@ class QETree(QTreeWidget):
         self.thumbnail_worker_timer.setSingleShot(True)
         self.thumbnail_worker_timer.timeout.connect(lambda: next(self.thumbnail_worker, None))
         self.thumbnail_worker_timer.start()
+    
+    def add_item(self, s):
+        def centered_checkbox_widget(checkbox):
+            widget = QWidget()
+            layout = QHBoxLayout()
+            layout.addStretch()
+            layout.addWidget(checkbox)
+            layout.addStretch()
+            layout.setContentsMargins(0,0,0,0)
+            widget.setLayout(layout)
+            return widget
+        
+        # TODO: adapt to theme light/dark.
+        checkbox_stylesheet = "QCheckBox::indicator:unchecked {border: 1px solid rgba(255,255,255,0.1);}"
+        
+        file_path = s["path"]
+        
+        item = MyTreeWidgetItem(self)
+        item.setFlags(item.flags() | Qt.ItemIsEditable)
+        
+        btns_export = QToolButton()
+        btns_export.setAutoRaise(True)
+        btns_export.setIcon(app.icon('document-export'))
+        btns_export.setToolTip("Export now")
+        
+        btn_store_forget = QCheckBox()
+        btn_store_forget.setChecked(s["store"])
+        btn_store_forget.setStyleSheet(checkbox_stylesheet)
+        btn_store_forget.toggled.connect(lambda checked, btn=btn_store_forget, d=s, fn=file_path.name, i=item: self._on_item_btn_store_forget_clicked(checked, btn, d, fn, i))
+        btn_store_widget = centered_checkbox_widget(btn_store_forget)
+        self.setItemWidget(item, QECols.STORE_SETTINGS_COLUMN, btn_store_widget)
+        item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+s["store"]))
+        
+        scale_menu = QEMenu(keep_open=False)
+        scale_checkbox_action = scale_menu.addAction("Enabled")
+        scale_checkbox_action.setCheckable(True)
+        scale_checkbox_action.setChecked(s["scale"])
+        scale_reset_action = scale_menu.addAction("Reset to current size and resolution")
+        scale_reset_action.setDisabled(s["document"] == None)
+        scale_reset_action.triggered.connect(lambda checked, d=s, sb=btn_store_forget: self._on_item_scale_reset_action_triggered(checked, d, sb))
+        scale_settings_action = scale_menu.addAction("Settings...")
+        scale_settings_action.setDisabled(s["document"] == None)
+        scale_settings_action.triggered.connect(lambda checked, d=s, sb=btn_store_forget: self._on_item_scale_settings_action_triggered(checked, d, sb))
+        
+        if (btn_group_key := str(s["path"])) in self.store_button_groups:
+            self.store_button_groups[btn_group_key].addButton(btn_store_forget)
+            if s["store"] and self.store_button_groups[btn_group_key].btnLastChecked == None:
+                self.store_button_groups[btn_group_key].btnLastChecked = btn_store_forget
+        
+        if s["document"] != None:
+            self.thumbnail_queue.append([s["document"], item])
+            if s["document"] == app.activeDocument():
+                item.setText(QECols.OPEN_FILE_COLUMN, "*")
+                item.setTextAlignment(QECols.OPEN_FILE_COLUMN, Qt.AlignCenter)
+        else:
+            if str2bool(readSetting("show_thumbnails_for_unopened", "true")):
+                self.thumbnail_queue.append([s["path"], item])
+            item.setDisabled(True)
+            btn_open = QPushButton("")
+            btn_open.setIcon(app.icon('document-open'))
+            btn_open.setStyleSheet("QPushButton {border:none; background:transparent;}")
+            self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open)
+        
+        item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(s["doc_index"]))
+        
+        file_path_parent = str(file_path.parent)
+        if False and file_path_parent.startswith(str(Path.home())):
+            file_path_parent = file_path_parent.replace(str(Path.home()), "/home")
+        
+        filepath_widget = MultiLineElidedText(file_path_parent, margin=5)
+        filepath_widget.setDisabled(s["document"] == None)
+        
+        self.setItemWidget(item, QECols.SOURCE_FILEPATH_COLUMN, filepath_widget)
+        item.setData(QECols.SOURCE_FILEPATH_COLUMN, QERoles.CustomSortRole, file_path_parent.lower())
+        
+        filename_widget = MultiLineElidedText(file_path.name, margin=5)
+        filename_widget.setDisabled(s["document"] == None)
+        
+        self.setItemWidget(item, QECols.SOURCE_FILENAME_COLUMN, filename_widget)
+        item.setData(QECols.SOURCE_FILENAME_COLUMN, QERoles.CustomSortRole, file_path.name.lower())
+        
+        if s["document"] == None:
+            btn_open.clicked.connect(lambda checked, b=btn_open, db=[btns_export,scale_reset_action,scale_settings_action,filepath_widget,filename_widget], d=s, i=item: self._on_btn_open_clicked(checked, b, db, d, i))
+        
+        output_path_button = MultiLineElidedButton(str(s["output_abs_dir"]) if s["output_abs_dir"] != s["path"].parent else ".", margin=0)
+        
+        output_name_edit = FileNameEdit(s["output_name"])
+        output_name_edit.edit.settings = s
+        
+        outputext_combobox = QEComboBox()
+        self.extension_comboboxes.append(outputext_combobox)
+        
+        output_path_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
+        output_path_button.setPopupMode(QToolButton.InstantPopup)
+        
+        output_path_menu = QEMenu(keep_open=False)
+        output_path_action_group = QActionGroup(output_path_menu)
+        output_path_absolute_action = output_path_menu.addAction("Absolute", True)
+        output_path_relative_action = output_path_menu.addAction("Relative", False)
+        for i, action in enumerate(output_path_menu.actions()):
+            action.setCheckable(True)
+            action.setActionGroup(output_path_action_group)
+            action.setChecked(action.data() == s["output_is_abs"])
+        output_path_menu.addSeparator()
+        output_path_change_action = output_path_menu.addAction("Change...", "change")
+        output_path_menu.triggered.connect(lambda a, pb=output_path_button, ne=output_name_edit, ec=outputext_combobox, d=s, sb=btn_store_forget: self._on_output_path_menu_triggered(a.data(), pb, ne, ec, d, sb))
+        
+        output_path_button.setMenu(output_path_menu)
+        
+        self.setItemWidget(item, QECols.OUTPUT_FILEPATH_COLUMN, output_path_button)
+        item.setData(QECols.OUTPUT_FILEPATH_COLUMN, QERoles.CustomSortRole, file_path_parent.lower())
+        
+        output_name_edit.edit.editingFinished.connect(lambda d=s, e=output_name_edit.edit, i=item, sb=btn_store_forget: self._on_output_name_edit_editing_finished(d, e, i, sb))
+        
+        output_name_edit.edit.document().contentsChanged.connect(output_name_edit.edit.recalc_height)
+        output_name_edit.edit.document().contentsChanged.connect(self.scheduleDelayedItemsLayout)
+        
+        self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_name_edit)
+        item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output_name"].lower())
+        
+        outputext_widget = QWidget()
+        outputext_layout = QHBoxLayout()
+        
+        for e in supported_extensions():
+            outputext_combobox.addItem(e, e)
+        
+        outputext_combobox.setCurrentIndex(outputext_combobox.findData(s["ext"]))
+        
+        outputext_layout.addWidget(outputext_combobox)
+        outputext_widget.setLayout(outputext_layout)
+        
+        self.setItemWidget(item, QECols.OUTPUT_FILETYPE_COLUMN, outputext_widget)
+        item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, s["ext"])
+        
+        settings_stack = FadingStackedWidget()
+        
+        no_settings_page = QWidget()
+        no_settings_page_layout = QHBoxLayout()
+        
+        no_settings_label = QLabel("(No settings.)")
+        no_settings_page_layout.addWidget(no_settings_label)
+        
+        no_settings_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
+        no_settings_scale_button.setPopupMode(QToolButton.InstantPopup)
+        
+        no_settings_scale_button.setMenu(scale_menu)
+        no_settings_page_layout.addWidget(no_settings_scale_button)
+        
+        no_settings_page.setLayout(no_settings_page_layout)
+        settings_stack.addWidget(no_settings_page)
+        
+        png_settings_page = QWidget()
+        png_settings_page_layout = QHBoxLayout()
+        
+        png_alpha_checkbox = CheckToolButton(icon_name="alpha", checked=s["png_alpha"], tooltip="store alpha channel (transparency)")
+        png_alpha_checkbox.toggled.connect(lambda checked, d=s, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_toggled(checked, d, i, sb))
+        png_settings_page_layout.addWidget(png_alpha_checkbox)
+        
+        png_fillcolour_button = ColourToolButton(colour=s["png_fillcolour"], tooltip="transparent colour")
+        png_fillcolour_button.setDisabled(png_alpha_checkbox.isChecked())
+        png_alpha_checkbox.toggled.connect(lambda checked, fcb=png_fillcolour_button: fcb.setDisabled(checked))
+        png_fillcolour_button.colourChanged.connect(lambda colour, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_fillcolour", colour, d, sb))
+        png_settings_page_layout.addWidget(png_fillcolour_button)
+        
+        png_compression_slider = SpinBoxSlider(label_text="Compression", range_min=1, range_max=9, snap_interval=1)
+        png_compression_slider.setValue(s["png_compression"])
+        png_compression_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_compression", value, d, sb))
+        png_settings_page_layout.addWidget(png_compression_slider)
+        
+        png_indexed_checkbox = CheckToolButton(icon_name="indexed", checked=s["png_indexed"], tooltip="Save as indexed PNG, if possible")
+        png_indexed_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_indexed", checked, d, sb))
+        png_settings_page_layout.addWidget(png_indexed_checkbox)
+        
+        png_interlaced_checkbox = CheckToolButton(icon_name="progressive", checked=s["png_interlaced"], tooltip="interlacing")
+        png_interlaced_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_interlaced", checked, d, sb))
+        png_settings_page_layout.addWidget(png_interlaced_checkbox)
+        
+        png_hdr_checkbox = CheckToolButton(icon_name="hdr", checked=s["png_hdr"], tooltip="save as HDR image (Rec. 2020 PQ)")
+        png_hdr_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_hdr", checked, d, sb))
+        png_settings_page_layout.addWidget(png_hdr_checkbox)
+        
+        png_embed_srgb_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["png_embed_srgb"], tooltip="embed sRGB profile")
+        png_embed_srgb_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_embed_srgb", checked, d, sb))
+        png_settings_page_layout.addWidget(png_embed_srgb_checkbox)
+        
+        png_force_srgb_checkbox = CheckToolButton(icon_name="force_profile", checked=s["png_force_srgb"], tooltip="force convert to sRGB")
+        png_force_srgb_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_srgb", checked, d, sb))
+        png_settings_page_layout.addWidget(png_force_srgb_checkbox)
+        
+        png_force_8bit_checkbox = CheckToolButton(icon_name="force_8bit", checked=s["png_force_8bit"], tooltip="force convert to 8bits/channel")
+        png_force_8bit_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_8bit", checked, d, sb))
+        png_settings_page_layout.addWidget(png_force_8bit_checkbox)
+        
+        png_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["png_metadata"], tooltip="store metadata")
+        png_metadata_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_metadata", checked, d, sb))
+        png_settings_page_layout.addWidget(png_metadata_checkbox)
+        
+        png_author_checkbox = CheckToolButton(icon_name="author", checked=s["png_author"], tooltip="sign with author data")
+        png_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_author", checked, d, sb))
+        png_settings_page_layout.addWidget(png_author_checkbox)
+        
+        png_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
+        png_scale_button.setPopupMode(QToolButton.InstantPopup)
+        
+        png_scale_button.setMenu(scale_menu)
+        png_settings_page_layout.addWidget(png_scale_button)
+        
+        png_settings_page.setLayout(png_settings_page_layout)
+        settings_stack.addWidget(png_settings_page)
+        
+        jpeg_settings_page = QWidget()
+        jpeg_settings_page_layout = QHBoxLayout()
+        
+        jpeg_icc_profile_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["jpeg_icc_profile"], tooltip="save ICC profile")
+        jpeg_icc_profile_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_icc_profile", checked, d, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_icc_profile_checkbox)
+        
+        jpeg_fillcolour_checkbox = ColourToolButton(colour=s["jpeg_fillcolour"], tooltip="transparent pixel fill colour")
+        jpeg_fillcolour_checkbox.colourChanged.connect(lambda colour, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_fillcolour", colour, d, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_fillcolour_checkbox)
+        
+        jpeg_quality_slider = SpinBoxSlider(label_text="Quality", label_suffix="%", range_min=0, range_max=100, snap_interval=5)
+        jpeg_quality_slider.setValue(s["jpeg_quality"])
+        jpeg_quality_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_quality", value, d, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_quality_slider)
+        
+        jpeg_progressive_checkbox = CheckToolButton(icon_name="progressive", checked=s["jpeg_progressive"], tooltip="progressive")
+        jpeg_progressive_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_progressive", checked, d, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_progressive_checkbox)
+        
+        jpeg_smooth_slider = SpinBoxSlider(label_text="Smooth", label_suffix="%", range_min=0, range_max=100, snap_interval=5)
+        jpeg_smooth_slider.setValue(s["jpeg_smooth"])
+        jpeg_smooth_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_smooth", value, d, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_smooth_slider)
+        
+        jpeg_subsampling_button = CheckToolButton(icon_name=("subsampling", s["jpeg_subsampling"]), checked=True, tooltip="subsampling")
+        jpeg_subsampling_button.setPopupMode(QToolButton.InstantPopup)
+        
+        jpeg_subsampling_menu = QEMenu(keep_open=False)
+        jpeg_subsampling_action_group = QActionGroup(jpeg_subsampling_menu)
+        jpeg_subsampling_2x2_action = jpeg_subsampling_menu.addAction("2x2, 1x1, 1x1 (smallest file)", "2x2")
+        jpeg_subsampling_2x1_action = jpeg_subsampling_menu.addAction("2x1, 1x1, 1x1", "2x1")
+        jpeg_subsampling_1x2_action = jpeg_subsampling_menu.addAction("1x2, 1x1, 1x1", "1x2")
+        jpeg_subsampling_1x1_action = jpeg_subsampling_menu.addAction("1x1, 1x1, 1x1 (best quality)", "1x1")
+        for i, action in enumerate(jpeg_subsampling_menu.actions()):
+            action.setCheckable(True)
+            action.setActionGroup(jpeg_subsampling_action_group)
+            action.setChecked(action.data() == s["jpeg_subsampling"])
+        jpeg_subsampling_menu.triggered.connect(lambda a, b=jpeg_subsampling_button, d=s, sb=btn_store_forget: self._on_jpeg_subsampling_menu_triggered(a.data(), b, d, sb))
+        
+        jpeg_subsampling_button.setMenu(jpeg_subsampling_menu)
+        jpeg_settings_page_layout.addWidget(jpeg_subsampling_button)
+        
+        jpeg_force_baseline_checkbox = CheckToolButton(icon_name="jpeg_baseline", checked=s["jpeg_force_baseline"], tooltip="force baseline JPEG")
+        jpeg_force_baseline_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_force_baseline", checked, d, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_force_baseline_checkbox)
+        
+        jpeg_optimise_checkbox = CheckToolButton(icon_name="optimise", checked=s["jpeg_optimise"], tooltip="optimise")
+        jpeg_optimise_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_optimise", checked, d, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_optimise_checkbox)
+        
+        jpeg_metadata_options_button = CheckToolButton(icon_name="metadata_options", checked=s["jpeg_metadata"], tooltip="formats")
+        jpeg_metadata_options_button.setPopupMode(QToolButton.InstantPopup)
+        
+        jpeg_metadata_options_menu = QEMenu()
+        
+        jpeg_metadata_options_header_action = jpeg_metadata_options_menu.addAction("Metadata formats")
+        jpeg_metadata_options_header_action.setDisabled(True)
+        jpeg_metadata_options_Exif_action = jpeg_metadata_options_menu.addAction("Exif", "exif")
+        jpeg_metadata_options_IPTC_action = jpeg_metadata_options_menu.addAction("IPTC", "iptc")
+        jpeg_metadata_options_XMP_action = jpeg_metadata_options_menu.addAction("XMP", "xmp")
+        
+        jpeg_filters_header_action = jpeg_metadata_options_menu.addAction("Filters")
+        jpeg_filters_header_action.setDisabled(True)
+        jpeg_metadata_options_info_action = jpeg_metadata_options_menu.addAction("Tool information", "tool_information")
+        jpeg_metadata_options_anon_action = jpeg_metadata_options_menu.addAction("Anonymiser", "anonymiser")
+        
+        for action in jpeg_metadata_options_menu.actions():
+            if not action.data():
+                continue
+            action.setCheckable(True)
+            action.setChecked(s[f"jpeg_{action.data()}"])
+        jpeg_metadata_options_menu.triggered.connect(lambda a, d=s, sb=btn_store_forget: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), d, sb))
+        
+        jpeg_metadata_options_button.setMenu(jpeg_metadata_options_menu)
+        jpeg_settings_page_layout.addWidget(jpeg_metadata_options_button)
+        
+        jpeg_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["jpeg_metadata"], tooltip="store metadata")
+        jpeg_metadata_checkbox.toggled.connect(lambda checked, mob=jpeg_metadata_options_button, d=s, sb=btn_store_forget: self._on_jpeg_metadata_checkbox_toggled(checked, mob, d, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_metadata_checkbox)
+        
+        jpeg_author_checkbox = CheckToolButton(icon_name="author", checked=s["jpeg_author"], tooltip="sign with author data")
+        jpeg_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_author", checked, d, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_author_checkbox)
+        
+        jpeg_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
+        jpeg_scale_button.setPopupMode(QToolButton.InstantPopup)
+        
+        jpeg_scale_button.setMenu(scale_menu)
+        jpeg_settings_page_layout.addWidget(jpeg_scale_button)
+        
+        jpeg_settings_page.setLayout(jpeg_settings_page_layout)
+        settings_stack.addWidget(jpeg_settings_page)
+        
+        self.setItemWidget(item, QECols.SETTINGS_COLUMN, settings_stack)
+        self.set_item_settings_stack_page_for_extension(settings_stack, s["ext"])
+        
+        scale_checkbox_action.triggered.connect(lambda checked, d=s, cb=[no_settings_scale_button,png_scale_button,jpeg_scale_button], sb=btn_store_forget: self._on_item_scale_checkbox_action_triggered(checked, d, cb, sb))
+        
+        btns_widget = QWidget()
+        btns_layout = QHBoxLayout()
+        btns_export.setDisabled(s["document"] == None)
+        btns_export.clicked.connect(lambda checked, d=s, fn=file_path.name, sb=btn_store_forget: self._on_item_btn_export_clicked(checked, d, fn, sb))
+        btns_layout.addWidget(btns_export)
+        
+        btns_widget.setLayout(btns_layout)
+        
+        self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
+        
+        outputext_combobox.currentIndexChanged.connect(lambda index, cb=outputext_combobox, ss=settings_stack, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_current_index_changed(index, cb, ss, d, i, sb))
+        
+        self.items.append(item)
 
     def thumbnail_worker_process(self):
         print("thumbnail worker: start.")
