@@ -598,6 +598,8 @@ class QETree(QTreeWidget):
         self.setIndentation(False)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setAlternatingRowColors(True)
+        self.updateAlternatingRowContrast()
+        
         from PyQt5.QtCore import QItemSelectionModel
         self.setSelectionMode(QTreeWidget.NoSelection)
         
@@ -1130,6 +1132,19 @@ class QETree(QTreeWidget):
         label.setAlignment(Qt.AlignCenter)
         label.setPixmap(thumbnail)
         self.setItemWidget(item, QECols.THUMBNAIL_COLUMN, label)
+    
+    def updateAlternatingRowContrast(self):
+        pal = QApplication.palette()
+        base = pal.color(QPalette.Base)
+        altbase = pal.color(QPalette.AlternateBase)
+        f = int(readSetting("alt_row_contrast", str(100))) * 0.01
+        pal.setColor(QPalette.AlternateBase, QColor(
+            round(base.red()   + (altbase.red()   - base.red())   * f - 0.333),
+            round(base.green() + (altbase.green() - base.green()) * f),
+            round(base.blue()  + (altbase.blue()  - base.blue())  * f + 0.333),
+            altbase.alpha()
+        ))
+        self.setPalette(pal)
 
 class QEDialog(QDialog):
     instance = None
@@ -1176,6 +1191,26 @@ class QEDialog(QDialog):
         self.show_non_kra_button.setCheckState(str2qtcheckstate(readSetting("show_non_kra", "false")))
         self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
 
+        # slider for adjusting strength of alternate row colouring.
+        alt_row_contrast_widget = QWidget()
+        alt_row_contrast_layout = QHBoxLayout()
+
+        alt_row_contrast_widget.setMinimumWidth(64)
+        alt_row_contrast_widget.setMaximumWidth(256)
+
+        alt_row_contrast_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        alt_row_contrast_label = QLabel("Row contrast")
+        alt_row_contrast_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        alt_row_contrast_layout.addWidget(alt_row_contrast_label)
+
+        self.alt_row_contrast_slider = SnapSlider(2, 0, 100, Qt.Horizontal)
+        self.alt_row_contrast_slider.setValue(int(readSetting("alt_row_contrast", "100")))
+        self.alt_row_contrast_slider.setMinimumWidth(64)
+        self.alt_row_contrast_slider.valueChanged.connect(self._on_alt_row_contrast_slider_value_changed)
+        alt_row_contrast_layout.addWidget(self.alt_row_contrast_slider)
+
+        alt_row_contrast_widget.setLayout(alt_row_contrast_layout)
+
         # slider for settings fade for unhovered rows.
         unhovered_fade_widget = QWidget()
         unhovered_fade_layout = QHBoxLayout()
@@ -1220,6 +1255,7 @@ class QEDialog(QDialog):
         view_buttons_layout.addWidget(self.show_unopened_button)
         view_buttons_layout.addWidget(self.show_unstored_button)
         view_buttons_layout.addStretch()
+        view_buttons_layout.addWidget(alt_row_contrast_widget)
         view_buttons_layout.addWidget(unhovered_fade_widget)
         view_buttons_layout.addWidget(stored_highlight_widget)
 
@@ -1476,6 +1512,11 @@ class QEDialog(QDialog):
     def _on_show_non_kra_button_clicked(self, checked):
         writeSetting("show_non_kra", bool2str(checked))
         self.tree.refilter()
+    
+    def _on_alt_row_contrast_slider_value_changed(self):
+        writeSetting("alt_row_contrast", str(self.alt_row_contrast_slider.value()))
+        self.tree.updateAlternatingRowContrast()
+        self.tree.redraw()
     
     def _on_unhovered_fade_slider_value_changed(self):
         writeSetting("unhovered_fade", str(self.unhovered_fade_slider.value()))
