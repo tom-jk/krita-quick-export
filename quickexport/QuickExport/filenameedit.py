@@ -33,8 +33,8 @@ class WrappingLineEdit(QPlainTextEdit):
         self.setStyleSheet("QPlainTextEdit {background: transparent;}")
         
         fm = QFontMetrics(self.font())
-        #self.setMinimumWidth(fm.width("a"*12))
-        self._preferred_width = min(fm.width("a")*60, fm.width(text+"PAD"))
+        #self.setMinimumWidth(fm.horizontalAdvance("a"*12))
+        self._preferred_width = min(fm.horizontalAdvance("a")*60, fm.horizontalAdvance(text+"PAD"))
         self._preferred_height = fm.height() + fm.descent() + self._doc_margin*2
         
         self.setPlainText(text)

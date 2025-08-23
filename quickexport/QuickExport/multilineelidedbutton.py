@@ -34,7 +34,7 @@ class MultiLineElidedText(QWidget):
     
     def sizeHint(self):
         fm = QFontMetrics(self.parentWidget().font())
-        return QSize(fm.width("a"*16),-1)
+        return QSize(fm.horizontalAdvance("a"*16),-1)
     
     def hasHeightForWidth(self):
         return True
@@ -377,7 +377,7 @@ class MultiLineElidedButton(QToolButton):
     
     def sizeHint(self):
         fm = QFontMetrics(self.font())
-        return QSize(fm.width("a"*16),-1)
+        return QSize(fm.horizontalAdvance("a"*16),-1)
     
     def hasHeightForWidth(self):
         return True

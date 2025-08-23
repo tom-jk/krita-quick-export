@@ -76,7 +76,7 @@ class SpinBoxSlider(QSpinBox):
         self.setRange(range_min, range_max)
         
         fm = QFontMetrics(self.font())
-        pixelsWide = fm.width(f"  {self.label_text}: {self.maximum()}{self.label_suffix}  ")
+        pixelsWide = fm.horizontalAdvance(f"  {self.label_text}: {self.maximum()}{self.label_suffix}  ")
         self._default_width = pixelsWide
         
         sp = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
@@ -119,7 +119,7 @@ class SpinBoxSlider(QSpinBox):
         
         fm = painter.fontMetrics()
         text = fm.elidedText(text, Qt.ElideLeft, style_option.rect.width())
-        pixelsWide = fm.width(text)
+        pixelsWide = fm.horizontalAdvance(text)
         pixelsTall = fm.height()
         style_option.rect.adjust(0,-2,0,0)
         x = style_option.rect.center().x() - pixelsWide//2
