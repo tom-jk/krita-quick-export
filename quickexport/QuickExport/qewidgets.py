@@ -14,6 +14,119 @@ from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
 
+# copied from
+# doc.qt.io/qtforpython-6/examples/example_widgets_layouts_flowlayout.html.
+class FlowLayout(QLayout):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        if parent is not None:
+            fm = QFontMetrics(parent.font)
+            fw = fm.horizontalAdvance("x")
+            fh = fm.height()
+            self.setContentsMargins(QMargins(fw//2, fh//2, fw//2, fh//2))
+
+        self._item_list = []
+
+    def __del__(self):
+        item = self.takeAt(0)
+        while item:
+            item = self.takeAt(0)
+
+    def addItem(self, item):
+        self._item_list.append(item)
+
+    def count(self):
+        return len(self._item_list)
+
+    def itemAt(self, index):
+        if 0 <= index < len(self._item_list):
+            return self._item_list[index]
+
+        return None
+
+    def takeAt(self, index):
+        if 0 <= index < len(self._item_list):
+            return self._item_list.pop(index)
+
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        h = self._do_layout(QRect(0, 0, width, 0), True)
+        return h
+
+    def setGeometry(self, rect):
+        super(FlowLayout, self).setGeometry(rect)
+        self._do_layout(rect, False)
+
+    def sizeHint(self):
+        w = self.parentWidget().width()
+        return QSize(w, self.heightForWidth(w))
+
+    def minimumSize(self):
+        return self.sizeHint()
+        size = QSize()
+
+        for item in self._item_list:
+            size = size.expandedTo(item.minimumSize())
+
+        cm = self.contentsMargins()
+        size += QSize(cm.left() + cm.right(), cm.top() + cm.bottom())
+        return size
+
+    def _do_layout(self, rect, test_only):
+        pw = self.parentWidget()
+        sw = pw.parent()
+        if isinstance(sw, QStackedWidget) and sw.currentWidget() != pw:
+            return 0
+        #print(f"flowlayout:_do_layout: {rect=} {test_only=}")
+        h = 0
+        y_offset = 0
+        if not test_only:
+            h = self._do_layout(rect, test_only=True)
+            y_offset = (rect.height() - h) // 2
+        
+        cm = self.contentsMargins()
+        x = rect.x() + cm.left()
+        y = rect.y() + cm.top()
+        line_height = 0
+        spacing = self.spacing()
+
+        for item in self._item_list:
+            style = item.widget().style()
+            layout_spacing_x = style.layoutSpacing(
+                QSizePolicy.ControlType.PushButton, QSizePolicy.ControlType.PushButton,
+                Qt.Orientation.Horizontal
+            )
+            layout_spacing_y = style.layoutSpacing(
+                QSizePolicy.ControlType.PushButton, QSizePolicy.ControlType.PushButton,
+                Qt.Orientation.Vertical
+            )
+            space_x = spacing + layout_spacing_x
+            space_y = spacing + layout_spacing_y
+            item_sizeHint = item.sizeHint()
+            next_x = x + item_sizeHint.width() + space_x
+            if next_x - space_x > rect.right() - cm.right() and line_height > 0:
+                x = rect.x() + cm.left()
+                y = y + line_height + space_y
+                next_x = x + item_sizeHint.width() + space_x
+                line_height = 0
+
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y + y_offset), item_sizeHint))
+
+            x = next_x
+            line_height = max(line_height, item_sizeHint.height())
+
+        #print(f"flowlayout:_do_layout: {rect=} {test_only=} height={y+line_height-rect.y()} {h=} {y_offset=}")
+        return y + line_height - rect.y() + cm.bottom()
+
 class QEComboBox(QComboBox):
     def paintEvent(self, event):
         painter = QStylePainter(self)

@@ -13,7 +13,7 @@ from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
-from .qewidgets import QEMenu, CheckToolButton, ColourToolButton, QEComboBox, FadingStackedWidget, SpinBoxSlider
+from .qewidgets import QEMenu, CheckToolButton, ColourToolButton, QEComboBox, FadingStackedWidget, SpinBoxSlider, FlowLayout
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
 
@@ -251,6 +251,7 @@ class QETree(QTreeWidget):
     
     def set_item_settings_stack_page_for_extension(self, settings_stack, ext):
         settings_stack.setCurrentIndex(self.settings_stack_page_index_for_extension(ext))
+        self._on_column_resized(QECols.SETTINGS_COLUMN, QECols.SETTINGS_COLUMN, -1)
     
     def settings_stack_page_index_for_extension(self, ext):
         try:
@@ -329,7 +330,7 @@ class QETree(QTreeWidget):
     
     def _on_column_resized(self, column, old_size, new_size):
         #print("columnResized")
-        if column not in (QECols.SOURCE_FILEPATH_COLUMN, QECols.SOURCE_FILENAME_COLUMN, QECols.OUTPUT_FILEPATH_COLUMN, QECols.OUTPUT_FILENAME_COLUMN):
+        if column not in (QECols.SOURCE_FILEPATH_COLUMN, QECols.SOURCE_FILENAME_COLUMN, QECols.OUTPUT_FILEPATH_COLUMN, QECols.OUTPUT_FILENAME_COLUMN, QECols.SETTINGS_COLUMN):
             return
         
         self.updateGeometries()
@@ -592,7 +593,7 @@ class QETree(QTreeWidget):
         settings_stack = FadingStackedWidget()
         
         no_settings_page = QWidget()
-        no_settings_page_layout = QHBoxLayout()
+        no_settings_page_layout = FlowLayout()
         
         no_settings_label = QLabel("(No settings.)")
         no_settings_page_layout.addWidget(no_settings_label)
@@ -607,7 +608,7 @@ class QETree(QTreeWidget):
         settings_stack.addWidget(no_settings_page)
         
         png_settings_page = QWidget()
-        png_settings_page_layout = QHBoxLayout()
+        png_settings_page_layout = FlowLayout()
         
         png_alpha_checkbox = CheckToolButton(icon_name="alpha", checked=s["png_alpha"], tooltip="store alpha channel (transparency)")
         png_alpha_checkbox.toggled.connect(lambda checked, d=s, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_toggled(checked, d, i, sb))
@@ -666,7 +667,7 @@ class QETree(QTreeWidget):
         settings_stack.addWidget(png_settings_page)
         
         jpeg_settings_page = QWidget()
-        jpeg_settings_page_layout = QHBoxLayout()
+        jpeg_settings_page_layout = FlowLayout()
         
         jpeg_icc_profile_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["jpeg_icc_profile"], tooltip="save ICC profile")
         jpeg_icc_profile_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_icc_profile", checked, d, sb))
@@ -681,14 +682,14 @@ class QETree(QTreeWidget):
         jpeg_quality_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_quality", value, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_quality_slider)
         
-        jpeg_progressive_checkbox = CheckToolButton(icon_name="progressive", checked=s["jpeg_progressive"], tooltip="progressive")
-        jpeg_progressive_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_progressive", checked, d, sb))
-        jpeg_settings_page_layout.addWidget(jpeg_progressive_checkbox)
-        
         jpeg_smooth_slider = SpinBoxSlider(label_text="Smooth", label_suffix="%", range_min=0, range_max=100, snap_interval=5)
         jpeg_smooth_slider.setValue(s["jpeg_smooth"])
         jpeg_smooth_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_smooth", value, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_smooth_slider)
+        
+        jpeg_progressive_checkbox = CheckToolButton(icon_name="progressive", checked=s["jpeg_progressive"], tooltip="progressive")
+        jpeg_progressive_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_progressive", checked, d, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_progressive_checkbox)
         
         jpeg_subsampling_button = CheckToolButton(icon_name=("subsampling", s["jpeg_subsampling"]), checked=True, tooltip="subsampling")
         jpeg_subsampling_button.setPopupMode(QToolButton.InstantPopup)
