@@ -26,34 +26,11 @@ class ItemDelegate(QStyledItemDelegate):
     
     def sizeHint(self, option, index):
         size = super().sizeHint(option, index)
-
+        
         tree = QETree.instance
-        item = tree.itemFromIndex(index)
+        if size.height() < tree.min_row_height:
+            size.setHeight(tree.min_row_height)
         
-        size.setHeight(tree.min_row_height)
-        #return size
-        
-        try:
-            wgt = tree.itemWidget(item, index.column())
-            #print("a: wgt:", wgt)
-            if wgt:
-                h = -1
-                if wgt.hasHeightForWidth():
-                    w = tree.columnWidth(index.column())
-                    h = wgt.heightForWidth(w)
-                    #print(f"b1: wgt has height {h} for width {w}")
-                else:
-                    pass
-                    #h = -1#wgt.height()
-                    #print(f"b2: wgt does not have height for width, use height {h}")
-                item.setData(Qt.SizeHintRole, index.column(), h)
-        except:
-            print("problem")
-        height = item.data(Qt.SizeHintRole, index.column())
-        if height and height > size.height():
-            size.setHeight(height)
-        
-        #print(f"{'ItemDelegate:':18}{'sizeHint:':18} index:row {index.row()}, col {index.column()} {size=}")
         return size
     
     def paint(self, painter, option, index):
@@ -347,6 +324,7 @@ class QETree(QTreeWidget):
         self.thumb_height = fm.height() * 4
         self.min_row_height = fm.height() * 5
         
+        self.header().setStretchLastSection(False)
         self.header().sectionResized.connect(self._on_column_resized)
     
     def _on_column_resized(self, column, old_size, new_size):
@@ -354,20 +332,8 @@ class QETree(QTreeWidget):
         if column not in (QECols.SOURCE_FILEPATH_COLUMN, QECols.SOURCE_FILENAME_COLUMN, QECols.OUTPUT_FILEPATH_COLUMN, QECols.OUTPUT_FILENAME_COLUMN):
             return
         
-        self.update_item_heights_at_column(column)
-        
-    def update_item_heights_at_column(self, column):
-        try:
-            for item in self.items:
-                wgt = self.itemWidget(item, column)
-                if wgt:
-                    if wgt.hasHeightForWidth():
-                        colwidth = self.columnWidth(column)
-                        #item.setData(Qt.SizeHintRole, column, wgt.heightForWidth(colwidth)) OLD 'n' WRONG
-                        new_height = wgt.heightForWidth(colwidth)
-                        item.setData(column, Qt.SizeHintRole, new_height)
-        except:
-            print("update_item_heights_at_column: something went wrong")
+        self.updateGeometries()
+        QTimer.singleShot(0, self.scheduleDelayedItemsLayout)
     
     def _on_item_clicked(self, item, column):
         widget = self.itemWidget(item, column)
@@ -476,6 +442,8 @@ class QETree(QTreeWidget):
         
         for i in range(0, QECols.COLUMN_COUNT):
             self.resizeColumnToContents(i)
+        
+        QTimer.singleShot(0, self.scheduleDelayedItemsLayout)
 
         if len(self.thumbnail_queue) == 0:
             return
@@ -807,7 +775,9 @@ class QETree(QTreeWidget):
         self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
         
         outputext_combobox.currentIndexChanged.connect(lambda index, cb=outputext_combobox, ss=settings_stack, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_current_index_changed(index, cb, ss, d, i, sb))
-    
+        
+        self.items.append(item)
+
     def thumbnail_worker_process(self):
         print("thumbnail worker: start.")
         

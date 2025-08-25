@@ -33,8 +33,8 @@ class MultiLineElidedText(QWidget):
         self._old_size = event.size()
     
     def sizeHint(self):
-        fm = QFontMetrics(self.parentWidget().font())
-        return QSize(fm.horizontalAdvance("a"*16),-1)
+        w = self.width()
+        return QSize(w, self.heightForWidth(w))
     
     def hasHeightForWidth(self):
         return True
