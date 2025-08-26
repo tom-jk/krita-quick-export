@@ -107,12 +107,14 @@ class QETree(QTreeWidget):
         self.hovered_item = None
     
     def refilter(self):
+        show_unstored = str2bool(readSetting("show_unstored", "true"))
+        show_unopened = str2bool(readSetting("show_unopened", "false"))
+        show_non_kra  = str2bool(readSetting("show_non_kra",  "false"))
         for index, s in enumerate(qe_settings):
-            #print(index, s["document"])
             self.items[index].setHidden(
-                   (self.dialog.show_unstored_button.checkState() == Qt.Unchecked and s["store"] == False)
-                or (self.dialog.show_unopened_button.checkState() == Qt.Unchecked and s["document"] == None)
-                or (self.dialog.show_non_kra_button.checkState() == Qt.Unchecked and s["path"].suffix != ".kra")
+                   (not show_unstored and s["store"] == False)
+                or (not show_unopened and s["document"] == None)
+                or (not show_non_kra  and s["path"].suffix != ".kra")
             )
     
     def _on_btn_open_clicked(self, checked, btn, disabled_buttons, doc, item):
@@ -441,6 +443,8 @@ class QETree(QTreeWidget):
         for s in qe_settings:
             self.add_item(s)
         
+        self.refilter()
+        
         for i in range(0, QECols.COLUMN_COUNT):
             self.resizeColumnToContents(i)
         
@@ -474,6 +478,7 @@ class QETree(QTreeWidget):
         file_path = s["path"]
         
         item = MyTreeWidgetItem(self)
+        item.setHidden(True)
         item.setFlags(item.flags() | Qt.ItemIsEditable)
         
         btns_export = QToolButton()

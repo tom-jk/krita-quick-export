@@ -180,8 +180,6 @@ class QEDialog(QDialog):
         config_buttons.setLayout(config_buttons_layout)
         layout.addWidget(config_buttons)
 
-        self.tree.refilter()
-
         self.set_advanced_mode(self.advanced_mode_button.checkState() == Qt.Checked)
 
         # status bar area.
