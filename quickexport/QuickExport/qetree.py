@@ -224,6 +224,7 @@ class QETree(QTreeWidget):
             
             file_path_string = QFileDialog.getSaveFileName(
                 parent = self,
+                caption = "Choose Export Location and Name",
                 directory = str(file_path),
                 filter = f"Images ({' '.join(['*'+ext for ext in supported_extensions()])});;" + ";;".join([ext[1:]+' (*'+ext+')' for ext in supported_extensions()])
             )[0]
@@ -557,6 +558,7 @@ class QETree(QTreeWidget):
         output_path_button.setPopupMode(QToolButton.InstantPopup)
         
         output_path_menu = QEMenu(keep_open=False)
+        output_path_menu.setToolTipsVisible(True)
         output_path_action_group = QActionGroup(output_path_menu)
         output_path_absolute_action = output_path_menu.addAction("Absolute", True)
         output_path_relative_action = output_path_menu.addAction("Relative", False)
@@ -565,7 +567,9 @@ class QETree(QTreeWidget):
             action.setActionGroup(output_path_action_group)
             action.setChecked(action.data() == s["output_is_abs"])
         output_path_menu.addSeparator()
-        output_path_change_action = output_path_menu.addAction("Change...", "change")
+        output_path_change_action = output_path_menu.addAction("Change...", "change", ("Choose the export location, and optionally change the file name and type.\n"
+                                                                                       "Note that this does not actually export the file, only changes where it will export to.\n"
+                                                                                       "If the file already exists, you will be asked if you want to export over it."))
         output_path_menu.triggered.connect(lambda a, pb=output_path_button, ne=output_name_edit, ec=outputext_combobox, d=s, sb=btn_store_forget: self._on_output_path_menu_triggered(a.data(), pb, ne, ec, d, sb))
         
         output_path_button.setMenu(output_path_menu)
