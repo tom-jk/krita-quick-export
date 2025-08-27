@@ -363,6 +363,8 @@ class SnapSlider(QSlider):
     def __init__(self, snap_interval, range_min, range_max, orientation, parent=None):
         super().__init__(orientation, parent)
         self._snap_interval = snap_interval
+        self.setSingleStep(snap_interval)
+        self.setPageStep(snap_interval*3)
         self.setRange(range_min, range_max)
     
     def sliderChange(self, event):
