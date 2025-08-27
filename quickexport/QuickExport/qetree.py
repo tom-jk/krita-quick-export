@@ -28,6 +28,11 @@ class ItemDelegate(QStyledItemDelegate):
         size = super().sizeHint(option, index)
         
         tree = QETree.instance
+        item = tree.itemFromIndex(index)
+        
+        if tree.indexOfTopLevelItem(item) == -1:
+            return size
+        
         if size.height() < tree.min_row_height:
             size.setHeight(tree.min_row_height)
         
@@ -35,8 +40,12 @@ class ItemDelegate(QStyledItemDelegate):
     
     def paint(self, painter, option, index):
         # TODO: lightly highlight row if mouse over.
-        is_highlighted = index.model().index(index.row(), QECols.OPEN_FILE_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == QETree.instance.highlighted_doc_index
-        is_stored = index.model().index(index.row(), QECols.STORE_SETTINGS_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == "1"
+        if QETree.instance.indexOfTopLevelItem(QETree.instance.itemFromIndex(index)) != -1:
+            is_highlighted = index.model().index(index.row(), QECols.OPEN_FILE_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == QETree.instance.highlighted_doc_index
+            is_stored = index.model().index(index.row(), QECols.STORE_SETTINGS_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == "1"
+        else:
+            is_highlighted = False
+            is_stored = False
         super().paint(painter, option, index)
         if is_highlighted:
             painter.fillRect(option.rect, QColor(192,255,96,48))
@@ -44,6 +53,12 @@ class ItemDelegate(QStyledItemDelegate):
             painter.fillRect(option.rect, QColor(64,128,255,int(readSetting("highlight_alpha", "64"))))
 
 class MyTreeWidgetItem(QTreeWidgetItem):
+    def __init__(self, doc_settings=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # document export settings associated with this item.
+        self.doc_settings = doc_settings
+    
     def __lt__(self, other):
         if not isinstance(other, MyTreeWidgetItem):
             return super(MyTreeWidgetItem, self).__lt__(other)
@@ -139,6 +154,18 @@ class QETree(QTreeWidget):
         self.thumbnail_worker_timer.start()
         print("done")
     
+    def _on_versions_menu_triggered(self, value, button, doc, item, store_button):
+        self._on_generic_setting_changed("versions", value, doc, store_button)
+        button.set_icon_name(("versions", value))
+        button.setChecked(value != "single")
+        item.setData(QECols.SOURCE_VERSIONS_COLUMN, QERoles.CustomSortRole, doc["versions"])
+        self.add_file_versioning_subitems_for_all_items(doc["base_version_string"])
+    
+    def _on_versions_show_button_clicked(self, checked, button, item):
+        checked = not item.isExpanded()
+        item.setExpanded(checked)
+        button.setIcon(app.icon("arrowup") if checked else app.icon("arrowdown"))
+    
     def _on_output_name_edit_editing_finished(self, doc, edit, item, store_button):
         doc["output_name"] = edit.text()
         item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output_name"].lower())
@@ -205,6 +232,12 @@ class QETree(QTreeWidget):
         item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+doc["store"]))
         self.redraw()
         self.set_settings_modified()
+        self.add_file_versioning_subitems_for_all_items(doc["base_version_string"])
+    
+    def add_file_versioning_subitems_for_all_items(self, bvs=None):
+        for item_ in self.items:
+            if not bvs or item_.doc_settings["base_version_string"] == bvs:
+                self.add_file_versioning_subitems(item_)
     
     def _on_output_path_menu_triggered(self, value, path_button, name_edit, ext_combobox, doc, store_button):
         if value in (True, False):
@@ -328,6 +361,8 @@ class QETree(QTreeWidget):
         self.thumb_height = fm.height() * 4
         self.min_row_height = fm.height() * 5
         
+        self.setExpandsOnDoubleClick(False)
+        
         self.header().setStretchLastSection(False)
         self.header().sectionResized.connect(self._on_column_resized)
     
@@ -407,7 +442,7 @@ class QETree(QTreeWidget):
                     break
         
         self.setColumnCount(QECols.COLUMN_COUNT)
-        self.setHeaderLabels(["", "", "", "File Path", "File Name", "Versions", "Export Path", "Export Name", "Type", "Settings", ""])
+        self.setHeaderLabels(["", "", "", "File Path", "File Name", "Ver.", "Export Path", "Export Name", "Type", "Settings", ""])
         self.headerItem().setIcon(QECols.STORE_SETTINGS_COLUMN, app.icon('document-save'))
         
         fm = QFontMetrics(self.font())
@@ -425,7 +460,7 @@ class QETree(QTreeWidget):
         self.thumbnail_queue = []
         
         self.settings_stack_page_order = [[".gif", ".pbm", ".pgm", ".ppm", ".tga", ".bmp", ".ico", ".xbm", ".xpm"], ".png", [".jpg",".jpeg"]]
-                
+        
         item_delegate = ItemDelegate()
         self.setItemDelegate(item_delegate)
         
@@ -478,7 +513,7 @@ class QETree(QTreeWidget):
         
         file_path = s["path"]
         
-        item = MyTreeWidgetItem(self)
+        item = MyTreeWidgetItem(s, self)
         item.setHidden(True)
         item.setFlags(item.flags() | Qt.ItemIsEditable)
         
@@ -545,6 +580,49 @@ class QETree(QTreeWidget):
         
         if s["document"] == None:
             btn_open.clicked.connect(lambda checked, b=btn_open, db=[btns_export,scale_reset_action,scale_settings_action,filepath_widget,filename_widget], d=s, i=item: self._on_btn_open_clicked(checked, b, db, d, i))
+        
+        versions_widget = QWidget()
+        versions_widget_layout = QVBoxLayout(versions_widget)
+        versions_widget_layout.setSpacing(2)
+        
+        versions_button = CheckToolButton(icon_name=("versions", s["versions"]), checked=(s["versions"] != "single"), tooltip="how to use settings for different versions of this image")
+        versions_button.setPopupMode(QToolButton.InstantPopup)
+        
+        bvs, mvn = base_stem_and_version_number_for_versioned_file(file_path)
+        stm, suf = file_path.stem, file_path.suffix
+        
+        # cache bvs and mvn.
+        s["base_version_string"] = bvs
+        s["matched_version_number"] = mvn
+        
+        versions_menu = QEMenu(keep_open=False)
+        versions_menu.setToolTipsVisible(True)
+        versions_action_group = QActionGroup(versions_menu)
+        versions_single_action      = versions_menu.addAction("This exact file", "single", f"applies only to '{file_path.name}'.")
+        versions_all_action         = versions_menu.addAction("Versions of this image", "all", f"applies to:\n'{file_path.name}'\n'{stm}_001{suf}'\n'{stm}_002{suf}'\n'{stm}_003{suf}'\netc.")
+        versions_all_forward_action = versions_menu.addAction("This and later versions of this image", "all_forward", f"applies to:\n'{file_path.name}'\n'{bvs}_{mvn+1:03}{suf}'\n'{bvs}_{mvn+2:03}{suf}'\n'{bvs}_{mvn+3:03}{suf}'\netc.")
+        for i, action in enumerate(versions_menu.actions()):
+            action.setCheckable(True)
+            action.setActionGroup(versions_action_group)
+            action.setChecked(action.data() == s["versions"])
+        versions_menu.triggered.connect(lambda a, b=versions_button, d=s, i=item, sb=btn_store_forget: self._on_versions_menu_triggered(a.data(), b, d, i, sb))
+        
+        versions_button.setMenu(versions_menu)
+        
+        versions_show_button = QToolButton()
+        versions_show_button.setIcon(app.icon("arrowdown"))
+        versions_show_button.setFixedSize(versions_show_button.sizeHint())
+        versions_show_button.setIconSize(versions_show_button.iconSize()/2)
+        versions_show_button.setAutoRaise(True)
+        #versions_show_button.setFixedHeight(round(versions_show_button.sizeHint().height()/1.25))
+        versions_show_button.clicked.connect(lambda checked, b=versions_show_button, i=item: self._on_versions_show_button_clicked(checked, b, i))
+        
+        versions_widget_layout.addStretch()
+        versions_widget_layout.addWidget(versions_button)
+        versions_widget_layout.addWidget(versions_show_button)
+        versions_widget_layout.addStretch()
+        self.setItemWidget(item, QECols.SOURCE_VERSIONS_COLUMN, versions_widget)
+        item.setData(QECols.SOURCE_VERSIONS_COLUMN, QERoles.CustomSortRole, s["versions"])
         
         output_path_button = MultiLineElidedButton(str(s["output_abs_dir"]) if s["output_abs_dir"] != s["path"].parent else ".", margin=0)
         
@@ -787,6 +865,59 @@ class QETree(QTreeWidget):
         outputext_combobox.currentIndexChanged.connect(lambda index, cb=outputext_combobox, ss=settings_stack, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_current_index_changed(index, cb, ss, d, i, sb))
         
         self.items.append(item)
+        
+        self.add_file_versioning_subitems(item)
+        
+    def add_file_versioning_subitems(self, item):
+        doc = item.doc_settings
+        file_path = doc["path"]
+        bvs = doc["base_version_string"]
+        suf = doc["path"].suffix
+        
+        still_used_subitem = [False]*item.childCount()
+        
+        new_subitem_texts = []
+        
+        # add new items.
+        for test_path in file_path.parent.glob(f"{bvs}*{suf}"):
+            if find_settings_for_file(test_path) != doc:
+                continue
+            subitem = None
+            for index_ in range(item.childCount()):
+                item_ = item.child(index_)
+                if item_.data(0, QERoles.CustomSortRole) == test_path.name:
+                    still_used_subitem[index_] = True
+                    subitem = item_
+                    break
+            if subitem:
+                continue
+            new_subitem_texts.append(test_path.name)
+        
+        unused_subitems = [item.child(index) for index in range(len(still_used_subitem)) if still_used_subitem[index] == False]
+
+        # repurpose unused existing subitems.
+        index = 0
+        while index < len(new_subitem_texts) and index < len(unused_subitems):
+            subitem = unused_subitems[index]
+            text = new_subitem_texts[index]
+            subitem.setText(0, text)
+            subitem.setData(0, QERoles.CustomSortRole, text)
+            index += 1
+        
+        # removed unused subitems, if any remain.
+        while index < len(unused_subitems):
+            item.removeChild(unused_subitems[index])
+            index += 1
+        
+        # add new subitems for remaining names, if any.
+        while index < len(new_subitem_texts):
+            subitem = QTreeWidgetItem(item)
+            subitem.setFirstColumnSpanned(True)
+            subitem.setText(0, new_subitem_texts[index])
+            subitem.setData(0, QERoles.CustomSortRole, new_subitem_texts[index])
+            index += 1
+        
+        item.sortChildren(0, Qt.AscendingOrder)
 
     def thumbnail_worker_process(self):
         print("thumbnail worker: start.")

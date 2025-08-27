@@ -167,13 +167,22 @@ qe_supported_extensions = (".gif", ".jpg", ".jpeg", ".pbm", ".pgm", ".png", ".pp
 def supported_extensions():
     return qe_supported_extensions
 
-def default_settings(document=None, doc_index=1024, store=False, path=None, output_name="", ext=".png", set_scale=False, scale_filter="Auto"):
+def default_settings(document=None, doc_index=1024, store=False, path=None, versions=None, output_name="", ext=".png", set_scale=False, scale_filter="Auto"):
+    bvs = None
+    mvn = None
+    if path:
+        bvs, mvn = base_stem_and_version_number_for_versioned_file(path)
+        if not versions:
+            versions = "all" if bvs == path.stem else "all_forward"
     set_scale = set_scale and document
     settings = {
         "document":document,
         "doc_index":doc_index,
         "store":store,
         "path":path,
+        "versions": versions,
+        "base_version_string": bvs,
+        "matched_version_number": mvn,
         "output_is_abs": False,
         "output_abs_dir": path.parent if isinstance(path, Path) else None,
         "output_name":output_name,
@@ -275,6 +284,8 @@ def load_settings_from_config():
                         settings["document"] = d
                         settings["doc_index"] = i
                         break
+            elif k == "v":
+                settings["versions"] = {"s":"single", "a":"all", "f":"all_forward"}[v]
             elif k == "output":
                 output_string = v
             elif k == "ext":
@@ -337,10 +348,104 @@ def load_settings_from_config():
         #print()
 
 def find_settings_for_file(file_path):
+    """
+    for given path "/path/to/file.kra", find best (most specific) matching export settings.
+    
+    match quality goes: base name (all), base name (all forward), base name with progressively closer lower versions (all forward), exact file name.
+    
+    example: "/path/to/file0_005.kra"
+    x. "path/to/file.kra"      - any version settings   - is not a match.
+    1. "path/to/file0.kra"     - versions = all         - is a match.
+    2. "path/to/file0.kra"     - versions = all_forward - is a match. (two entries for the same path shouldn't exist but if they do, this is considered a better match than 1.)
+    3. "path/to/file0_003.kra" - versions = all_forward - is a better match than 2.
+    4. "path/to/file0_004.kra" - versions = all-forward - is a better match than 3.
+    5* "path/to/file0_005.kra" - any versions settings  - is the best possible match.
+    x. "path/to/file0_006.kra" - any version settings   - is not a match.
+    """
+    
+    def print(*args):
+        pass
+    
+    print(f" **** find_settings_for_file {file_path} ****")
+    
+    # TODO: cache some of these things.
+    
+    base_version_string, match_version_number = base_stem_and_version_number_for_versioned_file(file_path)
+    stem = file_path.stem
+    suffix = file_path.suffix
+    best_s = None
+    best_version_number = 0
     for s in qe_settings:
+        if not s["store"]:
+            # only match stored settings.
+            print(f" - {s['path']} is not a stored setting.")
+            continue
+        
         if s["path"] == file_path:
+            # exact match.
+            print(f" - {s['path']} is exact match.")
+            print("   done.")
             return s
-    return None
+        
+        if s["versions"] == "single":
+            # these settings are for a single file, and it's not this one.
+            print(f" - {s['path']} does not match (single file only).")
+            continue
+        
+        s_parent = s["path"].parent
+        if file_path.parent != s_parent:
+            # wrong directory, can't be match.
+            print(f" - {s['path']} does not match (wrong directory).")
+            continue
+        
+        s_stem = s["path"].stem
+        s_suff = s["path"].suffix
+        s_bvs, s_mvn = base_stem_and_version_number_for_versioned_file(s["path"])
+        
+        if base_version_string != s_bvs:
+            # not versions of the same image.
+            print(f" - {s['path']} does not match (not a version of this image).")
+            continue
+        
+        if s["versions"] == "all":
+            # is version of image, but set only to apply to subversions of itself. eg. for "filename0_004":
+            # "filename0_002" (all_forward) matches ("filename0_003", "filename0_004", "filename0_005", etc), but
+            # "filename0_002" (all) does not match ("filename0_002_001", "filename0_002_002", "filename0_002_003", etc).
+            print(f" - {s['path']} does not match (is its own base file, so excluded from set of versions of this image).")
+            continue
+        
+        if suffix != s_suff:
+            # accepts only same extension.
+            print(f" - {s['path']} does not match (different extension).")
+            continue
+        
+        if match_version_number < s_mvn:
+            # these settings are for a later version.
+            print(f" - {s['path']} does not match (settings for later versions only).")
+            continue
+        
+        if best_version_number > s_mvn:
+            # it's a match, but we already have a better match.
+            print(f" - {s['path']} does match, but a better match has already been found.")
+            continue
+        
+        print(f" - {s['path']} matches, new best.")
+        best_s = s
+        best_version_number = s_mvn
+        
+        # can't do this, may yet find exact match if continue looking.
+        # if s_mvn == match_version_number - 1:
+            # # won't find a closer match.
+            # print(f" - {s['path']} is as close a match as you can get.")
+            # print("   done.")
+            # return s
+    
+    if best_s:
+        print(f"best settings found were for {best_s['path']}.")
+    else:
+        print("no matching settings were found.")
+    print("done.")
+    return best_s
 
 def generate_save_string():
     save_strings = []
@@ -357,8 +462,11 @@ def generate_save_string():
         scale_strings.append(f"r={s['scale_res']:.4f}".rstrip('0').rstrip('.') if s['scale_res'] != -1 else "")
         scale_string = ",".join([x for x in scale_strings if x != ""])
         
+        versions_string = {'single':'s', 'all':'a', 'all_forward':'f'}[s['versions']]
+        
         save_strings.append(
             f"path={escape_settings_string(str(s['path']))},"
+            f"v={versions_string},"
             f"output={escape_settings_string(serialize_stored_output_string(s['path'].parent, s['output_is_abs'], s['output_abs_dir'], s['output_name']))},"
             f"ext={s['ext']},"
             f"scale=["
@@ -570,3 +678,18 @@ def truncated_name_suggestions(text):
             l.append(text[ss:se])
             ss = se
     return l
+
+def base_stem_and_version_number_for_versioned_file(file_path):
+    """
+    for file with stem "filename0_003", return ("filename0", 3).
+    for file with stem "filename0_003_007", return ("filename0_003", 7).
+    if not versioned, eg. "filename0", return ("filename0", 0).
+    """
+    matches = list(re.finditer("(_[0-9]+)$", file_path.stem))
+    base_version_stem = file_path.stem
+    match_version_num = 0
+    if matches:
+        match = matches[0]
+        base_version_stem = file_path.stem[:match.start()]
+        match_version_num = int(match.group()[1:])
+    return base_version_stem, match_version_num

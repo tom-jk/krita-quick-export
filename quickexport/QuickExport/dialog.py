@@ -273,42 +273,6 @@ class QEDialog(QDialog):
         
         options_menu.addSeparator()
         
-        use_previous_version_settings_menu = QEMenu(keep_open=False)
-        use_previous_version_settings_menu.setToolTipsVisible(True)
-        
-        use_previous_version_settings_action_group = QActionGroup(use_previous_version_settings_menu)
-        
-        use_previous_version_settings_copy_action = use_previous_version_settings_menu.addAction("Always copy settings from previous version")
-        use_previous_version_settings_copy_action.setToolTip("Make a copy of the old version settings. Separate export settings will be kept for each version of the image you export.")
-        use_previous_version_settings_copy_action.setActionGroup(use_previous_version_settings_action_group)
-        use_previous_version_settings_copy_action.setCheckable(True)
-        use_previous_version_settings_copy_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "copy"))
-        use_previous_version_settings_copy_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "copy"))
-        
-        use_previous_version_settings_replace_action = use_previous_version_settings_menu.addAction("Always replace settings of previous version (Recommended)")
-        use_previous_version_settings_replace_action.setToolTip("Replace the old version settings. Only settings for the most recently exported version will be kept.")
-        use_previous_version_settings_replace_action.setActionGroup(use_previous_version_settings_action_group)
-        use_previous_version_settings_replace_action.setCheckable(True)
-        use_previous_version_settings_replace_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "replace"))
-        use_previous_version_settings_replace_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "replace"))
-        
-        use_previous_version_settings_ignore_action = use_previous_version_settings_menu.addAction("Always ignore previous versions")
-        use_previous_version_settings_ignore_action.setActionGroup(use_previous_version_settings_action_group)
-        use_previous_version_settings_ignore_action.setCheckable(True)
-        use_previous_version_settings_ignore_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "ignore"))
-        use_previous_version_settings_ignore_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "ignore"))
-        
-        use_previous_version_settings_ask_action = use_previous_version_settings_menu.addAction("Always ask")
-        use_previous_version_settings_ask_action.setActionGroup(use_previous_version_settings_action_group)
-        use_previous_version_settings_ask_action.setCheckable(True)
-        use_previous_version_settings_ask_action.setChecked(str2qtcheckstate(readSetting("use_previous_version_settings", "replace"), "ask"))
-        use_previous_version_settings_ask_action.triggered.connect(lambda checked: writeSetting("use_previous_version_settings", "ask"))
-        
-        use_previous_version_settings_action = options_menu.addAction("When first exporting a new version of an image")
-        use_previous_version_settings_action.setMenu(use_previous_version_settings_menu)
-        
-        options_menu.addSeparator()
-        
         show_thumbnails_for_unopened_images_action = options_menu.addAction("Show thumbnails for unopened images")
         show_thumbnails_for_unopened_images_action.setToolTip("Will take effect when this dialog next runs.")
         show_thumbnails_for_unopened_images_action.setCheckable(True)
