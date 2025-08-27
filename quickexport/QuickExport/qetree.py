@@ -309,7 +309,7 @@ class QETree(QTreeWidget):
         self.__class__.instance = self
         self.dialog = dialog
         
-        #self.setIndentation(False)
+        self.setIndentation(False)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setAlternatingRowColors(True)
         self.updateAlternatingRowContrast()

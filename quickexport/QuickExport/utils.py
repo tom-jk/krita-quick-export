@@ -1,10 +1,60 @@
 from PyQt5.QtGui import QColor
+from PyQt5.QtCore import QObject
+import sip
+from timeit import default_timer
 from pathlib import Path
 from os.path import relpath
 from functools import reduce
 import re
 from krita import *
 app = Krita.instance()
+
+class WidgetBin(QObject):
+    instance = None
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.__class__.instance = self
+        
+        self.deleted_ = []
+        
+        self.update_timer = QTimer()
+        self.update_timer.setInterval(10)
+        self.update_timer.timeout.connect(self._on_update_timer_timeout)
+
+    @classmethod
+    def addWidget(cls, widget):
+        print(f"WidgetBin: adding widget {widget}.")
+        item = [
+            default_timer(),
+            widget
+        ]
+        cls.instance.deleted_.append(item)
+        
+        if not cls.instance.update_timer.isActive():
+            cls.instance.update_timer.start()
+    
+    def _on_update_timer_timeout(self):
+        current_time = default_timer()
+        item_index = 0
+        while True:
+            item = self.deleted_[item_index]
+            delete_time = item[0]
+            if current_time - delete_time > 0.01:
+                print(f"WidgetBin: deleting widget {item[1]}.")
+                self.deleted_.pop(item_index)
+                sip.delete(item[1])
+                del item
+                if len(self.deleted_) == 0:
+                    self.update_timer.stop()
+                    break
+            else:
+                item_index += 1
+                if item_index >= len(self.deleted_):
+                    break
+
+widget_bin = WidgetBin()
 
 qe_settings = []
 

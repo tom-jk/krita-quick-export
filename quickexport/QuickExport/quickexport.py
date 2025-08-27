@@ -330,13 +330,9 @@ class QuickExportExtension(Extension):
         # ensure settings up to date.
         load_settings_from_config()
         
-        # TODO: reuse instead of destroy?
-        dialog = QEDialog(msg=msg, doc=doc)
-        dialog.exec_()
-        del dialog
-        
-        # reload settings to remove temporary stuff (TODO: automatic based on store flag?)
-        load_settings_from_config()
+        dialog = QEDialog.instance or QEDialog()
+        dialog.setup(msg=msg, doc=doc)
+        dialog.show()
 
 # And add the extension to Krita's list of extensions:
 app.addExtension(QuickExportExtension(app))

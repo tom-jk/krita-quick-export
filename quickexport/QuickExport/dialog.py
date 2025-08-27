@@ -23,15 +23,21 @@ app = Krita.instance()
 class QEDialog(QDialog):
     instance = None
 
-    def __init__(self, msg="", doc=None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         self.__class__.instance = self
 
+        self.setWindowModality(Qt.ApplicationModal)
+
+        self.first_setup()
+
+    def setup(self, msg="", doc=None):
+        
         self.highlighted_doc = doc
-
-        layout = QVBoxLayout()
-
+        
+        layout = self.layout()
+        
         # TODO: save user changes to tree column sizes and retrieve at each start.
         self.tree_is_ready = False
         self.tree = QETree(self)
@@ -39,8 +45,27 @@ class QEDialog(QDialog):
         # TODO: disallow sorting by thumbnail and action button columns.
         self.tree.setSortingEnabled(True)
         self.tree.sortByColumn(QECols.OPEN_FILE_COLUMN, Qt.AscendingOrder)
-        layout.addWidget(self.tree)
+        layout.insertWidget(0, self.tree)
         self.tree_is_ready = True
+        self.tree.set_settings_modified()
+        
+        self.set_advanced_mode(self.advanced_mode_button.checkState() == Qt.Checked)
+        
+        self.update_show_extensions_in_list_for_all_types()
+        
+        # status bar.
+        self.sbar_ready_label.setText(" Ready." if msg == "" else " "+msg) # extra space to align with showmessage.
+        
+        # TODO: inform user about having multiple copies of same file open.
+        if len(self.tree.dup_counts) == 1:
+            self.sbar_ready_label.setText(f"Note: Multiple copies of '{list(self.tree.dup_counts.keys())[0]}' are currently open in Krita.")
+        elif len(self.tree.dup_counts) > 1:
+            self.sbar_ready_label.setText(f"Note: Multiple copies of multiple files (hover mouse here to see) are currently open in Krita.")
+            self.sbar_ready_label.setToolTip("\n".join(self.tree.dup_counts.keys()))
+
+    def first_setup(self):
+
+        layout = QVBoxLayout()
 
         view_buttons = QWidget()
         view_buttons_layout = QHBoxLayout()
@@ -180,8 +205,6 @@ class QEDialog(QDialog):
         config_buttons.setLayout(config_buttons_layout)
         layout.addWidget(config_buttons)
 
-        self.set_advanced_mode(self.advanced_mode_button.checkState() == Qt.Checked)
-
         # status bar area.
         status_widget = QWidget()
         status_layout = QHBoxLayout()
@@ -309,29 +332,20 @@ class QEDialog(QDialog):
         show_extensions_in_list_action = options_menu.addAction("Visible file types")
         show_extensions_in_list_action.setMenu(self.show_extensions_in_list_menu)
         
-        self.update_show_extensions_in_list_for_all_types()
-        
         options_button.setMenu(options_menu)
         
         # status bar.
         # TODO: allow custom prompt messages on startup to be reset once eg. an image has been exported?
         self.sbar = QStatusBar()
-        sbar_ready_label = QLabel(" Ready." if msg == "" else " "+msg) # extra space to align with showmessage.
-        self.sbar.insertWidget(0, sbar_ready_label)
+        self.sbar_ready_label = QLabel()
+        self.sbar.insertWidget(0, self.sbar_ready_label)
         status_layout.addWidget(self.sbar)
         
         status_layout.setContentsMargins(0,0,0,0)
         status_widget.setLayout(status_layout)
         layout.addWidget(status_widget)
-        
-        # TODO: inform user about having multiple copies of same file open.
-        if len(self.tree.dup_counts) == 1:
-            sbar_ready_label.setText(f"Note: Multiple copies of '{list(self.tree.dup_counts.keys())[0]}' are currently open in Krita.")
-        elif len(self.tree.dup_counts) > 1:
-            sbar_ready_label.setText(f"Note: Multiple copies of multiple files (hover mouse here to see) are currently open in Krita.")
-            sbar_ready_label.setToolTip("\n".join(self.tree.dup_counts.keys()))
 
-        # create dialog and show it
+        # setup dialog window.
         self.setLayout(layout)
         self.setWindowTitle("Quick Export")
         dialog_width = int(readSetting("dialogWidth", "1024"))
@@ -367,8 +381,15 @@ class QEDialog(QDialog):
         
         self.tree.thumbnail_worker.close()
         
+        self.layout().removeWidget(self.tree)
+        WidgetBin.addWidget(self.tree)
+        QETree.instance = None
+        self.tree = None
+        
         if ret == QMessageBox.Save:
             save_settings_to_config()
+        else:
+            load_settings_from_config()
         
         extension().update_quick_export_display()
         event.accept()
