@@ -65,7 +65,7 @@ setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_k
                     "custom_icons_theme":"follow", "show_export_name_in_menu":"true", "default_export_unsaved":"false", "show_thumbnails_for_unopened":"true",
                     "visible_types":".jpg .jpeg .png", "dialogWidth":"1024", "dialogHeight":"640", "settings":""}
 
-filter_strategy_store_strings = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BS":"BSpline", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
+filter_strategy_store_strings = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BSpline":"BS", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
 
 def set_extension(extension):
     global qe_extension
