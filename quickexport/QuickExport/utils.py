@@ -546,6 +546,9 @@ def auto_filter_strategy(original_width, original_height, desired_width, desired
 
     return "NearestNeighbor"
 
+def export_file_path(settings):
+    return settings["output_abs_dir"].joinpath(settings["output_name"]+settings["ext"])
+
 export_failed_msg_ = ""
 
 def export_failed_msg():
@@ -589,7 +592,7 @@ def export_image(settings, document=None):
         exportParameters.setProperty("storeMetaData",         settings["jpeg_metadata"])        # not documented.
         exportParameters.setProperty("storeAuthor",           settings["jpeg_author"])          # not documented.
     
-    export_path = settings["output_abs_dir"].joinpath(settings["output_name"]).with_suffix(settings["ext"])
+    export_path = export_file_path(settings)
     
     if not document:
         document = settings["document"]

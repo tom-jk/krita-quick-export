@@ -245,7 +245,7 @@ class QuickExportExtension(Extension):
             print(f"QE: Export failed! {failed_msg}")
             app.activeWindow().activeView().showFloatingMessage(f"Export failed! {failed_msg}", app.icon('warning'), 5000, 0)
         else:
-            export_path = file_settings['output_abs_dir'].joinpath(file_settings['output_name']).with_suffix(file_settings['ext'])
+            export_path = export_file_path(file_settings)
             print(f"QE: Exported to '{str(export_path)}'")
             app.activeWindow().activeView().showFloatingMessage(f"Exported to '{str(export_path)}'", app.icon('document-export'), 5000, 1)
     

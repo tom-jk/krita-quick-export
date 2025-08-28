@@ -166,8 +166,17 @@ class QETree(QTreeWidget):
         item.setExpanded(checked)
         button.setIcon(app.icon("arrowup") if checked else app.icon("arrowdown"))
     
-    def _on_output_name_edit_editing_finished(self, doc, edit, item, store_button):
+    def _on_output_name_edit_editing_finished(self, doc, warning_label, edit, item, store_button):
         doc["output_name"] = edit.text()
+        if any(doc["output_name"].endswith((match:=ext)) for ext in supported_extensions()):
+            warning_label.setText(f"Exporting with name ending '{match}{doc['ext']}'")
+            if not warning_label.isVisible():
+                warning_label.show()
+                self.scheduleDelayedItemsLayout()
+        else:
+            if warning_label.isVisible():
+                warning_label.hide()
+                self.scheduleDelayedItemsLayout()
         item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output_name"].lower())
         #print("_on_output_lineedit_changed ->", doc["output"])
         self.set_settings_modified(store_button)
@@ -184,7 +193,7 @@ class QETree(QTreeWidget):
             self.dialog.sbar.showMessage(f"Export failed. {failed_msg}")
         else:
             self.sender().setIcon(app.icon('dialog-ok'))
-            self.dialog.sbar.showMessage(f"Exported to '{str(doc['output_abs_dir'].joinpath(doc['output_name']).with_suffix(doc['ext']))}'")
+            self.dialog.sbar.showMessage(f"Exported to '{export_file_path(doc)}'")
         
         if self.dialog.auto_store_on_export_button.checkState() == Qt.Checked:
             store_button.setCheckState(Qt.Checked)
@@ -247,13 +256,7 @@ class QETree(QTreeWidget):
         elif value == "change":
             print("Selected Change...")
             
-            if False:
-                if path_button.text() == "." or path_button.text().startswith("./"):
-                    file_path = doc["path"].with_name(Path(doc["output_name"]).name).with_suffix(doc["ext"])
-                else:
-                    file_path = Path(doc["output_name"]).with_suffix(doc["ext"])
-            else:
-                file_path = doc["output_abs_dir"].joinpath(doc["output_name"]).with_suffix(doc["ext"])
+            file_path = export_file_path(doc)
             
             file_path_string = QFileDialog.getSaveFileName(
                 parent = self,
@@ -655,12 +658,29 @@ class QETree(QTreeWidget):
         self.setItemWidget(item, QECols.OUTPUT_FILEPATH_COLUMN, output_path_button)
         item.setData(QECols.OUTPUT_FILEPATH_COLUMN, QERoles.CustomSortRole, file_path_parent.lower())
         
-        output_name_edit.edit.editingFinished.connect(lambda d=s, e=output_name_edit.edit, i=item, sb=btn_store_forget: self._on_output_name_edit_editing_finished(d, e, i, sb))
-        
         output_name_edit.edit.document().contentsChanged.connect(output_name_edit.edit.recalc_height)
         output_name_edit.edit.document().contentsChanged.connect(self.scheduleDelayedItemsLayout)
         
-        self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_name_edit)
+        output_name_container_widget = QWidget()
+        output_name_container_widget_layout = QVBoxLayout(output_name_container_widget)
+        output_name_container_widget_layout.setSpacing(2)
+        
+        output_name_container_widget_layout.addWidget(output_name_edit)
+        
+        output_name_warning = QLabel("")
+        output_name_warning.hide()
+        output_name_warning.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        output_name_warning_opacity = QGraphicsOpacityEffect(output_name_warning)
+        output_name_warning_opacity.setOpacity(0.67)
+        output_name_warning.setGraphicsEffect(output_name_warning_opacity)
+        output_name_warning_font = QFont(output_name_warning.font())
+        output_name_warning_font.setPointSize(round(output_name_warning_font.pointSize()/1.5))
+        output_name_warning.setFont(output_name_warning_font)
+        output_name_container_widget_layout.addWidget(output_name_warning)
+        
+        output_name_edit.edit.editingFinished.connect(lambda d=s, w=output_name_warning, e=output_name_edit.edit, i=item, sb=btn_store_forget: self._on_output_name_edit_editing_finished(d, w, e, i, sb))
+        
+        self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_name_container_widget)
         item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output_name"].lower())
         
         outputext_widget = QWidget()
