@@ -60,6 +60,11 @@ qe_settings = []
 
 qe_extension = None
 
+setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_kra":"false", "alt_row_contrast":"100", "unhovered_fade":"75", "highlight_alpha":"64",
+                    "advanced_mode":"false", "auto_store_on_modify":"true", "auto_store_on_export":"true", "auto_save_on_close":"true", "use_custom_icons":"true",
+                    "custom_icons_theme":"follow", "show_export_name_in_menu":"true", "default_export_unsaved":"false", "show_thumbnails_for_unopened":"true",
+                    "visible_types":".jpg .jpeg .png", "dialogWidth":"1024", "dialogHeight":"640", "settings":""}
+
 filter_strategy_store_strings = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BS":"BSpline", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
 
 def set_extension(extension):
@@ -69,8 +74,8 @@ def set_extension(extension):
 def extension():
     return qe_extension
 
-def readSetting(setting, default_value):
-    return app.readSetting("TomJK_QuickExport", setting, default_value)
+def readSetting(setting):
+    return app.readSetting("TomJK_QuickExport", setting, setting_defaults[setting])
 
 def writeSetting(setting, value):
     app.writeSetting("TomJK_QuickExport", setting, value)
@@ -235,7 +240,7 @@ def load_settings_from_config():
     
     qe_settings.clear()
     
-    settings_string = readSetting("settings", "")
+    settings_string = readSetting("settings")
     #print(f"{settings_string=}")
     
     if settings_string == "":

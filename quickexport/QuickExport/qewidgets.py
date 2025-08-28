@@ -172,7 +172,7 @@ class FadingStackedWidget(QStackedWidget):
         self.setOpacity(hover=False)
     
     def setOpacity(self, opacity=-1, hover=False):
-        fade = int(readSetting("unhovered_fade", "75")) / 100.0
+        fade = int(readSetting("unhovered_fade")) / 100.0
         if opacity == -1:
             opacity = 1.0 if hover else fade
         self._opacity.setOpacity(opacity)

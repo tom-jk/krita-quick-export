@@ -75,19 +75,19 @@ class QEDialog(QDialog):
         # show unstored button.
         self.show_unstored_button = QCheckBox("Show unstored")
         self.show_unstored_button.setToolTip("Enable this to pick the images you're interested in exporting, then disable it to hide the rest.")
-        self.show_unstored_button.setCheckState(str2qtcheckstate(readSetting("show_unstored", "true")))
+        self.show_unstored_button.setCheckState(str2qtcheckstate(readSetting("show_unstored")))
         self.show_unstored_button.clicked.connect(self._on_show_unstored_button_clicked)
 
         # show unopened button.
         self.show_unopened_button = QCheckBox("Show unopened")
         self.show_unopened_button.setToolTip("Show the export settings of every file - currently open or not - for which settings have been saved.")
-        self.show_unopened_button.setCheckState(str2qtcheckstate(readSetting("show_unopened", "false")))
+        self.show_unopened_button.setCheckState(str2qtcheckstate(readSetting("show_unopened")))
         self.show_unopened_button.clicked.connect(self._on_show_unopened_button_clicked)
 
         # show .png files button.
         self.show_non_kra_button = QCheckBox("Show non-kra files")
         self.show_non_kra_button.setToolTip("Show export settings for files of usually exported types, such as .png and .jpg. Disabled by default because it's kind of redundant.")
-        self.show_non_kra_button.setCheckState(str2qtcheckstate(readSetting("show_non_kra", "false")))
+        self.show_non_kra_button.setCheckState(str2qtcheckstate(readSetting("show_non_kra")))
         self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
 
         # slider for adjusting strength of alternate row colouring.
@@ -103,7 +103,7 @@ class QEDialog(QDialog):
         alt_row_contrast_layout.addWidget(alt_row_contrast_label)
 
         self.alt_row_contrast_slider = SnapSlider(2, 0, 100, Qt.Horizontal)
-        self.alt_row_contrast_slider.setValue(int(readSetting("alt_row_contrast", "100")))
+        self.alt_row_contrast_slider.setValue(int(readSetting("alt_row_contrast")))
         self.alt_row_contrast_slider.setMinimumWidth(64)
         self.alt_row_contrast_slider.valueChanged.connect(self._on_alt_row_contrast_slider_value_changed)
         alt_row_contrast_layout.addWidget(self.alt_row_contrast_slider)
@@ -123,7 +123,7 @@ class QEDialog(QDialog):
         unhovered_fade_layout.addWidget(unhovered_fade_label)
 
         self.unhovered_fade_slider = SnapSlider(5, 0, 100, Qt.Horizontal)
-        self.unhovered_fade_slider.setValue(int(readSetting("unhovered_fade", "75")))
+        self.unhovered_fade_slider.setValue(int(readSetting("unhovered_fade")))
         self.unhovered_fade_slider.setMinimumWidth(64)
         self.unhovered_fade_slider.valueChanged.connect(self._on_unhovered_fade_slider_value_changed)
         unhovered_fade_layout.addWidget(self.unhovered_fade_slider)
@@ -143,7 +143,7 @@ class QEDialog(QDialog):
         stored_highlight_layout.addWidget(stored_highlight_label)
 
         self.stored_highlight_slider = SnapSlider(8, 0, 64, Qt.Horizontal)
-        self.stored_highlight_slider.setValue(int(readSetting("highlight_alpha", "64")))
+        self.stored_highlight_slider.setValue(int(readSetting("highlight_alpha")))
         self.stored_highlight_slider.setMinimumWidth(64)
         self.stored_highlight_slider.valueChanged.connect(self._on_stored_highlight_slider_value_changed)
         stored_highlight_layout.addWidget(self.stored_highlight_slider)
@@ -168,25 +168,25 @@ class QEDialog(QDialog):
         # advanced mode button.
         self.advanced_mode_button = QCheckBox("Advanced mode")
         self.advanced_mode_button.setToolTip("Basic mode: export settings are saved by default (recommended).\nAdvanced mode: configure how settings are stored.")
-        self.advanced_mode_button.setCheckState(str2qtcheckstate(readSetting("advanced_mode", "false")))
+        self.advanced_mode_button.setCheckState(str2qtcheckstate(readSetting("advanced_mode")))
         self.advanced_mode_button.clicked.connect(self._on_advanced_mode_button_clicked)
 
         # auto store for modified button.
         self.auto_store_on_modify_button = QCheckBox("Store on modify")
         self.auto_store_on_modify_button.setToolTip("Automatically check the store button for a file when you modify any of its export settings.")
-        self.auto_store_on_modify_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_modify", "true")))
+        self.auto_store_on_modify_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_modify")))
         self.auto_store_on_modify_button.clicked.connect(self._on_auto_store_on_modify_button_clicked)
 
         # auto store for exported button.
         self.auto_store_on_export_button = QCheckBox("Store on export")
         self.auto_store_on_export_button.setToolTip("Automatically check the store button for a file when you export it.")
-        self.auto_store_on_export_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_export", "true")))
+        self.auto_store_on_export_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_export")))
         self.auto_store_on_export_button.clicked.connect(self._on_auto_store_on_export_button_clicked)
 
         # auto save settings on close button.
         self.auto_save_on_close_button = QCheckBox("Save settings on close")
         self.auto_save_on_close_button.setToolTip("Automatically save changes to settings without asking when you close the dialog.")
-        self.auto_save_on_close_button.setCheckState(str2qtcheckstate(readSetting("auto_save_on_close", "true")))
+        self.auto_save_on_close_button.setCheckState(str2qtcheckstate(readSetting("auto_save_on_close")))
         self.auto_save_on_close_button.clicked.connect(self._on_auto_save_on_close_button_clicked)
 
         # save button.
@@ -226,7 +226,7 @@ class QEDialog(QDialog):
 
         use_custom_icons_action = custom_icons_menu.addAction("Use custom icons")
         use_custom_icons_action.setCheckable(True)
-        use_custom_icons_action.setChecked(str2qtcheckstate(readSetting("use_custom_icons", "true")))
+        use_custom_icons_action.setChecked(str2qtcheckstate(readSetting("use_custom_icons")))
         use_custom_icons_action.toggled.connect(self._on_use_custom_icons_action_toggled)
 
         custom_icons_menu.addSeparator()
@@ -240,17 +240,17 @@ class QEDialog(QDialog):
                                              "If there are no such keywords, assumes light theme. You can force a theme if the guess is wrong.")
         icons_follow_theme_action.setActionGroup(custom_icons_theme_action_group)
         icons_follow_theme_action.setCheckable(True)
-        icons_follow_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme", "follow"), "follow"))
+        icons_follow_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme"), "follow"))
 
         icons_light_theme_action = custom_icons_menu.addAction("Use light theme icons")
         icons_light_theme_action.setActionGroup(custom_icons_theme_action_group)
         icons_light_theme_action.setCheckable(True)
-        icons_light_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme", "follow"), "light"))
+        icons_light_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme"), "light"))
 
         icons_dark_theme_action = custom_icons_menu.addAction("Use dark theme icons")
         icons_dark_theme_action.setActionGroup(custom_icons_theme_action_group)
         icons_dark_theme_action.setCheckable(True)
-        icons_dark_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme", "follow"), "dark"))
+        icons_dark_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme"), "dark"))
 
         custom_icons_action = options_menu.addAction("Custom icons")
         custom_icons_action.setMenu(custom_icons_menu)
@@ -261,14 +261,14 @@ class QEDialog(QDialog):
         show_export_name_in_menu_action.setToolTip("When possible, show in the File menu as 'Quick Export to 'myImageName.png'.\n" \
                                                    "Otherwise show as 'Quick Export' only.")
         show_export_name_in_menu_action.setCheckable(True)
-        show_export_name_in_menu_action.setChecked(str2qtcheckstate(readSetting("show_export_name_in_menu", "true")))
+        show_export_name_in_menu_action.setChecked(str2qtcheckstate(readSetting("show_export_name_in_menu")))
         show_export_name_in_menu_action.toggled.connect(self._on_show_export_name_in_menu_action_toggled)
         
         default_export_unsaved_action = options_menu.addAction("Default export for unsaved images")
         default_export_unsaved_action.setToolTip("Run the normal Krita exporter when you press Quick Export for not-yet-saved images.\n" \
                                                  "Otherwise don't export, just show a reminder to save the file.")
         default_export_unsaved_action.setCheckable(True)
-        default_export_unsaved_action.setChecked(str2qtcheckstate(readSetting("default_export_unsaved", "false")))
+        default_export_unsaved_action.setChecked(str2qtcheckstate(readSetting("default_export_unsaved")))
         default_export_unsaved_action.toggled.connect(self._on_default_export_unsaved_action_toggled)
         
         options_menu.addSeparator()
@@ -276,15 +276,15 @@ class QEDialog(QDialog):
         show_thumbnails_for_unopened_images_action = options_menu.addAction("Show thumbnails for unopened images")
         show_thumbnails_for_unopened_images_action.setToolTip("Will take effect when this dialog next runs.")
         show_thumbnails_for_unopened_images_action.setCheckable(True)
-        show_thumbnails_for_unopened_images_action.setChecked(str2qtcheckstate(readSetting("show_thumbnails_for_unopened", "true")))
+        show_thumbnails_for_unopened_images_action.setChecked(str2qtcheckstate(readSetting("show_thumbnails_for_unopened")))
         show_thumbnails_for_unopened_images_action.toggled.connect(lambda checked: writeSetting("show_thumbnails_for_unopened", bool2str(checked)))
         
         self.show_extensions_in_list_menu = QEMenu()
-        visible_extensions = readSetting("visible_types", ".jpg .jpeg .png").split(" ")
+        visible_extensions = readSetting("visible_types").split(" ")
         
         if len(visible_extensions) == 0 or not any(test in supported_extensions() for test in visible_extensions):
             # bad config, reset to default.
-            writeSetting("visible_types", ".jpg .jpeg .png")
+            writeSetting("visible_types", setting_defaults["visible_types"])
             visible_extensions = (".jpg", ".jpeg", ".png")
         
         for ext in supported_extensions():
@@ -312,8 +312,8 @@ class QEDialog(QDialog):
         # setup dialog window.
         self.setLayout(layout)
         self.setWindowTitle("Quick Export")
-        dialog_width = int(readSetting("dialogWidth", "1024"))
-        dialog_height = int(readSetting("dialogHeight", "640"))
+        dialog_width = int(readSetting("dialogWidth"))
+        dialog_height = int(readSetting("dialogHeight"))
         self.resize(dialog_width, dialog_height)
 
     def resizeEvent(self, event):
@@ -394,13 +394,13 @@ class QEDialog(QDialog):
         if enabled:
             self.tree.showColumn(QECols.STORE_SETTINGS_COLUMN)
             self.show_unstored_button.show()
-            self.show_unstored_button.setCheckState(str2qtcheckstate(readSetting("show_unstored", "true")))
+            self.show_unstored_button.setCheckState(str2qtcheckstate(readSetting("show_unstored")))
             self.auto_store_on_modify_button.show()
-            self.auto_store_on_modify_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_modify", "true")))
+            self.auto_store_on_modify_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_modify")))
             self.auto_store_on_export_button.show()
-            self.auto_store_on_export_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_export", "true")))
+            self.auto_store_on_export_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_export")))
             self.auto_save_on_close_button.show()
-            self.auto_save_on_close_button.setCheckState(str2qtcheckstate(readSetting("auto_save_on_close", "true")))
+            self.auto_save_on_close_button.setCheckState(str2qtcheckstate(readSetting("auto_save_on_close")))
             self.save_button.show()
         else:
             self.tree.hideColumn(QECols.STORE_SETTINGS_COLUMN)

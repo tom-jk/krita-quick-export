@@ -50,7 +50,7 @@ class ItemDelegate(QStyledItemDelegate):
         if is_highlighted:
             painter.fillRect(option.rect, QColor(192,255,96,48))
         if is_stored:
-            painter.fillRect(option.rect, QColor(64,128,255,int(readSetting("highlight_alpha", "64"))))
+            painter.fillRect(option.rect, QColor(64,128,255,int(readSetting("highlight_alpha"))))
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     def __init__(self, doc_settings=None, *args, **kwargs):
@@ -122,9 +122,9 @@ class QETree(QTreeWidget):
         self.hovered_item = None
     
     def refilter(self):
-        show_unstored = str2bool(readSetting("show_unstored", "true"))
-        show_unopened = str2bool(readSetting("show_unopened", "false"))
-        show_non_kra  = str2bool(readSetting("show_non_kra",  "false"))
+        show_unstored = str2bool(readSetting("show_unstored"))
+        show_unopened = str2bool(readSetting("show_unopened"))
+        show_non_kra  = str2bool(readSetting("show_non_kra"))
         for index, s in enumerate(qe_settings):
             self.items[index].setHidden(
                    (not show_unstored and s["store"] == False)
@@ -320,7 +320,7 @@ class QETree(QTreeWidget):
         if not self.dialog.tree_is_ready:
             return
         
-        if generate_save_string() != readSetting("settings", ""):
+        if generate_save_string() != readSetting("settings"):
             if not self.dialog.save_button.isEnabled():
                 self.dialog.save_button.setText("Save Settings*")
                 self.dialog.save_button.setDisabled(False)
@@ -552,7 +552,7 @@ class QETree(QTreeWidget):
                 item.setText(QECols.OPEN_FILE_COLUMN, "*")
                 item.setTextAlignment(QECols.OPEN_FILE_COLUMN, Qt.AlignCenter)
         else:
-            if str2bool(readSetting("show_thumbnails_for_unopened", "true")):
+            if str2bool(readSetting("show_thumbnails_for_unopened")):
                 self.thumbnail_queue.append([s["path"], item])
             item.setDisabled(True)
             btn_open = QPushButton("")
@@ -995,7 +995,7 @@ class QETree(QTreeWidget):
         pal = QApplication.palette()
         base = pal.color(QPalette.Base)
         altbase = pal.color(QPalette.AlternateBase)
-        f = int(readSetting("alt_row_contrast", str(100))) * 0.01
+        f = int(readSetting("alt_row_contrast")) * 0.01
         pal.setColor(QPalette.AlternateBase, QColor(
             round(base.red()   + (altbase.red()   - base.red())   * f - 0.333),
             round(base.green() + (altbase.green() - base.green()) * f),
