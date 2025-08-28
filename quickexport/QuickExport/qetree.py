@@ -39,13 +39,37 @@ class ItemDelegate(QStyledItemDelegate):
         return size
     
     def paint(self, painter, option, index):
+        tree = QETree.instance
+        
         # TODO: lightly highlight row if mouse over.
-        if QETree.instance.indexOfTopLevelItem(QETree.instance.itemFromIndex(index)) != -1:
-            is_highlighted = index.model().index(index.row(), QECols.OPEN_FILE_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == QETree.instance.highlighted_doc_index
+        if tree.indexOfTopLevelItem(tree.itemFromIndex(index)) != -1:
+            is_highlighted = index.model().index(index.row(), QECols.OPEN_FILE_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == tree.highlighted_doc_index
             is_stored = index.model().index(index.row(), QECols.STORE_SETTINGS_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == "1"
         else:
             is_highlighted = False
             is_stored = False
+            
+            header = tree.header()
+            visual_index_for_span_start_col = header.visualIndex(QECols.SOURCE_FILEPATH_COLUMN)
+            visual_index_for_this_col = header.visualIndex(index.column())
+            if visual_index_for_this_col >= visual_index_for_span_start_col:
+                left_margin = 5
+                item = tree.itemFromIndex(index)
+                text = item.data(QECols.SOURCE_FILEPATH_COLUMN, QERoles.CustomSortRole)
+                vRect = option.rect.translated(0,0) # (makes copy)
+                x = vRect.left()
+                for visual_index in range(visual_index_for_span_start_col, visual_index_for_this_col):
+                    x -= header.sectionSize(header.logicalIndex(visual_index))
+                vRect.setLeft(x + left_margin)
+                painter.save()
+                painter.setClipping(True)
+                painter.setClipRect(option.rect)
+                painter.drawText(vRect, Qt.AlignLeft, text)
+                painter.restore()
+            else:
+                super().paint(painter, option, index)
+            return
+            
         super().paint(painter, option, index)
         if is_highlighted:
             painter.fillRect(option.rect, QColor(192,255,96,48))
@@ -913,6 +937,8 @@ class QETree(QTreeWidget):
         
         new_subitem_texts = []
         
+        col = QECols.SOURCE_FILEPATH_COLUMN
+        
         # add new items.
         for test_path in file_path.parent.glob(f"{bvs}*{suf}"):
             if find_settings_for_file(test_path) != doc:
@@ -920,7 +946,7 @@ class QETree(QTreeWidget):
             subitem = None
             for index_ in range(item.childCount()):
                 item_ = item.child(index_)
-                if item_.data(0, QERoles.CustomSortRole) == test_path.name:
+                if item_.data(col, QERoles.CustomSortRole) == test_path.name:
                     still_used_subitem[index_] = True
                     subitem = item_
                     break
@@ -935,8 +961,8 @@ class QETree(QTreeWidget):
         while index < len(new_subitem_texts) and index < len(unused_subitems):
             subitem = unused_subitems[index]
             text = new_subitem_texts[index]
-            subitem.setText(0, text)
-            subitem.setData(0, QERoles.CustomSortRole, text)
+            subitem.setText(col, text)
+            subitem.setData(col, QERoles.CustomSortRole, text)
             index += 1
         
         # removed unused subitems, if any remain.
@@ -947,12 +973,11 @@ class QETree(QTreeWidget):
         # add new subitems for remaining names, if any.
         while index < len(new_subitem_texts):
             subitem = QTreeWidgetItem(item)
-            subitem.setFirstColumnSpanned(True)
-            subitem.setText(0, new_subitem_texts[index])
-            subitem.setData(0, QERoles.CustomSortRole, new_subitem_texts[index])
+            subitem.setText(col, new_subitem_texts[index])
+            subitem.setData(col, QERoles.CustomSortRole, new_subitem_texts[index])
             index += 1
         
-        item.sortChildren(0, Qt.AscendingOrder)
+        item.sortChildren(col, Qt.AscendingOrder)
 
     def thumbnail_worker_process(self):
         print("thumbnail worker: start.")
