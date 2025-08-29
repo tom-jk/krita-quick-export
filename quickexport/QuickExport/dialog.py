@@ -315,10 +315,6 @@ class QEDialog(QDialog):
         dialog_width = int(readSetting("dialogWidth"))
         dialog_height = int(readSetting("dialogHeight"))
         self.resize(dialog_width, dialog_height)
-
-    def resizeEvent(self, event):
-        writeSetting("dialogWidth", str(event.size().width()))
-        writeSetting("dialogHeight", str(event.size().height()))
     
     def reject(self):
         self.close()
@@ -343,7 +339,15 @@ class QEDialog(QDialog):
             event.ignore()
             return
         
+        writeSetting("dialogWidth", str(self.size().width()))
+        writeSetting("dialogHeight", str(self.size().height()))
+        
         self.tree.thumbnail_worker.close()
+        
+        state = self.tree.header().saveState()
+        state_str = str(state.toBase64()).lstrip("b'").rstrip("'")
+        #print(f"save columns: {state_str=}")
+        writeSetting("columns_state", state_str)
         
         self.layout().removeWidget(self.tree)
         WidgetBin.addWidget(self.tree)

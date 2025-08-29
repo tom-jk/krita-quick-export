@@ -394,14 +394,6 @@ class QETree(QTreeWidget):
         self.header().sectionResized.connect(self._on_column_resized)
     
     def _on_column_resized(self, column, old_size, new_size):
-        if self.dialog.tree_is_ready and new_size > 0:
-            column_sizes = readSetting("column_sizes").split(" ")
-            if len(column_sizes) < column+1:
-                column_sizes.extend(["0"]*(column+1-len(column_sizes)))
-            column_sizes[column] = str(new_size)
-            #print(f"writing {column_sizes=}")
-            writeSetting("column_sizes", " ".join(column_sizes))
-        
         #print("columnResized")
         if column not in (QECols.SOURCE_FILEPATH_COLUMN, QECols.SOURCE_FILENAME_COLUMN, QECols.OUTPUT_FILEPATH_COLUMN, QECols.OUTPUT_FILENAME_COLUMN, QECols.SETTINGS_COLUMN):
             return
@@ -516,15 +508,9 @@ class QETree(QTreeWidget):
         
         self.refilter()
         
-        column_sizes = readSetting("column_sizes").split(" ")
-        #print(f"reading {column_sizes=}")
-        
-        for i in range(0, QECols.COLUMN_COUNT):
-            size = int(column_sizes[i]) if i < len(column_sizes) else 0
-            if size <= 0:
+        if not self.restore_columns():
+            for i in range(0, QECols.COLUMN_COUNT):
                 self.resizeColumnToContents(i)
-            else:
-                self.setColumnWidth(i, size)
         
         QTimer.singleShot(0, self.scheduleDelayedItemsLayout)
 
@@ -538,6 +524,14 @@ class QETree(QTreeWidget):
         self.thumbnail_worker_timer.setSingleShot(True)
         self.thumbnail_worker_timer.timeout.connect(lambda: next(self.thumbnail_worker, None))
         self.thumbnail_worker_timer.start()
+    
+    def restore_columns(self):
+        state_str = readSetting("columns_state")
+        if state_str == "":
+            return False
+        state = QByteArray.fromBase64(bytearray(state_str, "utf-8"))
+        #print(f"restore_columns: {state=}")
+        return self.header().restoreState(state)
     
     def add_item(self, s):
         def centered_checkbox_widget(checkbox):
