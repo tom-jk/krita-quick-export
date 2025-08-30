@@ -123,6 +123,7 @@ class QuickExportExtension(Extension):
         self.update_action_icons()
     
     def set_action_icons(self):
+        self.refresh_actions()
         self.qe_action.setIcon(self.get_icon("qe"))
         self.qec_action.setIcon(self.get_icon("qec"))
     
@@ -189,7 +190,17 @@ class QuickExportExtension(Extension):
                         file_menu.insertAction(file_action, action)
                     break
     
+    def refresh_actions(self):
+        """retrieve action objects if we lose them for some reason."""
+        try:
+            self.qe_action.objectName()
+            self.qec_action.objectName()
+        except RuntimeError:
+            self.qe_action = next((a for a in app.actions() if a.objectName() == "tomjk_quick_export"), None)
+            self.qec_action = next((a for a in app.actions() if a.objectName() == "tomjk_quick_export_configure"), None)
+    
     def update_quick_export_display(self):
+        self.refresh_actions()
         window = app.activeWindow()
         view = window.activeView()
         if view:
