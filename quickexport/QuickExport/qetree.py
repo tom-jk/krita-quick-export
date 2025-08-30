@@ -750,50 +750,77 @@ class QETree(QTreeWidget):
         png_settings_page = QWidget()
         png_settings_page_layout = FlowLayout()
         
-        png_alpha_checkbox = CheckToolButton(icon_name="alpha", checked=s["png_alpha"], tooltip="store alpha channel (transparency)")
+        tooltip = "Store alpha channel (transparency)\n\n" \
+                  "Disable to get smaller files if your image has no transparency.\n\n" \
+                  "The PNG file format allows transparency in your image to be stored by saving an alpha channel.\n" \
+                  "You can uncheck the box if you are not using transparency and you want to make the resulting file smaller."
+        png_alpha_checkbox = CheckToolButton(icon_name="alpha", checked=s["png_alpha"], tooltip=tooltip)
         png_alpha_checkbox.toggled.connect(lambda checked, d=s, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_toggled(checked, d, i, sb))
         png_settings_page_layout.addWidget(png_alpha_checkbox)
         
-        png_fillcolour_button = ColourToolButton(colour=s["png_fillcolour"], tooltip="transparent colour")
+        tooltip = "Transparent color\n\n" \
+                  "Background color to replace transparent pixels with."
+        png_fillcolour_button = ColourToolButton(colour=s["png_fillcolour"], tooltip=tooltip)
         png_fillcolour_button.setDisabled(png_alpha_checkbox.isChecked())
         png_alpha_checkbox.toggled.connect(lambda checked, fcb=png_fillcolour_button: fcb.setDisabled(checked))
         png_fillcolour_button.colourChanged.connect(lambda colour, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_fillcolour", colour, d, sb))
         png_settings_page_layout.addWidget(png_fillcolour_button)
         
-        png_compression_slider = SpinBoxSlider(label_text="Compression", range_min=1, range_max=9, snap_interval=1)
+        tooltip = "Compression\n\n" \
+                  "Adjust the compression time. Better compression takes longer.\n" \
+                  "Note: the compression level does not change the quality of the result."
+        png_compression_slider = SpinBoxSlider(label_text="Compression", range_min=1, range_max=9, snap_interval=1, tooltip=tooltip)
         png_compression_slider.setValue(s["png_compression"])
         png_compression_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_compression", value, d, sb))
         png_settings_page_layout.addWidget(png_compression_slider)
         
-        png_indexed_checkbox = CheckToolButton(icon_name="indexed", checked=s["png_indexed"], tooltip="Save as indexed PNG, if possible")
+        tooltip = "Save as indexed PNG, if possible\n\n" \
+                  "Indexed PNG images are smaller.\n" \
+                  "If you enabled this option, your image will be analyzed to see whether it is possible to save as an indexed PNG."
+        png_indexed_checkbox = CheckToolButton(icon_name="indexed", checked=s["png_indexed"], tooltip=tooltip)
         png_indexed_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_indexed", checked, d, sb))
         png_settings_page_layout.addWidget(png_indexed_checkbox)
         
-        png_interlaced_checkbox = CheckToolButton(icon_name="progressive", checked=s["png_interlaced"], tooltip="interlacing")
+        tooltip = "Interlacing\n\n" \
+                  "Use interlacing when publishing on the Internet.\n\n" \
+                  "Interlacing is useful if you intend to publish your image on the Internet.\n" \
+                  "Enabling interlacing will cause the image to be displayed by the browser even while downloading."
+        png_interlaced_checkbox = CheckToolButton(icon_name="progressive", checked=s["png_interlaced"], tooltip=tooltip)
         png_interlaced_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_interlaced", checked, d, sb))
         png_settings_page_layout.addWidget(png_interlaced_checkbox)
         
-        png_hdr_checkbox = CheckToolButton(icon_name="hdr", checked=s["png_hdr"], tooltip="save as HDR image (Rec. 2020 PQ)")
+        tooltip = "Save as HDR image (Rec. 2020 PQ)"
+        png_hdr_checkbox = CheckToolButton(icon_name="hdr", checked=s["png_hdr"], tooltip=tooltip)
         png_hdr_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_hdr", checked, d, sb))
         png_settings_page_layout.addWidget(png_hdr_checkbox)
         
-        png_embed_srgb_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["png_embed_srgb"], tooltip="embed sRGB profile")
+        tooltip = "Embed sRGB profile\n\n" \
+                  "PNG files have two options to save sRGB information: as a tag or as an explicit profile.\n" \
+                  "For use within websites, disable this option.\n" \
+                  "For interchange with other applications, enable this option."
+        png_embed_srgb_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["png_embed_srgb"], tooltip=tooltip)
         png_embed_srgb_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_embed_srgb", checked, d, sb))
         png_settings_page_layout.addWidget(png_embed_srgb_checkbox)
         
-        png_force_srgb_checkbox = CheckToolButton(icon_name="force_profile", checked=s["png_force_srgb"], tooltip="force convert to sRGB")
+        tooltip = "Force convert to sRGB"
+        png_force_srgb_checkbox = CheckToolButton(icon_name="force_profile", checked=s["png_force_srgb"], tooltip=tooltip)
         png_force_srgb_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_srgb", checked, d, sb))
         png_settings_page_layout.addWidget(png_force_srgb_checkbox)
         
-        png_force_8bit_checkbox = CheckToolButton(icon_name="force_8bit", checked=s["png_force_8bit"], tooltip="force convert to 8bits/channel")
+        tooltip = "Force convert to 8bits/channel"
+        png_force_8bit_checkbox = CheckToolButton(icon_name="force_8bit", checked=s["png_force_8bit"], tooltip=tooltip)
         png_force_8bit_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_force_8bit", checked, d, sb))
         png_settings_page_layout.addWidget(png_force_8bit_checkbox)
         
-        png_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["png_metadata"], tooltip="store metadata")
+        tooltip = "Store Metadata\n\n" \
+                  "Store information like keywords, title and subject and license, if possible."
+        png_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["png_metadata"], tooltip=tooltip)
         png_metadata_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_metadata", checked, d, sb))
         png_settings_page_layout.addWidget(png_metadata_checkbox)
         
-        png_author_checkbox = CheckToolButton(icon_name="author", checked=s["png_author"], tooltip="sign with author data")
+        tooltip = "Sign with author data\n\n" \
+                  "Save author nickname and first contact information of the author profile into the png, if possible."
+        png_author_checkbox = CheckToolButton(icon_name="author", checked=s["png_author"], tooltip=tooltip)
         png_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("png_author", checked, d, sb))
         png_settings_page_layout.addWidget(png_author_checkbox)
         
@@ -809,29 +836,42 @@ class QETree(QTreeWidget):
         jpeg_settings_page = QWidget()
         jpeg_settings_page_layout = FlowLayout()
         
-        jpeg_icc_profile_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["jpeg_icc_profile"], tooltip="save ICC profile")
+        tooltip = "Save ICC profile"
+        jpeg_icc_profile_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["jpeg_icc_profile"], tooltip=tooltip)
         jpeg_icc_profile_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_icc_profile", checked, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_icc_profile_checkbox)
         
-        jpeg_fillcolour_checkbox = ColourToolButton(colour=s["jpeg_fillcolour"], tooltip="transparent pixel fill colour")
+        tooltip = "Transparent pixel fill color\n\n" \
+                  "Background color to replace transparent pixels with."
+        jpeg_fillcolour_checkbox = ColourToolButton(colour=s["jpeg_fillcolour"], tooltip=tooltip)
         jpeg_fillcolour_checkbox.colourChanged.connect(lambda colour, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_fillcolour", colour, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_fillcolour_checkbox)
         
-        jpeg_quality_slider = SpinBoxSlider(label_text="Quality", label_suffix="%", range_min=0, range_max=100, snap_interval=5)
+        tooltip = "Quality\n\n" \
+                  "Determines how much information is lost during compression.\n" \
+                  "Low: small files but bad quality. High: big files but good quality."
+        jpeg_quality_slider = SpinBoxSlider(label_text="Quality", label_suffix="%", range_min=0, range_max=100, snap_interval=5, tooltip=tooltip)
         jpeg_quality_slider.setValue(s["jpeg_quality"])
         jpeg_quality_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_quality", value, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_quality_slider)
         
-        jpeg_smooth_slider = SpinBoxSlider(label_text="Smooth", label_suffix="%", range_min=0, range_max=100, snap_interval=5)
+        tooltip = "Smooth\n\n" \
+                  "The result will be artificially smoothed to hide jpeg artifacts."
+        jpeg_smooth_slider = SpinBoxSlider(label_text="Smooth", label_suffix="%", range_min=0, range_max=100, snap_interval=5, tooltip=tooltip)
         jpeg_smooth_slider.setValue(s["jpeg_smooth"])
         jpeg_smooth_slider.valueChanged.connect(lambda value, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_smooth", value, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_smooth_slider)
         
-        jpeg_progressive_checkbox = CheckToolButton(icon_name="progressive", checked=s["jpeg_progressive"], tooltip="progressive")
+        tooltip = "Progressive\n\n" \
+                  "A progressive jpeg can be displayed while loading."
+        jpeg_progressive_checkbox = CheckToolButton(icon_name="progressive", checked=s["jpeg_progressive"], tooltip=tooltip)
         jpeg_progressive_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_progressive", checked, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_progressive_checkbox)
         
-        jpeg_subsampling_button = CheckToolButton(icon_name=("subsampling", s["jpeg_subsampling"]), checked=True, tooltip="subsampling")
+        tooltip = "Subsampling\n\n" \
+                  "Subsampling stores chroma (colour) information at a lower resolution than luma (brightness).\n" \
+                  "This takes advantage of the fact that eyes are more sensitive to variations in brightness than in colour."
+        jpeg_subsampling_button = CheckToolButton(icon_name=("subsampling", s["jpeg_subsampling"]), checked=True, tooltip=tooltip)
         jpeg_subsampling_button.setPopupMode(QToolButton.InstantPopup)
         
         jpeg_subsampling_menu = QEMenu(keep_open=False)
@@ -849,18 +889,26 @@ class QETree(QTreeWidget):
         jpeg_subsampling_button.setMenu(jpeg_subsampling_menu)
         jpeg_settings_page_layout.addWidget(jpeg_subsampling_button)
         
-        jpeg_force_baseline_checkbox = CheckToolButton(icon_name="jpeg_baseline", checked=s["jpeg_force_baseline"], tooltip="force baseline JPEG")
+        tooltip = "Force baseline JPEG\n\n" \
+                  "Force full JPEG baseline compatibility.\n" \
+                  "Only really useful for compatibility with old devices. Does nothing if Quality is above 25%."
+        jpeg_force_baseline_checkbox = CheckToolButton(icon_name="jpeg_baseline", checked=s["jpeg_force_baseline"], tooltip=tooltip)
         jpeg_force_baseline_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_force_baseline", checked, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_force_baseline_checkbox)
         
-        jpeg_optimise_checkbox = CheckToolButton(icon_name="optimise", checked=s["jpeg_optimise"], tooltip="optimise")
+        tooltip = "Optimize\n\n" \
+                  "Compute optimal compression coding for the image, otherwise use the default coding.\n" \
+                  "File size savings tend to be small. When Progressive is enabled, the image will be optimized regardless."
+        jpeg_optimise_checkbox = CheckToolButton(icon_name="optimise", checked=s["jpeg_optimise"], tooltip=tooltip)
         jpeg_optimise_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_optimise", checked, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_optimise_checkbox)
         
-        jpeg_metadata_options_button = CheckToolButton(icon_name="metadata_options", checked=s["jpeg_metadata"], tooltip="formats")
+        tooltip = "Metadata options: Formats and Filters"
+        jpeg_metadata_options_button = CheckToolButton(icon_name="metadata_options", checked=s["jpeg_metadata"], tooltip=tooltip)
         jpeg_metadata_options_button.setPopupMode(QToolButton.InstantPopup)
         
         jpeg_metadata_options_menu = QEMenu()
+        jpeg_metadata_options_menu.setToolTipsVisible(True)
         
         jpeg_metadata_options_header_action = jpeg_metadata_options_menu.addAction("Metadata formats")
         jpeg_metadata_options_header_action.setDisabled(True)
@@ -870,8 +918,8 @@ class QETree(QTreeWidget):
         
         jpeg_filters_header_action = jpeg_metadata_options_menu.addAction("Filters")
         jpeg_filters_header_action.setDisabled(True)
-        jpeg_metadata_options_info_action = jpeg_metadata_options_menu.addAction("Tool information", "tool_information")
-        jpeg_metadata_options_anon_action = jpeg_metadata_options_menu.addAction("Anonymiser", "anonymiser")
+        jpeg_metadata_options_info_action = jpeg_metadata_options_menu.addAction("Tool information", "tool_information", "Add the name of the tool used for creation and the modification date.")
+        jpeg_metadata_options_anon_action = jpeg_metadata_options_menu.addAction("Anonymiser", "anonymiser", "Remove personal information: author, location...")
         
         for action in jpeg_metadata_options_menu.actions():
             if not action.data():
@@ -883,11 +931,17 @@ class QETree(QTreeWidget):
         jpeg_metadata_options_button.setMenu(jpeg_metadata_options_menu)
         jpeg_settings_page_layout.addWidget(jpeg_metadata_options_button)
         
-        jpeg_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["jpeg_metadata"], tooltip="store metadata")
+        tooltip = "Store Document Metadata\n\n" \
+                  "Store document metadata that is in the document information.\n" \
+                  "This will override any layer metadata."
+        jpeg_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["jpeg_metadata"], tooltip=tooltip)
         jpeg_metadata_checkbox.toggled.connect(lambda checked, mob=jpeg_metadata_options_button, d=s, sb=btn_store_forget: self._on_jpeg_metadata_checkbox_toggled(checked, mob, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_metadata_checkbox)
         
-        jpeg_author_checkbox = CheckToolButton(icon_name="author", checked=s["jpeg_author"], tooltip="sign with author data")
+        tooltip = "Sign with Author Profile Data\n\n" \
+                  "Add the author nickname and the first contact of the author profile.\n" \
+                  "This is overwritten by the anonymizer."
+        jpeg_author_checkbox = CheckToolButton(icon_name="author", checked=s["jpeg_author"], tooltip=tooltip)
         jpeg_author_checkbox.toggled.connect(lambda checked, d=s, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_author", checked, d, sb))
         jpeg_settings_page_layout.addWidget(jpeg_author_checkbox)
         

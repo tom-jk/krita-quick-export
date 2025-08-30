@@ -178,7 +178,7 @@ class FadingStackedWidget(QStackedWidget):
         self._opacity.setOpacity(opacity)
 
 class SpinBoxSlider(QSpinBox):
-    def __init__(self, label_text="", label_suffix="", range_min=0, range_max=100, snap_interval=1, *args, **kwargs):
+    def __init__(self, label_text="", label_suffix="", range_min=0, range_max=100, snap_interval=1, tooltip="", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.label_text = label_text
         self.label_suffix = label_suffix
@@ -189,6 +189,9 @@ class SpinBoxSlider(QSpinBox):
         fm = QFontMetrics(self.font())
         pixelsWide = fm.horizontalAdvance(f"  {self.label_text}: {self.maximum()}{self.label_suffix}  ")
         self._default_width = pixelsWide
+        
+        if tooltip:
+            self.setToolTip(tooltip)
         
         sp = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.setSizePolicy(sp)
