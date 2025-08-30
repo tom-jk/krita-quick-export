@@ -339,6 +339,8 @@ class QEDialog(QDialog):
             event.ignore()
             return
         
+        self.sbar.clearMessage()
+        
         writeSetting("dialogWidth", str(self.size().width()))
         writeSetting("dialogHeight", str(self.size().height()))
         
