@@ -178,12 +178,13 @@ class QETree(QTreeWidget):
         self.thumbnail_worker_timer.start()
         print("done")
     
-    def _on_versions_menu_triggered(self, value, button, doc, item, store_button):
+    def _on_versions_menu_triggered(self, value, button, doc, warning_label, item, store_button):
         self._on_generic_setting_changed("versions", value, doc, store_button)
         button.set_icon_name(("versions", value))
         button.setChecked(value != "single")
         item.setData(QECols.SOURCE_VERSIONS_COLUMN, QERoles.CustomSortRole, doc["versions"])
         self.add_file_versioning_subitems_for_all_items(doc["base_version_string"])
+        self.update_warning_label(doc, warning_label, item)
     
     def _on_versions_show_button_clicked(self, checked, button, item):
         checked = not item.isExpanded()
@@ -192,8 +193,21 @@ class QETree(QTreeWidget):
     
     def _on_output_name_edit_editing_finished(self, doc, warning_label, edit, item, store_button):
         doc["output_name"] = edit.text()
+        self.update_warning_label(doc, warning_label, item)
+        item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output_name"].lower())
+        #print("_on_output_lineedit_changed ->", doc["output"])
+        self.set_settings_modified(store_button)
+    
+    def update_warning_label(self, doc, warning_label, item):
+        warning_text = []
         if any(doc["output_name"].endswith((match:=ext)) for ext in supported_extensions()):
-            warning_label.setText(f"Exporting with name ending '{match}{doc['ext']}'")
+            warning_text.append(f"Exporting with name ending '{match}{doc['ext']}'")
+        if doc["path"].parent == doc["output_abs_dir"]:
+            test_name = export_file_path(doc).name
+            if any(test_name == (match:=item.child(subitem_index).data(QECols.SOURCE_FILEPATH_COLUMN, QERoles.CustomSortRole)) for subitem_index in range(item.childCount())):
+                warning_text.append(f"Source file '{match}' will be overwritten!")
+        if len(warning_text) > 0:
+            warning_label.setText("/n".join(warning_text))
             if not warning_label.isVisible():
                 warning_label.show()
                 self.scheduleDelayedItemsLayout()
@@ -201,9 +215,6 @@ class QETree(QTreeWidget):
             if warning_label.isVisible():
                 warning_label.hide()
                 self.scheduleDelayedItemsLayout()
-        item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output_name"].lower())
-        #print("_on_output_lineedit_changed ->", doc["output"])
-        self.set_settings_modified(store_button)
     
     def _on_item_btn_export_clicked(self, checked, doc, filename, store_button):
         print(f"Clicked export for {doc['path']}")
@@ -272,7 +283,7 @@ class QETree(QTreeWidget):
             if not bvs or item_.doc_settings["base_version_string"] == bvs:
                 self.add_file_versioning_subitems(item_)
     
-    def _on_output_path_menu_triggered(self, value, path_button, name_edit, ext_combobox, doc, store_button):
+    def _on_output_path_menu_triggered(self, value, path_button, name_edit, ext_combobox, doc, warning_label, item, store_button):
         if value in (True, False):
             print("Selected absolute/relative:", value)
             doc["output_is_abs"] = value
@@ -303,14 +314,16 @@ class QETree(QTreeWidget):
             if ext and ext in supported_extensions():
                 ext_combobox.setCurrentIndex(ext_combobox.findData(ext))
             
+            self.update_warning_label(doc, warning_label, item)
         self.set_settings_modified(store_button)
     
-    def _on_outputext_combobox_current_index_changed(self, index, combobox, settings_stack, doc, item, store_button):
+    def _on_outputext_combobox_current_index_changed(self, index, combobox, settings_stack, doc, warning_label, item, store_button):
         ext = combobox.itemText(index)
         doc["ext"] = ext
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
         self.set_item_settings_stack_page_for_extension(settings_stack, ext)
         self.set_settings_modified(store_button)
+        self.update_warning_label(doc, warning_label, item)
     
     def set_item_settings_stack_page_for_extension(self, settings_stack, ext):
         settings_stack.setCurrentIndex(self.settings_stack_page_index_for_extension(ext))
@@ -617,6 +630,8 @@ class QETree(QTreeWidget):
         if s["document"] == None:
             btn_open.clicked.connect(lambda checked, b=btn_open, db=[btns_export,scale_reset_action,scale_settings_action,filepath_widget,filename_widget], d=s, i=item: self._on_btn_open_clicked(checked, b, db, d, i))
         
+        output_name_warning = QLabel("")
+        
         versions_widget = QWidget()
         versions_widget_layout = QVBoxLayout(versions_widget)
         versions_widget_layout.setSpacing(2)
@@ -641,7 +656,7 @@ class QETree(QTreeWidget):
             action.setCheckable(True)
             action.setActionGroup(versions_action_group)
             action.setChecked(action.data() == s["versions"])
-        versions_menu.triggered.connect(lambda a, b=versions_button, d=s, i=item, sb=btn_store_forget: self._on_versions_menu_triggered(a.data(), b, d, i, sb))
+        versions_menu.triggered.connect(lambda a, b=versions_button, d=s, wl=output_name_warning, i=item, sb=btn_store_forget: self._on_versions_menu_triggered(a.data(), b, d, wl, i, sb))
         
         versions_button.setMenu(versions_menu)
         
@@ -684,7 +699,7 @@ class QETree(QTreeWidget):
         output_path_change_action = output_path_menu.addAction("Change...", "change", ("Choose the export location, and optionally change the file name and type.\n"
                                                                                        "Note that this does not actually export the file, only changes where it will export to.\n"
                                                                                        "If the file already exists, you will be asked if you want to export over it."))
-        output_path_menu.triggered.connect(lambda a, pb=output_path_button, ne=output_name_edit, ec=outputext_combobox, d=s, sb=btn_store_forget: self._on_output_path_menu_triggered(a.data(), pb, ne, ec, d, sb))
+        output_path_menu.triggered.connect(lambda a, pb=output_path_button, ne=output_name_edit, ec=outputext_combobox, d=s, wl=output_name_warning, i=item, sb=btn_store_forget: self._on_output_path_menu_triggered(a.data(), pb, ne, ec, d, wl, i, sb))
         
         output_path_button.setMenu(output_path_menu)
         
@@ -700,7 +715,6 @@ class QETree(QTreeWidget):
         
         output_name_container_widget_layout.addWidget(output_name_edit)
         
-        output_name_warning = QLabel("")
         output_name_warning.hide()
         output_name_warning.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         output_name_warning_opacity = QGraphicsOpacityEffect(output_name_warning)
@@ -969,7 +983,7 @@ class QETree(QTreeWidget):
         
         self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
         
-        outputext_combobox.currentIndexChanged.connect(lambda index, cb=outputext_combobox, ss=settings_stack, d=s, i=item, sb=btn_store_forget: self._on_outputext_combobox_current_index_changed(index, cb, ss, d, i, sb))
+        outputext_combobox.currentIndexChanged.connect(lambda index, cb=outputext_combobox, ss=settings_stack, d=s, wl=output_name_warning, i=item, sb=btn_store_forget: self._on_outputext_combobox_current_index_changed(index, cb, ss, d, wl, i, sb))
         
         self.items.append(item)
         
