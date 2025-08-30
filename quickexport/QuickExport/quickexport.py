@@ -26,7 +26,7 @@ class QuickExportExtension(Extension):
     def setup(self):
         print("QE: setup")
         
-        plugin_dir = Path(app.getAppDataLocation()) / "pykrita/QuickExport"
+        plugin_dir = Path(app.getAppDataLocation()) / "pykrita" / "QuickExport"
         icons_dir = plugin_dir / "icons"
         
         if not plugin_dir.is_dir():
