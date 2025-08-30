@@ -201,6 +201,8 @@ class QuickExportExtension(Extension):
     
     def update_quick_export_display(self):
         self.refresh_actions()
+        shortcut_text = self.qe_action.shortcut().toString()
+        shortcut_text = f" ({shortcut_text})" if shortcut_text else ""
         window = app.activeWindow()
         view = window.activeView()
         if view:
@@ -217,12 +219,15 @@ class QuickExportExtension(Extension):
                             self.qe_action.setText(f"Quick export to '{output_filename}'")
                         else:
                             self.qe_action.setText("Quick export")
+                        self.qe_action.setToolTip(f"Quick export{shortcut_text}\n{str(export_file_path(file_settings))}")
                         return
                     # file has been saved but has no settings.
                     self.qe_action.setText("Quick export...")
+                    self.qe_action.setToolTip(f"Quick export{shortcut_text}")
                     return
         # no doc or unsaved doc.
         self.qe_action.setText("Quick export")
+        self.qe_action.setToolTip(f"Quick export{shortcut_text}")
         default_export_unsaved = str2bool(readSetting("default_export_unsaved"))
         self.qe_action.setEnabled(default_export_unsaved)
     
