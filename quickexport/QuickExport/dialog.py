@@ -296,6 +296,15 @@ class QEDialog(QDialog):
         show_extensions_in_list_action = options_menu.addAction("Visible file types")
         show_extensions_in_list_action.setMenu(self.show_extensions_in_list_menu)
         
+        options_menu.addSeparator()
+        
+        wide_column_resize_grabber_action = options_menu.addAction("Wider grabber for resizing columns")
+        wide_column_resize_grabber_action.setToolTip("The regions in the header where you can click and drag to resize columns will be twice as wide.\n" \
+                                                     "Try this option if you frequently sort or move columns by accident.")
+        wide_column_resize_grabber_action.setCheckable(True)
+        wide_column_resize_grabber_action.setChecked(str2qtcheckstate(readSetting("wide_column_resize_grabber")))
+        wide_column_resize_grabber_action.toggled.connect(self._on_wide_column_resize_grabber_action_toggled)
+        
         options_button.setMenu(options_menu)
         
         # status bar.
@@ -486,6 +495,10 @@ class QEDialog(QDialog):
                 item = model.item(item_idx)
                 flags = item.flags()
                 item.setFlags((flags & ~Qt.ItemIsEnabled) if not show else (flags | Qt.ItemIsEnabled))
+
+    def _on_wide_column_resize_grabber_action_toggled(self, checked):
+        writeSetting("wide_column_resize_grabber", bool2str(checked))
+        self.tree.header().setStyle(self.tree.wide_header_style if checked else self.tree.style())
 
     def _on_save_button_clicked(self, checked):
         save_settings_to_config()

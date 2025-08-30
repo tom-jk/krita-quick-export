@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
                              QActionGroup, QToolButton, QComboBox, QStackedWidget, QStyle, QStyleOption,
                              QStyleOptionButton, QSpinBox, QStyleOptionSpinBox, QGraphicsOpacityEffect,
-                             QFileDialog)
+                             QFileDialog, QProxyStyle)
 from PyQt5.QtCore import Qt, QObject, QRegExp, QModelIndex, pyqtSignal, QEvent
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette, QMouseEvent, QTabletEvent
 import zipfile
@@ -16,6 +16,13 @@ from .utils import *
 from .qewidgets import QEMenu, CheckToolButton, ColourToolButton, QEComboBox, FadingStackedWidget, SpinBoxSlider, FlowLayout
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
+
+class MyHeaderStyle(QProxyStyle):
+    def pixelMetric(self, metric, option=None, widget=None):
+        if metric == QStyle.PM_HeaderGripMargin:
+            return 2 * super().pixelMetric(metric, option, widget)
+        else:
+            return super().pixelMetric(metric, option, widget)
 
 class ItemDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -426,6 +433,10 @@ class QETree(QTreeWidget):
         self.min_row_height = fm.height() * 5
         
         self.setExpandsOnDoubleClick(False)
+        
+        self.wide_header_style = MyHeaderStyle()
+        if str2bool(readSetting("wide_column_resize_grabber")):
+            self.header().setStyle(self.wide_header_style)
         
         self.header().setStretchLastSection(False)
         self.header().sectionResized.connect(self._on_column_resized)
