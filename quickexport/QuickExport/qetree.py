@@ -35,6 +35,10 @@ class ItemDelegate(QStyledItemDelegate):
         size = super().sizeHint(option, index)
         
         tree = QETree.instance
+        
+        if not tree:
+            return size
+        
         item = tree.itemFromIndex(index)
         
         if tree.indexOfTopLevelItem(item) == -1:
@@ -1114,6 +1118,8 @@ class QETree(QTreeWidget):
                 yield self.thumbnail_worker_timer.start()
         
         finally:
+            if self.thumbnail_worker_timer.isActive():
+                self.thumbnail_worker_timer.stop()
             print("thumbnail worker: end.")
     
     def _make_thumbnail(self, doc, item):
