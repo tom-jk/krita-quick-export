@@ -338,6 +338,14 @@ class QETree(QTreeWidget):
             ext = Path(file_path_string).suffix
             file_path = Path(file_path_string).with_suffix("")
             
+            if not (file_path.parent.exists() and file_path.parent.is_dir()):
+                QMessageBox.warning(self, "Invalid file path", f"The directory {file_path.parent} does not exist.")
+                return
+            
+            if any(char in windows_forbidden_filename_chars for char in file_path.name):
+                QMessageBox.warning(self, "Invalid file name", f"File names containing the characters {windows_forbidden_filename_chars} are not allowed.")
+                return
+            
             doc["output_abs_dir"] = file_path.parent
             doc["output_name"] = file_path.name
             path_button.setText(str(file_path.parent) if file_path.parent != doc["path"].parent else ".")

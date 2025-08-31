@@ -56,6 +56,8 @@ class WidgetBin(QObject):
 
 widget_bin = WidgetBin()
 
+windows_forbidden_filename_chars = "^<>:;?\*|/"
+
 qe_settings = []
 
 qe_extension = None

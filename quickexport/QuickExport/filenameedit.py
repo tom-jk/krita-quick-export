@@ -14,6 +14,7 @@ class WrappingLineEdit(QPlainTextEdit):
         self._last_recalc_height_at_width = -1
         self._text_changed_since_last_recalc_height = True
         super().__init__(*args, **kwargs)
+        self._plaintext_at_edit_start = ""
         self._old_plaintext = ""
         self._max_chars = 256
         self._doc_margin = round(self.document().documentMargin())
@@ -57,8 +58,9 @@ class WrappingLineEdit(QPlainTextEdit):
             print("NEWLINE")
             self.clearFocus()
             return
-        if any(char in "^<>:;?\*|/" for char in event.text()):
+        if any((match:=char) in windows_forbidden_filename_chars for char in event.text()):
             print("FORBIDDEN CHAR")
+            self.window().sbar.showMessage(f"Invalid character {match} - file names containing the characters {windows_forbidden_filename_chars} are not allowed.", 6000)
             return
         super().keyPressEvent(event)
     
@@ -66,14 +68,19 @@ class WrappingLineEdit(QPlainTextEdit):
         print(source.text())
         self.textCursor().removeSelectedText()
         text = source.text()[:min(len(source.text()), self._max_chars)]
-        for c in ('\n', '^','<','>',':',';',',','?','\\', '*','|','/'):
+        forbidden_chars = ("\n", *tuple(windows_forbidden_filename_chars))
+        forbidden_chars_found = False
+        for c in forbidden_chars:
             if c in text:
                 text = text.replace(c, "")
+                forbidden_chars_found = True
             source_copy = QMimeData()
             source_copy.setText(text[:min(
                 len(text), self._max_chars - len(self.toPlainText())
             )])
         super().insertFromMimeData(source_copy)
+        if forbidden_chars_found:
+            self.window().sbar.showMessage(f"Invalid characters were removed from pasted text - file names containing the characters {windows_forbidden_filename_chars} are not allowed.", 6000)
         return
         self.insertPlainText(
             text[:min(
@@ -163,6 +170,8 @@ class WrappingLineEdit(QPlainTextEdit):
     def focusInEvent(self, event):
         super().focusInEvent(event)
         self.setStyleSheet("")
+        if not self._in_context_menu:
+            self._plaintext_at_edit_start = self.text()
     
     def focusOutEvent(self, event):
         super().focusOutEvent(event)
@@ -172,6 +181,11 @@ class WrappingLineEdit(QPlainTextEdit):
         text_cursor.clearSelection()
         self.setTextCursor(text_cursor)
         self.setStyleSheet("QPlainTextEdit {background: transparent;}")
+        if self.text() == "":
+            self.setText(self._plaintext_at_edit_start)
+            self.window().sbar.showMessage("Empty file names are not allowed.", 6000)
+        else:
+            self.window().sbar.clearMessage()
         self.editingFinished.emit()
     
     def contextMenuEvent(self, event):
