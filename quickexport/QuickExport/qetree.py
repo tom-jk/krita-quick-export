@@ -151,9 +151,17 @@ class QETreeFilter(QObject):
         if not (isinstance(event, QMouseEvent) or isinstance(event, QTabletEvent)):
             return False
         
-        #print("mouse/tablet event")
         pos = tree.viewport().mapFromGlobal(event.globalPos())
         item = tree.itemAt(pos)
+        
+        display_mode = readSetting("settings_display_mode")
+        minimize_unfocused = str2bool(readSetting("minimize_unfocused"))
+        
+        if display_mode == "minimized" or (display_mode == "focused" and minimize_unfocused):
+            tree.hovered_item = item
+            return False
+        
+        #print("mouse/tablet event")
         #print(f"{pos=}: {item.text(QECols.SOURCE_FILENAME_COLUMN) if item else 'no item'}")
         if item != tree.hovered_item:
             if tree.hovered_item and (widget := tree.itemWidget(tree.hovered_item, QECols.SETTINGS_COLUMN)):
@@ -185,6 +193,13 @@ class QETree(QTreeWidget):
     instance = None
     
     def leaveEvent(self, event):
+        display_mode = readSetting("settings_display_mode")
+        minimize_unfocused = str2bool(readSetting("minimize_unfocused"))
+        
+        if display_mode == "minimized" or (display_mode == "focused" and minimize_unfocused):
+            self.hovered_item = None
+            return
+        
         if self.hovered_item and (widget := self.itemWidget(self.hovered_item, QECols.SETTINGS_COLUMN)):
             widget.setOpacity(hover=False)
         self.hovered_item = None
@@ -500,6 +515,7 @@ class QETree(QTreeWidget):
             item.output_filename_edit.edit.updateGeometry()
             
             settings_stack.setCurrentIndex(0 if mode=="minimized" else self.settings_stack_page_index_for_extension(item.doc_settings["ext"]))
+            settings_stack.setOpacity(hover=mode=="minimized" or (mode=="focused" and minimize_unfocused))
             for page_index in range(1, settings_stack.count()):
                 page = settings_stack.widget(page_index)
                 page.setVisible(page == settings_stack.currentWidget() and not is_minimized)
