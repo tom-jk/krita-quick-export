@@ -95,6 +95,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         self.doc_settings = doc_settings
         
         # some controls associated with this item that are used in many places.
+        self.thumbnail_label = None
         self.export_button = None
         self.warning_label = None
     
@@ -578,6 +579,8 @@ class QETree(QTreeWidget):
             for i in range(0, QECols.COLUMN_COUNT):
                 self.resizeColumnToContents(i)
         
+        self.header().resizeSection(QECols.THUMBNAIL_COLUMN, self.thumb_height)
+        
         for item in self.items:
             self.update_names_and_labels(item)
         
@@ -586,7 +589,6 @@ class QETree(QTreeWidget):
         if len(self.thumbnail_queue) == 0:
             return
         
-        self.thumbnail_column_resized_to_contents_once = False
         self.thumbnail_worker = self.thumbnail_worker_process()
         self.thumbnail_worker_timer = QTimer(self)
         self.thumbnail_worker_timer.setInterval(0)
@@ -672,6 +674,10 @@ class QETree(QTreeWidget):
             self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open)
         
         item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(s["doc_index"]))
+        
+        item.thumbnail_label = QLabel()
+        item.thumbnail_label.setAlignment(Qt.AlignCenter)
+        self.setItemWidget(item, QECols.THUMBNAIL_COLUMN, item.thumbnail_label)
         
         file_path_parent = str(file_path.parent)
         if False and file_path_parent.startswith(str(Path.home())):
@@ -1130,9 +1136,6 @@ class QETree(QTreeWidget):
                 
                 print("thumbnail_worker: job done.")
                 
-                if not self.thumbnail_column_resized_to_contents_once:
-                    self.resizeColumnToContents(QECols.THUMBNAIL_COLUMN)
-                    self.thumbnail_column_resized_to_contents_once = True
                 
                 yield self.thumbnail_worker_timer.start()
         
@@ -1143,10 +1146,7 @@ class QETree(QTreeWidget):
     
     def _make_thumbnail(self, doc, item):
         thumbnail = QPixmap.fromImage(doc.thumbnail(self.thumb_height, self.thumb_height))
-        label = QLabel()
-        label.setAlignment(Qt.AlignCenter)
-        label.setPixmap(thumbnail)
-        self.setItemWidget(item, QECols.THUMBNAIL_COLUMN, label)
+        self.apply_thumbnail(item, thumbnail)
     
     # borrowed from the Last Documents Docker.
     def _make_thumbnail_for_file(self, path, item):
@@ -1170,11 +1170,10 @@ class QETree(QTreeWidget):
         thumb_size = QSize(int(self.thumb_height*self.devicePixelRatioF()), int(self.thumb_height*self.devicePixelRatioF()))
         thumbnail = thumbnail.scaled(thumb_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         thumbnail.setDevicePixelRatio(self.devicePixelRatioF()) # TODO: should do for doc.thumbnail thumbs too?
-        
-        label = QLabel()
-        label.setAlignment(Qt.AlignCenter)
-        label.setPixmap(thumbnail)
-        self.setItemWidget(item, QECols.THUMBNAIL_COLUMN, label)
+        self.apply_thumbnail(item, thumbnail)
+    
+    def apply_thumbnail(self, item, thumbnail):
+        item.thumbnail_label.setPixmap(thumbnail)
     
     def updateAlternatingRowContrast(self):
         pal = QApplication.palette()
