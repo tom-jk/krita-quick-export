@@ -98,6 +98,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         self.thumbnail_label = None
         self.export_button = None
         self.warning_label = None
+        self.settings_stack = None
     
     def __lt__(self, other):
         if not isinstance(other, MyTreeWidgetItem):
@@ -359,17 +360,17 @@ class QETree(QTreeWidget):
             self.update_names_and_labels(item)
         self.set_settings_modified(store_button)
     
-    def _on_outputext_combobox_current_index_changed(self, index, combobox, settings_stack, item, store_button):
+    def _on_outputext_combobox_current_index_changed(self, index, combobox, item, store_button):
         doc = item.doc_settings
         ext = combobox.itemText(index)
         doc["ext"] = ext
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
-        self.set_item_settings_stack_page_for_extension(settings_stack, ext)
+        self.set_item_settings_stack_page_for_extension(item, ext)
         self.set_settings_modified(store_button)
         self.update_names_and_labels(item)
     
-    def set_item_settings_stack_page_for_extension(self, settings_stack, ext):
-        settings_stack.setCurrentIndex(self.settings_stack_page_index_for_extension(ext))
+    def set_item_settings_stack_page_for_extension(self, item, ext):
+        settings_stack = item.settings_stack
         self._on_column_resized(QECols.SETTINGS_COLUMN, QECols.SETTINGS_COLUMN, -1)
     
     def settings_stack_page_index_for_extension(self, ext):
@@ -818,7 +819,7 @@ class QETree(QTreeWidget):
         self.setItemWidget(item, QECols.OUTPUT_FILETYPE_COLUMN, outputext_widget)
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, s["ext"])
         
-        settings_stack = FadingStackedWidget()
+        item.settings_stack = FadingStackedWidget()
         
         no_settings_page = QWidget()
         no_settings_page_layout = FlowLayout()
@@ -835,7 +836,7 @@ class QETree(QTreeWidget):
         no_settings_scale_label = setting_label_and_layout_break(no_settings_page_layout, tooltip.partition("\n")[0])
         
         no_settings_page.setLayout(no_settings_page_layout)
-        settings_stack.addWidget(no_settings_page)
+        item.settings_stack.addWidget(no_settings_page)
         
         png_settings_page = QWidget()
         png_settings_page_layout = FlowLayout()
@@ -946,7 +947,7 @@ class QETree(QTreeWidget):
         png_scale_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         png_settings_page.setLayout(png_settings_page_layout)
-        settings_stack.addWidget(png_settings_page)
+        item.settings_stack.addWidget(png_settings_page)
         
         jpeg_settings_page = QWidget()
         jpeg_settings_page_layout = FlowLayout()
@@ -1090,10 +1091,10 @@ class QETree(QTreeWidget):
         jpeg_scale_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
         
         jpeg_settings_page.setLayout(jpeg_settings_page_layout)
-        settings_stack.addWidget(jpeg_settings_page)
+        item.settings_stack.addWidget(jpeg_settings_page)
         
-        self.setItemWidget(item, QECols.SETTINGS_COLUMN, settings_stack)
-        self.set_item_settings_stack_page_for_extension(settings_stack, s["ext"])
+        self.setItemWidget(item, QECols.SETTINGS_COLUMN, item.settings_stack)
+        self.set_item_settings_stack_page_for_extension(item, s["ext"])
         
         scale_checkbox_action.triggered.connect(lambda checked, cb=[no_settings_scale_button,png_scale_button,jpeg_scale_button], i=item, sb=btn_store_forget: self._on_item_scale_checkbox_action_triggered(checked, cb, i, sb))
         
@@ -1106,7 +1107,7 @@ class QETree(QTreeWidget):
         
         self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
         
-        outputext_combobox.currentIndexChanged.connect(lambda index, cb=outputext_combobox, ss=settings_stack, i=item, sb=btn_store_forget: self._on_outputext_combobox_current_index_changed(index, cb, ss, i, sb))
+        outputext_combobox.currentIndexChanged.connect(lambda index, cb=outputext_combobox, i=item, sb=btn_store_forget: self._on_outputext_combobox_current_index_changed(index, cb, i, sb))
         
         self.items.append(item)
         
