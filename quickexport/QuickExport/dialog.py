@@ -94,10 +94,16 @@ class QEDialog(QDialog):
 
         self.settings_display_mode_combobox = QEComboBox()
         self.settings_display_mode_combobox.addItem("Compact", "compact", "All rows are compact.")
-        self.settings_display_mode_combobox.addItem("Focused", "focused", "The focused row is expanded, all others are compact.\nDouble-click a row to focus it.")
+        self.settings_display_mode_combobox.addItem("Focused", "focused", "The focused row is expanded, all others are compact or minimized.\nDouble-click a row to focus it.")
         self.settings_display_mode_combobox.addItem("Expanded", "expanded", "All rows are expanded.")
         self.settings_display_mode_combobox.setCurrentIndex(self.settings_display_mode_combobox.findData(readSetting("settings_display_mode")))
         self.settings_display_mode_combobox.currentIndexChanged.connect(self._on_settings_display_mode_combobox_current_index_changed)
+
+        self.settings_minimize_unfocused_button = QCheckBox("minimize unfocused")
+        self.settings_minimize_unfocused_button.setToolTip("In focused display mode, reduce the size of the unfocused rows.")
+        self.settings_minimize_unfocused_button.setCheckState(str2qtcheckstate(readSetting("minimize_unfocused")))
+        self.settings_minimize_unfocused_button.setVisible(readSetting("settings_display_mode") == "focused")
+        self.settings_minimize_unfocused_button.clicked.connect(self._on_settings_minimize_unfocused_button_clicked)
 
         self.fade_button = QToolButton()
         self.fade_button.setText("Fade")
@@ -126,6 +132,7 @@ class QEDialog(QDialog):
         view_buttons_layout.addWidget(self.show_unopened_button)
         view_buttons_layout.addWidget(self.show_unstored_button)
         view_buttons_layout.addWidget(self.settings_display_mode_combobox)
+        view_buttons_layout.addWidget(self.settings_minimize_unfocused_button)
         view_buttons_layout.addStretch()
         view_buttons_layout.addWidget(self.fade_button)
         view_buttons_layout.addWidget(self.alt_row_contrast_slider)
@@ -367,7 +374,12 @@ class QEDialog(QDialog):
     def _on_settings_display_mode_combobox_current_index_changed(self, index):
         mode = self.settings_display_mode_combobox.itemData(index)
         writeSetting("settings_display_mode", mode)
+        self.settings_minimize_unfocused_button.setVisible(mode == "focused")
         self.tree.set_settings_display_mode(mode)
+    
+    def _on_settings_minimize_unfocused_button_clicked(self, checked):
+        writeSetting("minimize_unfocused", bool2str(checked))
+        self.tree.set_settings_display_mode()
     
     def _on_fade_button_clicked(self, checked):
         checked = not str2bool(readSetting("show_fade_sliders"))

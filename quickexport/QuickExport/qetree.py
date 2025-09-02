@@ -44,6 +44,10 @@ class ItemDelegate(QStyledItemDelegate):
         if tree.indexOfTopLevelItem(item) == -1:
             return size
         
+        if tree.isItemMinimized(item):
+            size.setHeight(tree.minimized_row_height)
+            return size
+        
         if size.height() < tree.min_row_height:
             size.setHeight(tree.min_row_height)
         
@@ -95,6 +99,8 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         self.doc_settings = doc_settings
         
         # some controls associated with this item that are used in many places.
+        self.thumbnail_normal = QPixmap()
+        self.thumbnail_minimized = QPixmap()
         self.thumbnail_label = None
         self.export_button = None
         self.warning_label = None
@@ -381,6 +387,8 @@ class QETree(QTreeWidget):
     def set_item_settings_stack_page_for_extension(self, item, ext):
         settings_stack = item.settings_stack
         index = self.settings_stack_page_index_for_extension(ext)
+        is_minimized = self.isItemMinimized(item)
+        settings_stack.widget(index).setVisible(not is_minimized)
         settings_stack.setCurrentIndex(index)
         self._on_column_resized(QECols.SETTINGS_COLUMN, QECols.SETTINGS_COLUMN, -1)
     
@@ -438,26 +446,46 @@ class QETree(QTreeWidget):
             if hasattr(child, "update"):
                 child.update()
     
+    def isItemMinimized(self, item):
+        mode = readSetting("settings_display_mode")
+        minimize_unfocused = str2bool(readSetting("minimize_unfocused"))
+        return mode == "focused" and self.focused_item != item and minimize_unfocused
+    
     def set_settings_display_mode(self, mode=None):
         mode = readSetting("settings_display_mode") if not mode else mode
+        minimize_unfocused = str2bool(readSetting("minimize_unfocused"))
         
         for item in self.items:
             is_compact = mode == "compact" or (mode == "focused" and self.focused_item != item)
+            is_minimized = self.isItemMinimized(item)
             is_expanded = item.isExpanded() and (mode != "focused" or (mode == "focused" and self.focused_item == item))
             
             settings_stack = item.settings_stack
             
+            item.thumbnail_label.setPixmap(item.thumbnail_minimized if is_minimized else item.thumbnail_normal)
+            item.source_filepath_widget.setMaxLines(2 if is_minimized else 4)
+            item.source_filename_widget.setMaxLines(2 if is_minimized else 4)
+            item.output_filepath_button.text_widget.setMaxLines(2 if is_minimized else 4)
+            
+            item.versions_show_button.setVisible(not is_minimized)
             item.versions_show_button.setIcon(app.icon("arrowup") if is_expanded else app.icon("arrowdown"))
             item.setExpanded(is_expanded)
             
+            textoption = item.output_filename_edit.edit.document().defaultTextOption()
+            textoption.setWrapMode(QTextOption.NoWrap if is_minimized else QTextOption.WrapAnywhere)
+            item.output_filename_edit.edit.document().setDefaultTextOption(textoption)
+            item.output_filename_edit.edit.updateGeometry()
+            
             for page_index in range(1, settings_stack.count()):
                 page = settings_stack.widget(page_index)
+                page.setVisible(page == settings_stack.currentWidget() and not is_minimized)
                 page.layout().setIgnoreBreaks(is_compact)
                 for widget in page.children():
                     if isinstance(widget, QLabel):
                         widget.setVisible(not is_compact)
                 page.updateGeometry()
         
+        self.header().resizeSection(QECols.THUMBNAIL_COLUMN, self.minimized_thumb_height if mode=="minimized" else self.thumb_height)
         self.updateGeometries()
         self.scheduleDelayedItemsLayout()
     
@@ -488,6 +516,8 @@ class QETree(QTreeWidget):
         fm = QFontMetrics(self.font())
         self.thumb_height = fm.height() * 4
         self.min_row_height = fm.height() * 5
+        self.minimized_thumb_height = fm.height() * 1
+        self.minimized_row_height = fm.height() * 2
         
         self.setExpandsOnDoubleClick(False)
         
@@ -626,8 +656,6 @@ class QETree(QTreeWidget):
             for i in range(0, QECols.COLUMN_COUNT):
                 self.resizeColumnToContents(i)
         
-        self.header().resizeSection(QECols.THUMBNAIL_COLUMN, self.thumb_height)
-        
         for item in self.items:
             self.update_names_and_labels(item)
         
@@ -648,7 +676,6 @@ class QETree(QTreeWidget):
         if state_str == "":
             return False
         state = QByteArray.fromBase64(bytearray(state_str, "utf-8"))
-        #print(f"restore_columns: {state=}")
         return self.header().restoreState(state)
     
     def add_item(self, s):
@@ -1274,7 +1301,12 @@ class QETree(QTreeWidget):
         self.apply_thumbnail(item, thumbnail)
     
     def apply_thumbnail(self, item, thumbnail):
-        item.thumbnail_label.setPixmap(thumbnail)
+        # make and store large and minimized copies of thumb.
+        is_minimized = self.isItemMinimized(item)
+        item.thumbnail_normal = thumbnail
+        min_thumb_size = QSize(int(self.minimized_thumb_height), int(self.minimized_thumb_height))
+        item.thumbnail_minimized = thumbnail.scaled(min_thumb_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        item.thumbnail_label.setPixmap(item.thumbnail_minimized if is_minimized else thumbnail)
     
     def updateAlternatingRowContrast(self):
         pal = QApplication.palette()

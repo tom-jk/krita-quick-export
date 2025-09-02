@@ -98,6 +98,8 @@ class FlowLayout(QLayout):
 
     def _do_layout(self, rect, test_only):
         pw = self.parentWidget()
+        if pw.isHidden():
+            return 0
         sw = pw.parent()
         if isinstance(sw, QStackedWidget) and sw.currentWidget() != pw:
             return 0
