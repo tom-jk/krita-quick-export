@@ -73,19 +73,19 @@ class QEDialog(QDialog):
         # TODO: inform user that some items are currently hidden, and how many.
 
         # show unstored button.
-        self.show_unstored_button = QCheckBox("Show unstored")
+        self.show_unstored_button = QCheckBox("unstored")
         self.show_unstored_button.setToolTip("Enable this to pick the images you're interested in exporting, then disable it to hide the rest.")
         self.show_unstored_button.setCheckState(str2qtcheckstate(readSetting("show_unstored")))
         self.show_unstored_button.clicked.connect(self._on_show_unstored_button_clicked)
 
         # show unopened button.
-        self.show_unopened_button = QCheckBox("Show unopened")
+        self.show_unopened_button = QCheckBox("unopened")
         self.show_unopened_button.setToolTip("Show the export settings of every file - currently open or not - for which settings have been saved.")
         self.show_unopened_button.setCheckState(str2qtcheckstate(readSetting("show_unopened")))
         self.show_unopened_button.clicked.connect(self._on_show_unopened_button_clicked)
 
-        # show .png files button.
-        self.show_non_kra_button = QCheckBox("Show non-kra files")
+        # show non-kra files button.
+        self.show_non_kra_button = QCheckBox("non-kra")
         self.show_non_kra_button.setToolTip("Show export settings for files of usually exported types, such as .png and .jpg. Disabled by default because it's kind of redundant.")
         self.show_non_kra_button.setCheckState(str2qtcheckstate(readSetting("show_non_kra")))
         self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
@@ -150,6 +150,7 @@ class QEDialog(QDialog):
 
         stored_highlight_widget.setLayout(stored_highlight_layout)
 
+        view_buttons_layout.addWidget(QLabel("Show:"))
         view_buttons_layout.addWidget(self.show_non_kra_button)
         view_buttons_layout.addWidget(self.show_unopened_button)
         view_buttons_layout.addWidget(self.show_unstored_button)
@@ -171,34 +172,39 @@ class QEDialog(QDialog):
         self.advanced_mode_button.setCheckState(str2qtcheckstate(readSetting("advanced_mode")))
         self.advanced_mode_button.clicked.connect(self._on_advanced_mode_button_clicked)
 
+        self.auto_store_label = QLabel("Store on:")
+
         # auto store for modified button.
-        self.auto_store_on_modify_button = QCheckBox("Store on modify")
+        self.auto_store_on_modify_button = QCheckBox("modify")
         self.auto_store_on_modify_button.setToolTip("Automatically check the store button for a file when you modify any of its export settings.")
         self.auto_store_on_modify_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_modify")))
         self.auto_store_on_modify_button.clicked.connect(self._on_auto_store_on_modify_button_clicked)
 
         # auto store for exported button.
-        self.auto_store_on_export_button = QCheckBox("Store on export")
+        self.auto_store_on_export_button = QCheckBox("export")
         self.auto_store_on_export_button.setToolTip("Automatically check the store button for a file when you export it.")
         self.auto_store_on_export_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_export")))
         self.auto_store_on_export_button.clicked.connect(self._on_auto_store_on_export_button_clicked)
 
         # auto save settings on close button.
-        self.auto_save_on_close_button = QCheckBox("Save settings on close")
+        self.auto_save_on_close_button = QCheckBox("Autosave on close")
         self.auto_save_on_close_button.setToolTip("Automatically save changes to settings without asking when you close the dialog.")
         self.auto_save_on_close_button.setCheckState(str2qtcheckstate(readSetting("auto_save_on_close")))
         self.auto_save_on_close_button.clicked.connect(self._on_auto_save_on_close_button_clicked)
 
         # save button.
-        self.save_button = QPushButton("Save Settings")
+        self.save_button = QPushButton("Save Settings*")
+        self.save_button.setMinimumWidth(self.save_button.sizeHint().width())
+        self.save_button.setText("Save Settings")
         self.save_button.setDisabled(True)
         self.save_button.clicked.connect(self._on_save_button_clicked)
 
         config_buttons_layout.addWidget(self.advanced_mode_button)
+        config_buttons_layout.addWidget(self.auto_store_label)
         config_buttons_layout.addWidget(self.auto_store_on_modify_button)
         config_buttons_layout.addWidget(self.auto_store_on_export_button)
-        config_buttons_layout.addWidget(self.auto_save_on_close_button)
         config_buttons_layout.addStretch()
+        config_buttons_layout.addWidget(self.auto_save_on_close_button)
         config_buttons_layout.addWidget(self.save_button)
 
         config_buttons_layout.setContentsMargins(0,0,0,0)
@@ -410,6 +416,7 @@ class QEDialog(QDialog):
             self.tree.showColumn(QECols.STORE_SETTINGS_COLUMN)
             self.show_unstored_button.show()
             self.show_unstored_button.setCheckState(str2qtcheckstate(readSetting("show_unstored")))
+            self.auto_store_label.show()
             self.auto_store_on_modify_button.show()
             self.auto_store_on_modify_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_modify")))
             self.auto_store_on_export_button.show()
@@ -421,6 +428,7 @@ class QEDialog(QDialog):
             self.tree.hideColumn(QECols.STORE_SETTINGS_COLUMN)
             self.show_unstored_button.hide()
             self.show_unstored_button.setCheckState(Qt.Checked)
+            self.auto_store_label.hide()
             self.auto_store_on_modify_button.hide()
             self.auto_store_on_modify_button.setCheckState(Qt.Checked)
             self.auto_store_on_export_button.hide()
