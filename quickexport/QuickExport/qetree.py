@@ -189,6 +189,7 @@ class QETree(QTreeWidget):
         item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(doc['doc_index']))
         for db in disabled_buttons:
             db.setDisabled(False)
+        item.export_button.setGraphicsEffect(None)
         new_doc.waitForDone()
         self.thumbnail_queue.append([new_doc, item])
         self.thumbnail_worker_timer.start()
@@ -621,6 +622,12 @@ class QETree(QTreeWidget):
         item.export_button.setIcon(app.icon('document-export'))
         item.export_button.setToolTip("Export now")
         
+        if s["document"] == None:
+            item.export_button.setDisabled(True)
+            item.export_button_opacity = QGraphicsOpacityEffect(item.export_button)
+            item.export_button_opacity.setOpacity(0.33)
+            item.export_button.setGraphicsEffect(item.export_button_opacity)
+        
         btn_store_forget = QCheckBox()
         btn_store_forget.setChecked(s["store"])
         btn_store_forget.setStyleSheet(checkbox_stylesheet)
@@ -1025,7 +1032,6 @@ class QETree(QTreeWidget):
         
         btns_widget = QWidget()
         btns_layout = QHBoxLayout()
-        item.export_button.setDisabled(s["document"] == None)
         item.export_button.clicked.connect(lambda checked, fn=file_path.name, i=item, sb=btn_store_forget: self._on_item_btn_export_clicked(checked, fn, i, sb))
         btns_layout.addWidget(item.export_button)
         
