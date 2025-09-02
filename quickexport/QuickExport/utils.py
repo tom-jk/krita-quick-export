@@ -62,7 +62,7 @@ qe_settings = []
 
 qe_extension = None
 
-setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_kra":"false", "alt_row_contrast":"100", "unhovered_fade":"75", "highlight_alpha":"64",
+setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_kra":"false", "alt_row_contrast":"100", "unhovered_fade":"75", "highlight_alpha":"100",
                     "advanced_mode":"false", "auto_store_on_modify":"true", "auto_store_on_export":"true", "auto_save_on_close":"true", "use_custom_icons":"true",
                     "custom_icons_theme":"follow", "show_export_name_in_menu":"true", "default_export_unsaved":"false", "show_thumbnails_for_unopened":"true",
                     "visible_types":".jpg .jpeg .png", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"", "wide_column_resize_grabber":"false", "settings":""}

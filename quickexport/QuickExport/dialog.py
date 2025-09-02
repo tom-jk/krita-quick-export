@@ -13,7 +13,7 @@ from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
-from .qewidgets import QEMenu, SnapSlider, UncheckableButtonGroup
+from .qewidgets import QEMenu, SnapSlider, UncheckableButtonGroup, SpinBoxSlider
 from .qetree import QECols, QETree
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
@@ -90,74 +90,31 @@ class QEDialog(QDialog):
         self.show_non_kra_button.setCheckState(str2qtcheckstate(readSetting("show_non_kra")))
         self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
 
-        # slider for adjusting strength of alternate row colouring.
-        alt_row_contrast_widget = QWidget()
-        alt_row_contrast_layout = QHBoxLayout()
 
-        alt_row_contrast_widget.setMinimumWidth(64)
-        alt_row_contrast_widget.setMaximumWidth(256)
-
-        alt_row_contrast_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-        alt_row_contrast_label = QLabel("Row contrast")
-        alt_row_contrast_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-        alt_row_contrast_layout.addWidget(alt_row_contrast_label)
-
-        self.alt_row_contrast_slider = SnapSlider(2, 0, 100, Qt.Horizontal)
+        self.alt_row_contrast_slider = SpinBoxSlider("Contrast", "%", 0, 100, 2, "")
+        self.alt_row_contrast_slider.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         self.alt_row_contrast_slider.setValue(int(readSetting("alt_row_contrast")))
-        self.alt_row_contrast_slider.setMinimumWidth(64)
         self.alt_row_contrast_slider.valueChanged.connect(self._on_alt_row_contrast_slider_value_changed)
-        alt_row_contrast_layout.addWidget(self.alt_row_contrast_slider)
 
-        alt_row_contrast_widget.setLayout(alt_row_contrast_layout)
-
-        # slider for settings fade for unhovered rows.
-        unhovered_fade_widget = QWidget()
-        unhovered_fade_layout = QHBoxLayout()
-
-        unhovered_fade_widget.setMinimumWidth(64)
-        unhovered_fade_widget.setMaximumWidth(256)
-
-        unhovered_fade_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-        unhovered_fade_label = QLabel("Fade")
-        unhovered_fade_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-        unhovered_fade_layout.addWidget(unhovered_fade_label)
-
-        self.unhovered_fade_slider = SnapSlider(5, 0, 100, Qt.Horizontal)
+        self.unhovered_fade_slider = SpinBoxSlider("Settings", "%", 0, 100, 5, "")
+        self.unhovered_fade_slider.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         self.unhovered_fade_slider.setValue(int(readSetting("unhovered_fade")))
-        self.unhovered_fade_slider.setMinimumWidth(64)
         self.unhovered_fade_slider.valueChanged.connect(self._on_unhovered_fade_slider_value_changed)
-        unhovered_fade_layout.addWidget(self.unhovered_fade_slider)
 
-        unhovered_fade_widget.setLayout(unhovered_fade_layout)
-
-        # slider for row highlight intensity for stored settings.
-        stored_highlight_widget = QWidget()
-        stored_highlight_layout = QHBoxLayout()
-
-        stored_highlight_widget.setMinimumWidth(64)
-        stored_highlight_widget.setMaximumWidth(256)
-
-        stored_highlight_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-        stored_highlight_label = QLabel("Highlight stored")
-        stored_highlight_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-        stored_highlight_layout.addWidget(stored_highlight_label)
-
-        self.stored_highlight_slider = SnapSlider(8, 0, 64, Qt.Horizontal)
+        self.stored_highlight_slider = SpinBoxSlider("Stored", "%", 0, 100, 5, "")
+        self.stored_highlight_slider.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         self.stored_highlight_slider.setValue(int(readSetting("highlight_alpha")))
-        self.stored_highlight_slider.setMinimumWidth(64)
         self.stored_highlight_slider.valueChanged.connect(self._on_stored_highlight_slider_value_changed)
-        stored_highlight_layout.addWidget(self.stored_highlight_slider)
-
-        stored_highlight_widget.setLayout(stored_highlight_layout)
 
         view_buttons_layout.addWidget(QLabel("Show:"))
         view_buttons_layout.addWidget(self.show_non_kra_button)
         view_buttons_layout.addWidget(self.show_unopened_button)
         view_buttons_layout.addWidget(self.show_unstored_button)
         view_buttons_layout.addStretch()
-        view_buttons_layout.addWidget(alt_row_contrast_widget)
-        view_buttons_layout.addWidget(unhovered_fade_widget)
-        view_buttons_layout.addWidget(stored_highlight_widget)
+        view_buttons_layout.addWidget(QLabel("Fade:"))
+        view_buttons_layout.addWidget(self.alt_row_contrast_slider)
+        view_buttons_layout.addWidget(self.unhovered_fade_slider)
+        view_buttons_layout.addWidget(self.stored_highlight_slider)
 
         view_buttons_layout.setContentsMargins(0,0,0,0)
         view_buttons.setLayout(view_buttons_layout)
@@ -405,6 +362,7 @@ class QEDialog(QDialog):
     
     def _on_stored_highlight_slider_value_changed(self):
         writeSetting("highlight_alpha", str(self.stored_highlight_slider.value()))
+        self.tree.set_stored_highlight_alpha(round(self.stored_highlight_slider.value() * 0.64))
         self.tree.redraw()
 
     def _on_advanced_mode_button_clicked(self, checked):

@@ -85,7 +85,7 @@ class ItemDelegate(QStyledItemDelegate):
         if is_highlighted:
             painter.fillRect(option.rect, QColor(192,255,96,48))
         if is_stored:
-            painter.fillRect(option.rect, QColor(64,128,255,int(readSetting("highlight_alpha"))))
+            painter.fillRect(option.rect, QColor(64,128,255,tree.stored_highlight_alpha))
 
 class MyTreeWidgetItem(QTreeWidgetItem):
     def __init__(self, doc_settings=None, *args, **kwargs):
@@ -417,6 +417,9 @@ class QETree(QTreeWidget):
             if self.dialog.auto_store_on_modify_button.checkState() == Qt.Checked:
                 store_button.setCheckState(Qt.Checked)
     
+    def set_stored_highlight_alpha(self, value):
+        self.stored_highlight_alpha = value
+    
     def redraw(self):
         for child in self.children():
             if hasattr(child, "update"):
@@ -440,6 +443,8 @@ class QETree(QTreeWidget):
         self.installEventFilter(self.filter)
         
         self.hovered_item = None
+        
+        self.stored_highlight_alpha = round(int(readSetting("highlight_alpha"))*0.64)
         
         fm = QFontMetrics(self.font())
         self.thumb_height = fm.height() * 4
