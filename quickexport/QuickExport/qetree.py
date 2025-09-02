@@ -820,7 +820,8 @@ class QETree(QTreeWidget):
         no_settings_label = QLabel("(No settings.)")
         no_settings_page_layout.addWidget(no_settings_label)
         
-        no_settings_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
+        tooltip = "scale image before export"
+        no_settings_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip=tooltip)
         no_settings_scale_button.setPopupMode(QToolButton.InstantPopup)
         
         no_settings_scale_button.setMenu(scale_menu)
@@ -831,6 +832,14 @@ class QETree(QTreeWidget):
         
         png_settings_page = QWidget()
         png_settings_page_layout = FlowLayout()
+        
+        tooltip = "Compression\n\n" \
+                  "Adjust the compression time. Better compression takes longer.\n" \
+                  "Note: the compression level does not change the quality of the result."
+        png_compression_slider = SpinBoxSlider(label_text="Compression", range_min=1, range_max=9, snap_interval=1, tooltip=tooltip)
+        png_compression_slider.setValue(s["png_compression"])
+        png_compression_slider.valueChanged.connect(lambda value, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_compression", value, i, sb))
+        png_settings_page_layout.addWidget(png_compression_slider)
         
         tooltip = "Store alpha channel (transparency)\n\n" \
                   "Disable to get smaller files if your image has no transparency.\n\n" \
@@ -848,13 +857,6 @@ class QETree(QTreeWidget):
         png_fillcolour_button.colourChanged.connect(lambda colour, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_fillcolour", colour, i, sb))
         png_settings_page_layout.addWidget(png_fillcolour_button)
         
-        tooltip = "Compression\n\n" \
-                  "Adjust the compression time. Better compression takes longer.\n" \
-                  "Note: the compression level does not change the quality of the result."
-        png_compression_slider = SpinBoxSlider(label_text="Compression", range_min=1, range_max=9, snap_interval=1, tooltip=tooltip)
-        png_compression_slider.setValue(s["png_compression"])
-        png_compression_slider.valueChanged.connect(lambda value, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_compression", value, i, sb))
-        png_settings_page_layout.addWidget(png_compression_slider)
         
         tooltip = "Save as indexed PNG, if possible\n\n" \
                   "Indexed PNG images are smaller.\n" \
@@ -906,7 +908,8 @@ class QETree(QTreeWidget):
         png_author_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_author", checked, i, sb))
         png_settings_page_layout.addWidget(png_author_checkbox)
         
-        png_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
+        tooltip = "Scale image before export"
+        png_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip=tooltip)
         png_scale_button.setPopupMode(QToolButton.InstantPopup)
         
         png_scale_button.setMenu(scale_menu)
@@ -917,17 +920,6 @@ class QETree(QTreeWidget):
         
         jpeg_settings_page = QWidget()
         jpeg_settings_page_layout = FlowLayout()
-        
-        tooltip = "Save ICC profile"
-        jpeg_icc_profile_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["jpeg_icc_profile"], tooltip=tooltip)
-        jpeg_icc_profile_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_icc_profile", checked, i, sb))
-        jpeg_settings_page_layout.addWidget(jpeg_icc_profile_checkbox)
-        
-        tooltip = "Transparent pixel fill color\n\n" \
-                  "Background color to replace transparent pixels with."
-        jpeg_fillcolour_checkbox = ColourToolButton(colour=s["jpeg_fillcolour"], tooltip=tooltip)
-        jpeg_fillcolour_checkbox.colourChanged.connect(lambda colour, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_fillcolour", colour, i, sb))
-        jpeg_settings_page_layout.addWidget(jpeg_fillcolour_checkbox)
         
         tooltip = "Quality\n\n" \
                   "Determines how much information is lost during compression.\n" \
@@ -943,6 +935,17 @@ class QETree(QTreeWidget):
         jpeg_smooth_slider.setValue(s["jpeg_smooth"])
         jpeg_smooth_slider.valueChanged.connect(lambda value, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_smooth", value, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_smooth_slider)
+        
+        tooltip = "Save ICC profile"
+        jpeg_icc_profile_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["jpeg_icc_profile"], tooltip=tooltip)
+        jpeg_icc_profile_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_icc_profile", checked, i, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_icc_profile_checkbox)
+        
+        tooltip = "Transparent pixel fill color\n\n" \
+                  "Background color to replace transparent pixels with."
+        jpeg_fillcolour_checkbox = ColourToolButton(colour=s["jpeg_fillcolour"], tooltip=tooltip)
+        jpeg_fillcolour_checkbox.colourChanged.connect(lambda colour, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_fillcolour", colour, i, sb))
+        jpeg_settings_page_layout.addWidget(jpeg_fillcolour_checkbox)
         
         tooltip = "Progressive\n\n" \
                   "A progressive jpeg can be displayed while loading."
@@ -985,7 +988,7 @@ class QETree(QTreeWidget):
         jpeg_optimise_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_optimise", checked, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_optimise_checkbox)
         
-        tooltip = "Metadata options: Formats and Filters"
+        tooltip = "Metadata formats and filters"
         jpeg_metadata_options_button = CheckToolButton(icon_name="metadata_options", checked=s["jpeg_metadata"], tooltip=tooltip)
         jpeg_metadata_options_button.setPopupMode(QToolButton.InstantPopup)
         
@@ -1027,7 +1030,8 @@ class QETree(QTreeWidget):
         jpeg_author_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_author", checked, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_author_checkbox)
         
-        jpeg_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip="scale image before export")
+        tooltip = "Scale image before export"
+        jpeg_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip=tooltip)
         jpeg_scale_button.setPopupMode(QToolButton.InstantPopup)
         
         jpeg_scale_button.setMenu(scale_menu)
