@@ -99,6 +99,11 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         self.export_button = None
         self.warning_label = None
         self.settings_stack = None
+        self.source_filepath_widget = None
+        self.source_filename_widget = None
+        self.versions_show_button = None
+        self.output_filepath_button = None
+        self.output_filename_edit = None
     
     def __lt__(self, other):
         if not isinstance(other, MyTreeWidgetItem):
@@ -206,12 +211,14 @@ class QETree(QTreeWidget):
         self.add_file_versioning_subitems_for_all_items(doc["base_version_string"])
         self.update_names_and_labels(item)
     
-    def _on_versions_show_button_clicked(self, checked, button, item):
+    def _on_versions_show_button_clicked(self, checked, item):
+        button = item.versions_show_button
         checked = not item.isExpanded()
         item.setExpanded(checked)
         button.setIcon(app.icon("arrowup") if checked else app.icon("arrowdown"))
     
-    def _on_output_name_edit_editing_finished(self, edit, item, store_button):
+    def _on_output_name_edit_editing_finished(self, item, store_button):
+        edit = item.output_filename_edit
         doc = item.doc_settings
         doc["output_name"] = edit.text()
         self.update_names_and_labels(item)
@@ -317,7 +324,9 @@ class QETree(QTreeWidget):
             if not bvs or item_.doc_settings["base_version_string"] == bvs:
                 self.add_file_versioning_subitems(item_)
     
-    def _on_output_path_menu_triggered(self, value, path_button, name_edit, ext_combobox, item, store_button):
+    def _on_output_path_menu_triggered(self, value, ext_combobox, item, store_button):
+        name_edit = item.output_filename_edit
+        path_button = item.output_filepath_button
         doc = item.doc_settings
         if value in (True, False):
             print("Selected absolute/relative:", value)
@@ -690,20 +699,20 @@ class QETree(QTreeWidget):
         if False and file_path_parent.startswith(str(Path.home())):
             file_path_parent = file_path_parent.replace(str(Path.home()), "/home")
         
-        filepath_widget = MultiLineElidedText(file_path_parent, margin=5)
-        filepath_widget.setDisabled(s["document"] == None)
+        item.source_filepath_widget = MultiLineElidedText(file_path_parent, margin=5)
+        item.source_filepath_widget.setDisabled(s["document"] == None)
         
-        self.setItemWidget(item, QECols.SOURCE_FILEPATH_COLUMN, filepath_widget)
+        self.setItemWidget(item, QECols.SOURCE_FILEPATH_COLUMN, item.source_filepath_widget)
         item.setData(QECols.SOURCE_FILEPATH_COLUMN, QERoles.CustomSortRole, file_path_parent.lower())
         
-        filename_widget = MultiLineElidedText(file_path.name, margin=5)
-        filename_widget.setDisabled(s["document"] == None)
+        item.source_filename_widget = MultiLineElidedText(file_path.name, margin=5)
+        item.source_filename_widget.setDisabled(s["document"] == None)
         
-        self.setItemWidget(item, QECols.SOURCE_FILENAME_COLUMN, filename_widget)
+        self.setItemWidget(item, QECols.SOURCE_FILENAME_COLUMN, item.source_filename_widget)
         item.setData(QECols.SOURCE_FILENAME_COLUMN, QERoles.CustomSortRole, file_path.name.lower())
         
         if s["document"] == None:
-            btn_open.clicked.connect(lambda checked, b=btn_open, db=[item.export_button,scale_reset_action,scale_settings_action,filepath_widget,filename_widget], i=item: self._on_btn_open_clicked(checked, b, db, i))
+            btn_open.clicked.connect(lambda checked, b=btn_open, db=[item.export_button,scale_reset_action,scale_settings_action,item.source_filepath_widget,item.source_filename_widget], i=item: self._on_btn_open_clicked(checked, b, db, i))
         
         item.warning_label = QLabel("")
         
@@ -735,31 +744,30 @@ class QETree(QTreeWidget):
         
         versions_button.setMenu(versions_menu)
         
-        versions_show_button = QToolButton()
-        versions_show_button.setIcon(app.icon("arrowdown"))
-        versions_show_button.setFixedSize(versions_show_button.sizeHint())
-        versions_show_button.setIconSize(versions_show_button.iconSize()/2)
-        versions_show_button.setAutoRaise(True)
-        #versions_show_button.setFixedHeight(round(versions_show_button.sizeHint().height()/1.25))
-        versions_show_button.clicked.connect(lambda checked, b=versions_show_button, i=item: self._on_versions_show_button_clicked(checked, b, i))
+        item.versions_show_button = QToolButton()
+        item.versions_show_button.setIcon(app.icon("arrowdown"))
+        item.versions_show_button.setFixedSize(item.versions_show_button.sizeHint())
+        item.versions_show_button.setIconSize(item.versions_show_button.iconSize()/2)
+        item.versions_show_button.setAutoRaise(True)
+        item.versions_show_button.clicked.connect(lambda checked, i=item: self._on_versions_show_button_clicked(checked, i))
         
         versions_widget_layout.addStretch()
         versions_widget_layout.addWidget(versions_button)
-        versions_widget_layout.addWidget(versions_show_button)
+        versions_widget_layout.addWidget(item.versions_show_button)
         versions_widget_layout.addStretch()
         self.setItemWidget(item, QECols.SOURCE_VERSIONS_COLUMN, versions_widget)
         item.setData(QECols.SOURCE_VERSIONS_COLUMN, QERoles.CustomSortRole, s["versions"])
         
-        output_path_button = MultiLineElidedButton(str(s["output_abs_dir"]) if s["output_abs_dir"] != s["path"].parent else ".", margin=0)
+        item.output_filepath_button = MultiLineElidedButton(str(s["output_abs_dir"]) if s["output_abs_dir"] != s["path"].parent else ".", margin=0)
         
-        output_name_edit = FileNameEdit(s["output_name"])
-        output_name_edit.edit.settings = s
+        item.output_filename_edit = FileNameEdit(s["output_name"])
+        item.output_filename_edit.edit.settings = s
         
         outputext_combobox = QEComboBox()
         self.extension_comboboxes.append(outputext_combobox)
         
-        output_path_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
-        output_path_button.setPopupMode(QToolButton.InstantPopup)
+        item.output_filepath_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
+        item.output_filepath_button.setPopupMode(QToolButton.InstantPopup)
         
         output_path_menu = QEMenu(keep_open=False)
         output_path_menu.setToolTipsVisible(True)
@@ -774,21 +782,21 @@ class QETree(QTreeWidget):
         output_path_change_action = output_path_menu.addAction("Change...", "change", ("Choose the export location, and optionally change the file name and type.\n"
                                                                                        "Note that this does not actually export the file, only changes where it will export to.\n"
                                                                                        "If the file already exists, you will be asked if you want to export over it."))
-        output_path_menu.triggered.connect(lambda a, pb=output_path_button, ne=output_name_edit, ec=outputext_combobox, i=item, sb=btn_store_forget: self._on_output_path_menu_triggered(a.data(), pb, ne, ec, i, sb))
+        output_path_menu.triggered.connect(lambda a, ec=outputext_combobox, i=item, sb=btn_store_forget: self._on_output_path_menu_triggered(a.data(), ec, i, sb))
         
-        output_path_button.setMenu(output_path_menu)
+        item.output_filepath_button.setMenu(output_path_menu)
         
-        self.setItemWidget(item, QECols.OUTPUT_FILEPATH_COLUMN, output_path_button)
+        self.setItemWidget(item, QECols.OUTPUT_FILEPATH_COLUMN, item.output_filepath_button)
         item.setData(QECols.OUTPUT_FILEPATH_COLUMN, QERoles.CustomSortRole, file_path_parent.lower())
         
-        output_name_edit.edit.document().contentsChanged.connect(output_name_edit.edit.recalc_height)
-        output_name_edit.edit.document().contentsChanged.connect(self.scheduleDelayedItemsLayout)
+        item.output_filename_edit.edit.document().contentsChanged.connect(item.output_filename_edit.edit.recalc_height)
+        item.output_filename_edit.edit.document().contentsChanged.connect(self.scheduleDelayedItemsLayout)
         
         output_name_container_widget = QWidget()
         output_name_container_widget_layout = QVBoxLayout(output_name_container_widget)
         output_name_container_widget_layout.setSpacing(2)
         
-        output_name_container_widget_layout.addWidget(output_name_edit)
+        output_name_container_widget_layout.addWidget(item.output_filename_edit)
         
         item.warning_label.hide()
         item.warning_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -800,7 +808,7 @@ class QETree(QTreeWidget):
         item.warning_label.setFont(item.warning_label_font)
         output_name_container_widget_layout.addWidget(item.warning_label)
         
-        output_name_edit.edit.editingFinished.connect(lambda e=output_name_edit.edit, i=item, sb=btn_store_forget: self._on_output_name_edit_editing_finished(e, i, sb))
+        item.output_filename_edit.edit.editingFinished.connect(lambda i=item, sb=btn_store_forget: self._on_output_name_edit_editing_finished(i, sb))
         
         self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_name_container_widget)
         item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output_name"].lower())
