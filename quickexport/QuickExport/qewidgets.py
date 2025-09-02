@@ -85,6 +85,8 @@ class FlowLayout(QLayout):
         sw = pw.parent()
         if isinstance(sw, QStackedWidget) and sw.currentWidget() != pw:
             return 0
+        if len(self._item_list) == 0:
+            return 0
         #print(f"flowlayout:_do_layout: {rect=} {test_only=}")
         h = 0
         y_offset = 0
@@ -98,7 +100,17 @@ class FlowLayout(QLayout):
         line_height = 0
         spacing = self.spacing()
 
-        for item in self._item_list:
+        items_on_current_line = []
+        last_line_height = 0
+        final_item_index = len(self._item_list) - 1
+        while self._item_list[final_item_index].isEmpty():
+            final_item_index -= 1
+            if final_item_index == -1:
+                return 0
+
+        for idx, item in enumerate(self._item_list):
+            if item.isEmpty():
+                continue
             style = item.widget().style()
             layout_spacing_x = style.layoutSpacing(
                 QSizePolicy.ControlType.PushButton, QSizePolicy.ControlType.PushButton,
@@ -112,17 +124,32 @@ class FlowLayout(QLayout):
             space_y = spacing + layout_spacing_y
             item_sizeHint = item.sizeHint()
             next_x = x + item_sizeHint.width() + space_x
+            end_of_line = False
             if next_x - space_x > rect.right() - cm.right() and line_height > 0:
                 x = rect.x() + cm.left()
                 y = y + line_height + space_y
                 next_x = x + item_sizeHint.width() + space_x
+                last_line_height = line_height
                 line_height = 0
+                end_of_line = True
 
             if not test_only:
-                item.setGeometry(QRect(QPoint(x, y + y_offset), item_sizeHint))
+                items_on_current_line.append((item, QRect(QPoint(x, y + y_offset), item_sizeHint)))
 
             x = next_x
             line_height = max(line_height, item_sizeHint.height())
+            
+            # go back and vertically center items on current line.
+            if end_of_line or idx == final_item_index:
+                if idx == final_item_index:
+                    last_line_height = line_height
+                if not test_only:
+                    for item_, rect_ in items_on_current_line:
+                        item_height = rect_.height()
+                        if item_height < last_line_height:
+                            rect_.translate(0, round(last_line_height/2 - item_height/2))
+                        item_.setGeometry(rect_)
+                    items_on_current_line.clear()
 
         #print(f"flowlayout:_do_layout: {rect=} {test_only=} height={y+line_height-rect.y()} {h=} {y_offset=}")
         return y + line_height - rect.y() + cm.bottom()
