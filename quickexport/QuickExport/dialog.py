@@ -94,6 +94,7 @@ class QEDialog(QDialog):
 
         self.settings_display_mode_combobox = QEComboBox()
         self.settings_display_mode_combobox.addItem("Compact", "compact", "All rows are compact.")
+        self.settings_display_mode_combobox.addItem("Focused", "focused", "The focused row is expanded, all others are compact.\nDouble-click a row to focus it.")
         self.settings_display_mode_combobox.addItem("Expanded", "expanded", "All rows are expanded.")
         self.settings_display_mode_combobox.setCurrentIndex(self.settings_display_mode_combobox.findData(readSetting("settings_display_mode")))
         self.settings_display_mode_combobox.currentIndexChanged.connect(self._on_settings_display_mode_combobox_current_index_changed)

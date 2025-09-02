@@ -66,7 +66,7 @@ setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_k
                     "advanced_mode":"false", "auto_store_on_modify":"true", "auto_store_on_export":"true", "auto_save_on_close":"true", "use_custom_icons":"true",
                     "custom_icons_theme":"follow", "show_export_name_in_menu":"true", "default_export_unsaved":"false", "show_thumbnails_for_unopened":"true",
                     "visible_types":".jpg .jpeg .png", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"", "wide_column_resize_grabber":"false",
-                    "show_fade_sliders":"true", "settings_display_mode":"compact", "settings":""}
+                    "show_fade_sliders":"true", "settings_display_mode":"focused", "settings":""}
 
 filter_strategy_store_strings = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BSpline":"BS", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
 

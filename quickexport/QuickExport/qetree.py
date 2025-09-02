@@ -442,9 +442,13 @@ class QETree(QTreeWidget):
         mode = readSetting("settings_display_mode") if not mode else mode
         
         for item in self.items:
-            is_compact = mode == "compact"
+            is_compact = mode == "compact" or (mode == "focused" and self.focused_item != item)
+            is_expanded = item.isExpanded() and (mode != "focused" or (mode == "focused" and self.focused_item == item))
             
             settings_stack = item.settings_stack
+            
+            item.versions_show_button.setIcon(app.icon("arrowup") if is_expanded else app.icon("arrowdown"))
+            item.setExpanded(is_expanded)
             
             for page_index in range(1, settings_stack.count()):
                 page = settings_stack.widget(page_index)
@@ -475,6 +479,9 @@ class QETree(QTreeWidget):
         self.installEventFilter(self.filter)
         
         self.hovered_item = None
+        
+        self.highlighted_doc_index = -1
+        self.focused_item = None
         
         self.stored_highlight_alpha = round(int(readSetting("highlight_alpha"))*0.64)
         
@@ -510,6 +517,10 @@ class QETree(QTreeWidget):
         children = widget.findChildren(QLineEdit)
         if len(children) == 1:
             children[0].setFocus(Qt.MouseFocusReason)
+    
+    def _on_item_double_clicked(self, item, column):
+        self.focused_item = item
+        self.set_settings_display_mode()
     
     def setup(self):
         docs = app.documents()
@@ -559,7 +570,6 @@ class QETree(QTreeWidget):
         
         # TODO: detect if multiple documents would export to the same output file.
         
-        self.highlighted_doc_index = -1
         if self.dialog.highlighted_doc:
             for s in qe_settings:
                 if s["document"] == self.dialog.highlighted_doc:
@@ -590,6 +600,7 @@ class QETree(QTreeWidget):
         self.setItemDelegate(item_delegate)
         
         self.itemClicked.connect(self._on_item_clicked)
+        self.itemDoubleClicked.connect(self._on_item_double_clicked)
         
         # TODO: should probably have an option to force removal of extensions from output name.
         #       an *option* because user could wish to export myfile.kra as myfile.kra.png, so output
@@ -603,6 +614,11 @@ class QETree(QTreeWidget):
         
         for s in qe_settings:
             self.add_item(s)
+        
+        for item in self.items:
+            if item.doc_settings["document"] == self.dialog.highlighted_doc:
+                self.focused_item = item
+                break
         
         self.refilter()
         
