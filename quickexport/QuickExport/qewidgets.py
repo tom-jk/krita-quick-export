@@ -280,18 +280,30 @@ class CheckToolButton(QToolButton):
         super().__init__(*args, **kwargs)
         self.setCheckable(True)
         self.set_icon_name(icon_name)
+        self.clicked.connect(self._on_clicked)
         extension().themeChanged.connect(self._on_theme_changed)
         if checked:
             self.setChecked(checked)
         if tooltip:
             self.setToolTip(tooltip)
     
+    def setCheckState(self, check_state):
+        self.setChecked(True if check_state == Qt.Checked else False)
+    
+    def _on_clicked(self, checked):
+        if self.icon_name[0] == "visibility":
+            self.icon_name = ("visibility", "show" if checked else "hide")
+            self.setIcon(extension().get_icon(*self.icon_name))
+    
     def _on_theme_changed(self):
         self.setIcon(extension().get_icon(*self.icon_name))
     
     def set_icon_name(self, icon_name):
         if icon_name:
-            self.icon_name = icon_name if isinstance(icon_name, tuple) else (icon_name,)
+            if icon_name == "visibility":
+                self.icon_name = (icon_name, "show" if self.isChecked() else "hide")
+            else:
+                self.icon_name = icon_name if isinstance(icon_name, tuple) else (icon_name,)
             self.setIcon(extension().get_icon(*self.icon_name))
         else:
             self.icon_name = ""
@@ -306,16 +318,17 @@ class CheckToolButton(QToolButton):
         style_option.initFrom(self)
         
         mouse_is_over = style_option.state & QStyle.State_MouseOver
+        is_checked = not self.isCheckable() or self.isChecked()
         
         # if not mouse_is_over:
             # painter.setOpacity(0.5)
         if mouse_is_over:
             self.style().drawPrimitive(QStyle.PE_PanelButtonCommand, style_option, painter)
         
-        painter.setOpacity(0.95 if self.isChecked() else 0.65 if mouse_is_over else 0.25)
+        painter.setOpacity(1.0 if is_checked else 0.65 if mouse_is_over else 0.25)
         
         #style_option.rect.adjust(2,2,-2,-2)
-        if not self.isChecked():
+        if not is_checked:
             style_option.rect.adjust(2,2,-2,-2)
         
         self.style().drawItemPixmap(painter, style_option.rect, 0, self.icon().pixmap(style_option.rect.size()))
