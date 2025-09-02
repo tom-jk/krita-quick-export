@@ -14,6 +14,10 @@ from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
 
+class FlowLayoutBreak(QLayoutItem):
+    def isEmpty(self):
+        return False
+
 # copied from
 # doc.qt.io/qtforpython-6/examples/example_widgets_layouts_flowlayout.html.
 class FlowLayout(QLayout):
@@ -26,6 +30,8 @@ class FlowLayout(QLayout):
             fh = fm.height()
             self.setContentsMargins(QMargins(fw//2, fh//2, fw//2, fh//2))
 
+        self._ignore_breaks = False
+
         self._item_list = []
 
     def __del__(self):
@@ -35,6 +41,16 @@ class FlowLayout(QLayout):
 
     def addItem(self, item):
         self._item_list.append(item)
+
+    def addBreak(self):
+        item = FlowLayoutBreak()
+        self.addItem(item)
+
+    def ignoreBreaks(self):
+        return self._ignore_breaks
+
+    def setIgnoreBreaks(self, ignore):
+        self._ignore_breaks = ignore
 
     def count(self):
         return len(self._item_list)
@@ -102,14 +118,18 @@ class FlowLayout(QLayout):
 
         items_on_current_line = []
         last_line_height = 0
+        last_item_was_breakpoint = False
         final_item_index = len(self._item_list) - 1
-        while self._item_list[final_item_index].isEmpty():
+        while self._item_list[final_item_index].isEmpty() or isinstance(self._item_list[final_item_index], FlowLayoutBreak):
             final_item_index -= 1
             if final_item_index == -1:
                 return 0
 
         for idx, item in enumerate(self._item_list):
             if item.isEmpty():
+                continue
+            if isinstance(item, FlowLayoutBreak):
+                last_item_was_breakpoint = not self.ignoreBreaks()
                 continue
             style = item.widget().style()
             layout_spacing_x = style.layoutSpacing(
@@ -125,12 +145,13 @@ class FlowLayout(QLayout):
             item_sizeHint = item.sizeHint()
             next_x = x + item_sizeHint.width() + space_x
             end_of_line = False
-            if next_x - space_x > rect.right() - cm.right() and line_height > 0:
+            if last_item_was_breakpoint or (next_x - space_x > rect.right() - cm.right() and line_height > 0):
                 x = rect.x() + cm.left()
                 y = y + line_height + space_y
                 next_x = x + item_sizeHint.width() + space_x
                 last_line_height = line_height
                 line_height = 0
+                last_item_was_breakpoint = False
                 end_of_line = True
 
             if not test_only:
