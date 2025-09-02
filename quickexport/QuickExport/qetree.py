@@ -615,6 +615,12 @@ class QETree(QTreeWidget):
             widget.setLayout(layout)
             return widget
         
+        def setting_label_and_layout_break(page_layout, text):
+            widget = QLabel(text)
+            page_layout.addWidget(widget)
+            page_layout.addBreak()
+            return widget
+        
         # TODO: adapt to theme light/dark.
         checkbox_stylesheet = "QCheckBox::indicator:unchecked {border: 1px solid rgba(255,255,255,0.1);}" if extension().theme_is_dark else ""
         
@@ -817,8 +823,7 @@ class QETree(QTreeWidget):
         no_settings_page = QWidget()
         no_settings_page_layout = FlowLayout()
         
-        no_settings_label = QLabel("(No settings.)")
-        no_settings_page_layout.addWidget(no_settings_label)
+        no_settings_label = setting_label_and_layout_break(no_settings_page_layout, "(No settings for image type.)")
         
         tooltip = "scale image before export"
         no_settings_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip=tooltip)
@@ -826,6 +831,8 @@ class QETree(QTreeWidget):
         
         no_settings_scale_button.setMenu(scale_menu)
         no_settings_page_layout.addWidget(no_settings_scale_button)
+        
+        no_settings_scale_label = setting_label_and_layout_break(no_settings_page_layout, tooltip.partition("\n")[0])
         
         no_settings_page.setLayout(no_settings_page_layout)
         settings_stack.addWidget(no_settings_page)
@@ -841,6 +848,8 @@ class QETree(QTreeWidget):
         png_compression_slider.valueChanged.connect(lambda value, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_compression", value, i, sb))
         png_settings_page_layout.addWidget(png_compression_slider)
         
+        png_settings_page_layout.addBreak()
+        
         tooltip = "Store alpha channel (transparency)\n\n" \
                   "Disable to get smaller files if your image has no transparency.\n\n" \
                   "The PNG file format allows transparency in your image to be stored by saving an alpha channel.\n" \
@@ -848,6 +857,8 @@ class QETree(QTreeWidget):
         png_alpha_checkbox = CheckToolButton(icon_name="alpha", checked=s["png_alpha"], tooltip=tooltip)
         png_alpha_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_toggled(checked, i, sb))
         png_settings_page_layout.addWidget(png_alpha_checkbox)
+        
+        png_alpha_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Transparent color\n\n" \
                   "Background color to replace transparent pixels with."
@@ -857,6 +868,7 @@ class QETree(QTreeWidget):
         png_fillcolour_button.colourChanged.connect(lambda colour, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_fillcolour", colour, i, sb))
         png_settings_page_layout.addWidget(png_fillcolour_button)
         
+        png_fillcolour_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Save as indexed PNG, if possible\n\n" \
                   "Indexed PNG images are smaller.\n" \
@@ -864,6 +876,8 @@ class QETree(QTreeWidget):
         png_indexed_checkbox = CheckToolButton(icon_name="indexed", checked=s["png_indexed"], tooltip=tooltip)
         png_indexed_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_indexed", checked, i, sb))
         png_settings_page_layout.addWidget(png_indexed_checkbox)
+        
+        png_index_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Interlacing\n\n" \
                   "Use interlacing when publishing on the Internet.\n\n" \
@@ -873,10 +887,14 @@ class QETree(QTreeWidget):
         png_interlaced_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_interlaced", checked, i, sb))
         png_settings_page_layout.addWidget(png_interlaced_checkbox)
         
+        png_interlaced_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
+        
         tooltip = "Save as HDR image (Rec. 2020 PQ)"
         png_hdr_checkbox = CheckToolButton(icon_name="hdr", checked=s["png_hdr"], tooltip=tooltip)
         png_hdr_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_hdr", checked, i, sb))
         png_settings_page_layout.addWidget(png_hdr_checkbox)
+        
+        png_hdr_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Embed sRGB profile\n\n" \
                   "PNG files have two options to save sRGB information: as a tag or as an explicit profile.\n" \
@@ -886,15 +904,21 @@ class QETree(QTreeWidget):
         png_embed_srgb_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_embed_srgb", checked, i, sb))
         png_settings_page_layout.addWidget(png_embed_srgb_checkbox)
         
+        png_embed_srgb_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
+        
         tooltip = "Force convert to sRGB"
         png_force_srgb_checkbox = CheckToolButton(icon_name="force_profile", checked=s["png_force_srgb"], tooltip=tooltip)
         png_force_srgb_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_force_srgb", checked, i, sb))
         png_settings_page_layout.addWidget(png_force_srgb_checkbox)
         
+        png_force_srgb_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
+        
         tooltip = "Force convert to 8bits/channel"
         png_force_8bit_checkbox = CheckToolButton(icon_name="force_8bit", checked=s["png_force_8bit"], tooltip=tooltip)
         png_force_8bit_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_force_8bit", checked, i, sb))
         png_settings_page_layout.addWidget(png_force_8bit_checkbox)
+        
+        png_force_8bit_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Store Metadata\n\n" \
                   "Store information like keywords, title and subject and license, if possible."
@@ -902,11 +926,15 @@ class QETree(QTreeWidget):
         png_metadata_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_metadata", checked, i, sb))
         png_settings_page_layout.addWidget(png_metadata_checkbox)
         
+        png_metadata_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
+        
         tooltip = "Sign with author data\n\n" \
                   "Save author nickname and first contact information of the author profile into the png, if possible."
         png_author_checkbox = CheckToolButton(icon_name="author", checked=s["png_author"], tooltip=tooltip)
         png_author_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_author", checked, i, sb))
         png_settings_page_layout.addWidget(png_author_checkbox)
+        
+        png_author_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Scale image before export"
         png_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip=tooltip)
@@ -914,6 +942,8 @@ class QETree(QTreeWidget):
         
         png_scale_button.setMenu(scale_menu)
         png_settings_page_layout.addWidget(png_scale_button)
+        
+        png_scale_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         png_settings_page.setLayout(png_settings_page_layout)
         settings_stack.addWidget(png_settings_page)
@@ -936,10 +966,14 @@ class QETree(QTreeWidget):
         jpeg_smooth_slider.valueChanged.connect(lambda value, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_smooth", value, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_smooth_slider)
         
+        jpeg_settings_page_layout.addBreak()
+        
         tooltip = "Save ICC profile"
         jpeg_icc_profile_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["jpeg_icc_profile"], tooltip=tooltip)
         jpeg_icc_profile_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_icc_profile", checked, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_icc_profile_checkbox)
+        
+        jpeg_icc_profile_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Transparent pixel fill color\n\n" \
                   "Background color to replace transparent pixels with."
@@ -947,11 +981,15 @@ class QETree(QTreeWidget):
         jpeg_fillcolour_checkbox.colourChanged.connect(lambda colour, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_fillcolour", colour, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_fillcolour_checkbox)
         
+        jpeg_fillcolour_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
+        
         tooltip = "Progressive\n\n" \
                   "A progressive jpeg can be displayed while loading."
         jpeg_progressive_checkbox = CheckToolButton(icon_name="progressive", checked=s["jpeg_progressive"], tooltip=tooltip)
         jpeg_progressive_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_progressive", checked, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_progressive_checkbox)
+        
+        jpeg_progressive_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Subsampling\n\n" \
                   "Subsampling stores chroma (colour) information at a lower resolution than luma (brightness).\n" \
@@ -974,6 +1012,8 @@ class QETree(QTreeWidget):
         jpeg_subsampling_button.setMenu(jpeg_subsampling_menu)
         jpeg_settings_page_layout.addWidget(jpeg_subsampling_button)
         
+        jpeg_subsampling_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
+        
         tooltip = "Force baseline JPEG\n\n" \
                   "Force full JPEG baseline compatibility.\n" \
                   "Only really useful for compatibility with old devices. Does nothing if Quality is above 25%."
@@ -981,12 +1021,16 @@ class QETree(QTreeWidget):
         jpeg_force_baseline_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_force_baseline", checked, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_force_baseline_checkbox)
         
+        jpeg_force_baseline_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
+        
         tooltip = "Optimize\n\n" \
                   "Compute optimal compression coding for the image, otherwise use the default coding.\n" \
                   "File size savings tend to be small. When Progressive is enabled, the image will be optimized regardless."
         jpeg_optimise_checkbox = CheckToolButton(icon_name="optimise", checked=s["jpeg_optimise"], tooltip=tooltip)
         jpeg_optimise_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_optimise", checked, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_optimise_checkbox)
+        
+        jpeg_optimise_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Metadata formats and filters"
         jpeg_metadata_options_button = CheckToolButton(icon_name="metadata_options", checked=s["jpeg_metadata"], tooltip=tooltip)
@@ -1016,12 +1060,16 @@ class QETree(QTreeWidget):
         jpeg_metadata_options_button.setMenu(jpeg_metadata_options_menu)
         jpeg_settings_page_layout.addWidget(jpeg_metadata_options_button)
         
+        jpeg_metadata_options_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
+        
         tooltip = "Store Document Metadata\n\n" \
                   "Store document metadata that is in the document information.\n" \
                   "This will override any layer metadata."
         jpeg_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["jpeg_metadata"], tooltip=tooltip)
         jpeg_metadata_checkbox.toggled.connect(lambda checked, mob=jpeg_metadata_options_button, i=item, sb=btn_store_forget: self._on_jpeg_metadata_checkbox_toggled(checked, mob, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_metadata_checkbox)
+        
+        jpeg_metadata_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Sign with Author Profile Data\n\n" \
                   "Add the author nickname and the first contact of the author profile.\n" \
@@ -1030,12 +1078,16 @@ class QETree(QTreeWidget):
         jpeg_author_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_author", checked, i, sb))
         jpeg_settings_page_layout.addWidget(jpeg_author_checkbox)
         
+        jpeg_author_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
+        
         tooltip = "Scale image before export"
         jpeg_scale_button = CheckToolButton(icon_name="scale", checked=s["scale"], tooltip=tooltip)
         jpeg_scale_button.setPopupMode(QToolButton.InstantPopup)
         
         jpeg_scale_button.setMenu(scale_menu)
         jpeg_settings_page_layout.addWidget(jpeg_scale_button)
+        
+        jpeg_scale_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
         
         jpeg_settings_page.setLayout(jpeg_settings_page_layout)
         settings_stack.addWidget(jpeg_settings_page)
@@ -1139,7 +1191,6 @@ class QETree(QTreeWidget):
                     self._make_thumbnail(doc, item)
                 
                 print("thumbnail_worker: job done.")
-                
                 
                 yield self.thumbnail_worker_timer.start()
         
