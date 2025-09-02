@@ -152,7 +152,7 @@ class MultiLineElidedText(QWidget):
                 while ((numloops1:=locals().get('numloops1',-1)+1) < 9999) and last_word[0] + last_word[2] > ellipsis_sx and len(last_word[3]) > 0:
                     last_word[3] = last_word[3][:-1]
                     last_word[2] = fm.horizontalAdvance(last_word[3])
-                if numloops1 == 100: print("truncate last word overran")
+                if numloops1 == 9999: print("truncate last word overran")
                 if last_word[3] == "":
                     wrapped_text.pop(last_word_idx)
                     last_word_idx -= 1
@@ -173,10 +173,10 @@ class MultiLineElidedText(QWidget):
                     first_word[3] = first_word[3][1:]
                     first_word[2] = fm.horizontalAdvance(first_word[3])
                     first_word[0] = first_word_ex - first_word[2]
-                if numloops2 == 100: print("truncate first word overran")
+                if numloops2 == 9999: print("truncate first word overran")
                 if first_word[3] == "":
                     wrapped_text_b.pop(0)
-                    first_word = wrapped_text_b[0]
+                    first_word = wrapped_text_b[0] if len(wrapped_text_b) > 0 else None
             wrapped_text.extend(wrapped_text_b)
         
         # if available width is less than that of any single char to be displayed, don't display text.
@@ -186,14 +186,16 @@ class MultiLineElidedText(QWidget):
             self._wrapped_text_words = wrapped_text
             return h*max_lines + fm.descent()
         
+        num_lines = wrapped_text[-1][1] // h
         total_height = wrapped_text[-1][1] + fm.descent()
         
-        if width >= ellipsis_w*2:
-            wrapped_text.insert(last_word_idx+1, [last_word[0]+last_word[2], h*elide_at_line, fm.horizontalAdvance("…"), "…"])
-            wrapped_text.insert(last_word_idx+2, [first_word[0]-fm.horizontalAdvance("…"), h*elide_at_line, fm.horizontalAdvance("…"), "…"])
-        else:
-            wrapped_text.insert(last_word_idx+1, [width//2 - fm.horizontalAdvance("…")//2, h*elide_at_line, fm.horizontalAdvance("…"), "…"])
-    
+        if num_lines > 1:
+            if width >= ellipsis_w*2 and first_word != None:
+                wrapped_text.insert(last_word_idx+1, [last_word[0]+last_word[2], h*elide_at_line, fm.horizontalAdvance("…"), "…"])
+                wrapped_text.insert(last_word_idx+2, [first_word[0]-fm.horizontalAdvance("…"), h*elide_at_line, fm.horizontalAdvance("…"), "…"])
+            else:
+                wrapped_text.insert(last_word_idx+1, [width//2 - fm.horizontalAdvance("…")//2, h*elide_at_line, fm.horizontalAdvance("…"), "…"])
+        
         end_time = default_timer()
         #print(f"multi-line text elide took {1000*(end_time-start_time):.4} ms.")
         
