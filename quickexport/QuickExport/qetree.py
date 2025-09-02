@@ -380,6 +380,8 @@ class QETree(QTreeWidget):
     
     def set_item_settings_stack_page_for_extension(self, item, ext):
         settings_stack = item.settings_stack
+        index = self.settings_stack_page_index_for_extension(ext)
+        settings_stack.setCurrentIndex(index)
         self._on_column_resized(QECols.SETTINGS_COLUMN, QECols.SETTINGS_COLUMN, -1)
     
     def settings_stack_page_index_for_extension(self, ext):
@@ -435,6 +437,25 @@ class QETree(QTreeWidget):
         for child in self.children():
             if hasattr(child, "update"):
                 child.update()
+    
+    def set_settings_display_mode(self, mode=None):
+        mode = readSetting("settings_display_mode") if not mode else mode
+        
+        for item in self.items:
+            is_compact = mode == "compact"
+            
+            settings_stack = item.settings_stack
+            
+            for page_index in range(1, settings_stack.count()):
+                page = settings_stack.widget(page_index)
+                page.layout().setIgnoreBreaks(is_compact)
+                for widget in page.children():
+                    if isinstance(widget, QLabel):
+                        widget.setVisible(not is_compact)
+                page.updateGeometry()
+        
+        self.updateGeometries()
+        self.scheduleDelayedItemsLayout()
     
     def __init__(self, dialog, parent=None):
         super().__init__(parent)

@@ -13,7 +13,7 @@ from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
-from .qewidgets import QEMenu, SnapSlider, UncheckableButtonGroup, SpinBoxSlider
+from .qewidgets import QEMenu, SnapSlider, UncheckableButtonGroup, SpinBoxSlider, QEComboBox
 from .qetree import QECols, QETree
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
@@ -48,6 +48,8 @@ class QEDialog(QDialog):
         layout.insertWidget(0, self.tree)
         self.tree_is_ready = True
         self.tree.set_settings_modified()
+        
+        self.tree.set_settings_display_mode()
         
         self.set_advanced_mode(self.advanced_mode_button.checkState() == Qt.Checked)
         
@@ -90,6 +92,12 @@ class QEDialog(QDialog):
         self.show_non_kra_button.setCheckState(str2qtcheckstate(readSetting("show_non_kra")))
         self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
 
+        self.settings_display_mode_combobox = QEComboBox()
+        self.settings_display_mode_combobox.addItem("Compact", "compact", "All rows are compact.")
+        self.settings_display_mode_combobox.addItem("Expanded", "expanded", "All rows are expanded.")
+        self.settings_display_mode_combobox.setCurrentIndex(self.settings_display_mode_combobox.findData(readSetting("settings_display_mode")))
+        self.settings_display_mode_combobox.currentIndexChanged.connect(self._on_settings_display_mode_combobox_current_index_changed)
+
         self.fade_button = QToolButton()
         self.fade_button.setText("Fade")
         self.fade_button.setAutoRaise(True)
@@ -116,6 +124,7 @@ class QEDialog(QDialog):
         view_buttons_layout.addWidget(self.show_non_kra_button)
         view_buttons_layout.addWidget(self.show_unopened_button)
         view_buttons_layout.addWidget(self.show_unstored_button)
+        view_buttons_layout.addWidget(self.settings_display_mode_combobox)
         view_buttons_layout.addStretch()
         view_buttons_layout.addWidget(self.fade_button)
         view_buttons_layout.addWidget(self.alt_row_contrast_slider)
@@ -353,6 +362,11 @@ class QEDialog(QDialog):
     def _on_show_non_kra_button_clicked(self, checked):
         writeSetting("show_non_kra", bool2str(checked))
         self.tree.refilter()
+    
+    def _on_settings_display_mode_combobox_current_index_changed(self, index):
+        mode = self.settings_display_mode_combobox.itemData(index)
+        writeSetting("settings_display_mode", mode)
+        self.tree.set_settings_display_mode(mode)
     
     def _on_fade_button_clicked(self, checked):
         checked = not str2bool(readSetting("show_fade_sliders"))
