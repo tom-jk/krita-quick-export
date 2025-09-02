@@ -39,6 +39,7 @@ class QuickExportExtension(Extension):
             self.icons[theme] = {
                 "qe":               icon("document-quick-export"),
                 "qec":              icon("document-quick-export-configure"),
+                "settings":         icon("settings"),
                 "visibility": {
                     "hide":         app.icon("novisible"),
                     "show":         app.icon("visible")
@@ -72,6 +73,7 @@ class QuickExportExtension(Extension):
         self.icons["default"] = {
             "qe":                   None,
             "qec":                  None,
+            "settings":             app.icon("configure"),
             "visibility": {
                 "hide":             app.icon("novisible"),
                 "show":             app.icon("visible")

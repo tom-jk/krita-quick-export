@@ -93,6 +93,7 @@ class QEDialog(QDialog):
         self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
 
         self.settings_display_mode_combobox = QEComboBox()
+        self.settings_display_mode_combobox.addItem("Minimized", "minimized", "All rows are minimized.")
         self.settings_display_mode_combobox.addItem("Compact", "compact", "All rows are compact.")
         self.settings_display_mode_combobox.addItem("Focused", "focused", "The focused row is expanded, all others are compact or minimized.\nDouble-click a row to focus it.")
         self.settings_display_mode_combobox.addItem("Expanded", "expanded", "All rows are expanded.")

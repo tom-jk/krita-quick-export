@@ -17,6 +17,22 @@ from .qewidgets import QEMenu, CheckToolButton, ColourToolButton, QEComboBox, Fa
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
 
+class SettingsWidget(QWidget):
+    def popOut(self, settings_stack, index):
+        self._settings_stack = settings_stack
+        self._index = index
+        self._default_flags = self.windowFlags()
+        self.setParent(settings_stack)
+        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
+        self.move(settings_stack.mapToGlobal(settings_stack.rect().bottomLeft()))
+        new_size = QSize(*self.layout()._do_layout(QRect(0,0,0,0), test_only=True, auto_wrap=False, for_popup=True))
+        self.setGeometry(QRect(self.pos(), new_size))
+        self.show()
+    
+    def closeEvent(self, event):
+        self._settings_stack.insertWidget(self._index, self)
+        self.setWindowFlags(self._default_flags)
+
 class MyHeaderStyle(QProxyStyle):
     def pixelMetric(self, metric, option=None, widget=None):
         if metric == QStyle.PM_HeaderGripMargin:
@@ -276,6 +292,13 @@ class QETree(QTreeWidget):
         if self.dialog.auto_store_on_export_button.checkState() == Qt.Checked:
             store_button.setCheckState(Qt.Checked)
     
+    def _on_settings_stack_popout_button_clicked(self, item):
+        doc_settings = item.doc_settings
+        settings_stack = item.settings_stack
+        index = self.settings_stack_page_index_for_extension(doc_settings["ext"])
+        page = settings_stack.widget(index)
+        page.popOut(settings_stack, index)
+    
     def _on_item_scale_checkbox_action_triggered(self, checked, checkboxes, item, store_button):
         doc = item.doc_settings
         doc["scale"] = checked
@@ -389,7 +412,7 @@ class QETree(QTreeWidget):
         index = self.settings_stack_page_index_for_extension(ext)
         is_minimized = self.isItemMinimized(item)
         settings_stack.widget(index).setVisible(not is_minimized)
-        settings_stack.setCurrentIndex(index)
+        settings_stack.setCurrentIndex(0 if readSetting("settings_display_mode") == "minimized" else index)
         self._on_column_resized(QECols.SETTINGS_COLUMN, QECols.SETTINGS_COLUMN, -1)
     
     def settings_stack_page_index_for_extension(self, ext):
@@ -449,7 +472,7 @@ class QETree(QTreeWidget):
     def isItemMinimized(self, item):
         mode = readSetting("settings_display_mode")
         minimize_unfocused = str2bool(readSetting("minimize_unfocused"))
-        return mode == "focused" and self.focused_item != item and minimize_unfocused
+        return mode == "minimized" or (mode == "focused" and self.focused_item != item and minimize_unfocused)
     
     def set_settings_display_mode(self, mode=None):
         mode = readSetting("settings_display_mode") if not mode else mode
@@ -476,6 +499,7 @@ class QETree(QTreeWidget):
             item.output_filename_edit.edit.document().setDefaultTextOption(textoption)
             item.output_filename_edit.edit.updateGeometry()
             
+            settings_stack.setCurrentIndex(0 if mode=="minimized" else self.settings_stack_page_index_for_extension(item.doc_settings["ext"]))
             for page_index in range(1, settings_stack.count()):
                 page = settings_stack.widget(page_index)
                 page.setVisible(page == settings_stack.currentWidget() and not is_minimized)
@@ -624,7 +648,7 @@ class QETree(QTreeWidget):
         
         self.thumbnail_queue = []
         
-        self.settings_stack_page_order = [[".gif", ".pbm", ".pgm", ".ppm", ".tga", ".bmp", ".ico", ".xbm", ".xpm"], ".png", [".jpg",".jpeg"]]
+        self.settings_stack_page_order = ["minimized", [".gif", ".pbm", ".pgm", ".ppm", ".tga", ".bmp", ".ico", ".xbm", ".xpm"], ".png", [".jpg",".jpeg"]]
         
         item_delegate = ItemDelegate()
         self.setItemDelegate(item_delegate)
@@ -893,7 +917,19 @@ class QETree(QTreeWidget):
         
         item.settings_stack = FadingStackedWidget()
         
-        no_settings_page = QWidget()
+        popout_button_page = QWidget()
+        popout_button_page_layout = QHBoxLayout()
+        
+        popout_button = CheckToolButton(icon_name="settings", checked=True)
+        popout_button.setCheckable(False)
+        popout_button.clicked.connect(lambda checked, i=item: self._on_settings_stack_popout_button_clicked(i))
+        
+        popout_button_page_layout.addWidget(popout_button)
+        
+        popout_button_page.setLayout(popout_button_page_layout)
+        item.settings_stack.addWidget(popout_button_page)
+        
+        no_settings_page = SettingsWidget()
         no_settings_page_layout = FlowLayout()
         
         no_settings_label = setting_label_and_layout_break(no_settings_page_layout, "(No settings for image type.)")
@@ -910,7 +946,7 @@ class QETree(QTreeWidget):
         no_settings_page.setLayout(no_settings_page_layout)
         item.settings_stack.addWidget(no_settings_page)
         
-        png_settings_page = QWidget()
+        png_settings_page = SettingsWidget()
         png_settings_page_layout = FlowLayout()
         
         tooltip = "Compression\n\n" \
@@ -1021,7 +1057,7 @@ class QETree(QTreeWidget):
         png_settings_page.setLayout(png_settings_page_layout)
         item.settings_stack.addWidget(png_settings_page)
         
-        jpeg_settings_page = QWidget()
+        jpeg_settings_page = SettingsWidget()
         jpeg_settings_page_layout = FlowLayout()
         
         tooltip = "Quality\n\n" \

@@ -96,12 +96,13 @@ class FlowLayout(QLayout):
         size += QSize(cm.left() + cm.right(), cm.top() + cm.bottom())
         return size
 
-    def _do_layout(self, rect, test_only):
+    def _do_layout(self, rect, test_only, auto_wrap=True, for_popup=False):
         pw = self.parentWidget()
-        if pw.isHidden():
+        pw_is_popup = (pw.windowFlags() & Qt.Popup)
+        if pw.isHidden() and not pw_is_popup:
             return 0
         sw = pw.parent()
-        if isinstance(sw, QStackedWidget) and sw.currentWidget() != pw:
+        if isinstance(sw, QStackedWidget) and sw.currentWidget() != pw and not pw_is_popup:
             return 0
         if len(self._item_list) == 0:
             return 0
@@ -119,6 +120,7 @@ class FlowLayout(QLayout):
         spacing = self.spacing()
 
         items_on_current_line = []
+        length_of_longest_line = 0
         last_line_height = 0
         last_item_was_breakpoint = False
         final_item_index = len(self._item_list) - 1
@@ -147,7 +149,8 @@ class FlowLayout(QLayout):
             item_sizeHint = item.sizeHint()
             next_x = x + item_sizeHint.width() + space_x
             end_of_line = False
-            if last_item_was_breakpoint or (next_x - space_x > rect.right() - cm.right() and line_height > 0):
+            if last_item_was_breakpoint or (auto_wrap and next_x - space_x > rect.right() - cm.right() and line_height > 0):
+                length_of_longest_line = max(length_of_longest_line, x)
                 x = rect.x() + cm.left()
                 y = y + line_height + space_y
                 next_x = x + item_sizeHint.width() + space_x
@@ -166,6 +169,7 @@ class FlowLayout(QLayout):
             if end_of_line or idx == final_item_index:
                 if idx == final_item_index:
                     last_line_height = line_height
+                    length_of_longest_line = max(length_of_longest_line, x)
                 if not test_only:
                     for item_, rect_ in items_on_current_line:
                         item_height = rect_.height()
@@ -173,6 +177,10 @@ class FlowLayout(QLayout):
                             rect_.translate(0, round(last_line_height/2 - item_height/2))
                         item_.setGeometry(rect_)
                     items_on_current_line.clear()
+
+        if for_popup:
+            #print(f"flowlayout:_do_layout: FOR_POPUP: width={length_of_longest_line + cm.right()}, height={y + line_height - rect.y() + cm.bottom()}")
+            return length_of_longest_line + cm.right(), y + line_height - rect.y() + cm.bottom()
 
         #print(f"flowlayout:_do_layout: {rect=} {test_only=} height={y+line_height-rect.y()} {h=} {y_offset=}")
         return y + line_height - rect.y() + cm.bottom()
