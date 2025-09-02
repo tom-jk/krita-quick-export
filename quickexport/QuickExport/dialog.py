@@ -90,6 +90,10 @@ class QEDialog(QDialog):
         self.show_non_kra_button.setCheckState(str2qtcheckstate(readSetting("show_non_kra")))
         self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
 
+        self.fade_button = QToolButton()
+        self.fade_button.setText("Fade")
+        self.fade_button.setAutoRaise(True)
+        self.fade_button.clicked.connect(self._on_fade_button_clicked)
 
         self.alt_row_contrast_slider = SpinBoxSlider("Contrast", "%", 0, 100, 2, "")
         self.alt_row_contrast_slider.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
@@ -105,13 +109,15 @@ class QEDialog(QDialog):
         self.stored_highlight_slider.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         self.stored_highlight_slider.setValue(int(readSetting("highlight_alpha")))
         self.stored_highlight_slider.valueChanged.connect(self._on_stored_highlight_slider_value_changed)
+        
+        self.update_fade_sliders_visibility(str2bool(readSetting("show_fade_sliders")))
 
         view_buttons_layout.addWidget(QLabel("Show:"))
         view_buttons_layout.addWidget(self.show_non_kra_button)
         view_buttons_layout.addWidget(self.show_unopened_button)
         view_buttons_layout.addWidget(self.show_unstored_button)
         view_buttons_layout.addStretch()
-        view_buttons_layout.addWidget(QLabel("Fade:"))
+        view_buttons_layout.addWidget(self.fade_button)
         view_buttons_layout.addWidget(self.alt_row_contrast_slider)
         view_buttons_layout.addWidget(self.unhovered_fade_slider)
         view_buttons_layout.addWidget(self.stored_highlight_slider)
@@ -347,6 +353,23 @@ class QEDialog(QDialog):
     def _on_show_non_kra_button_clicked(self, checked):
         writeSetting("show_non_kra", bool2str(checked))
         self.tree.refilter()
+    
+    def _on_fade_button_clicked(self, checked):
+        checked = not str2bool(readSetting("show_fade_sliders"))
+        writeSetting("show_fade_sliders", bool2str(checked))
+        self.update_fade_sliders_visibility(checked)
+    
+    def update_fade_sliders_visibility(self, visible):
+        if visible:
+            self.fade_button.setText("Fade:")
+            self.alt_row_contrast_slider.show()
+            self.unhovered_fade_slider.show()
+            self.stored_highlight_slider.show()
+        else:
+            self.fade_button.setText("Fade...")
+            self.alt_row_contrast_slider.hide()
+            self.unhovered_fade_slider.hide()
+            self.stored_highlight_slider.hide()
     
     def _on_alt_row_contrast_slider_value_changed(self):
         writeSetting("alt_row_contrast", str(self.alt_row_contrast_slider.value()))
