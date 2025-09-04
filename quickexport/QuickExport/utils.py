@@ -378,7 +378,7 @@ def find_settings_for_file(file_path):
     
     # TODO: cache some of these things.
     
-    base_version_string, match_version_number = base_stem_and_version_number_for_versioned_file(file_path)
+    base_version_string, match_version_number = base_stem_and_version_number_for_versioned_file(file_path, unversioned_version_num=0)
     stem = file_path.stem
     suffix = file_path.suffix
     best_s = None
@@ -406,7 +406,6 @@ def find_settings_for_file(file_path):
             print(f" - {s['path']} does not match (wrong directory).")
             continue
         
-        s_stem = s["path"].stem
         s_suff = s["path"].suffix
         s_bvs, s_mvn = base_stem_and_version_number_for_versioned_file(s["path"])
         
@@ -415,12 +414,16 @@ def find_settings_for_file(file_path):
             print(f" - {s['path']} does not match (not a version of this image).")
             continue
         
-        if s["versions"] == "all":
+        if s["versions"] == "all" and s_mvn != None:
             # is version of image, but set only to apply to subversions of itself. eg. for "filename0_004":
             # "filename0_002" (all_forward) matches ("filename0_003", "filename0_004", "filename0_005", etc), but
             # "filename0_002" (all) does not match ("filename0_002_001", "filename0_002_002", "filename0_002_003", etc).
+            # ...unless s_mvn == None, eg. is unversioned, in which case all and all_forward version modes behave the same.
             print(f" - {s['path']} does not match (is its own base file, so excluded from set of versions of this image).")
             continue
+        
+        # treat unversioned as version 0.
+        s_mvn = s_mvn or 0
         
         if suffix != s_suff:
             # accepts only same extension.
@@ -690,15 +693,16 @@ def truncated_name_suggestions(text):
             ss = se
     return l
 
-def base_stem_and_version_number_for_versioned_file(file_path):
+def base_stem_and_version_number_for_versioned_file(file_path, unversioned_version_num=None):
     """
+    for file with stem "filename0_000", return ("filename0", 0).
     for file with stem "filename0_003", return ("filename0", 3).
     for file with stem "filename0_003_007", return ("filename0_003", 7).
-    if not versioned, eg. "filename0", return ("filename0", 0).
+    if not versioned, eg. "filename0", return ("filename0", unversioned_version_num).
     """
     matches = list(re.finditer("(_[0-9]+)$", file_path.stem))
     base_version_stem = file_path.stem
-    match_version_num = 0
+    match_version_num = unversioned_version_num
     if matches:
         match = matches[0]
         base_version_stem = file_path.stem[:match.start()]
