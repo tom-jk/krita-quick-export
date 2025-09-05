@@ -118,6 +118,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         self.thumbnail_normal = QPixmap()
         self.thumbnail_minimized = QPixmap()
         self.thumbnail_label = None
+        self.store_forget_button = None
         self.export_button = None
         self.warning_label = None
         self.settings_stack = None
@@ -126,6 +127,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         self.versions_show_button = None
         self.output_filepath_button = None
         self.output_filename_edit = None
+        self.output_filetype_combobox = None
     
     def __lt__(self, other):
         if not isinstance(other, MyTreeWidgetItem):
@@ -239,9 +241,9 @@ class QETree(QTreeWidget):
         self.thumbnail_worker_timer.start()
         print("done")
     
-    def _on_versions_menu_triggered(self, value, button, item, store_button):
+    def _on_versions_menu_triggered(self, value, button, item):
         doc = item.doc_settings
-        self._on_generic_setting_changed("versions", value, item, store_button)
+        self._on_generic_setting_changed("versions", value, item)
         button.set_icon_name(("versions", value))
         button.setChecked(value != "single")
         item.setData(QECols.SOURCE_VERSIONS_COLUMN, QERoles.CustomSortRole, doc["versions"])
@@ -254,14 +256,14 @@ class QETree(QTreeWidget):
         item.setExpanded(checked)
         button.setIcon(app.icon("arrowup") if checked else app.icon("arrowdown"))
     
-    def _on_output_name_edit_editing_finished(self, item, store_button):
+    def _on_output_name_edit_editing_finished(self, item):
         edit = item.output_filename_edit
         doc = item.doc_settings
         doc["output_name"] = edit.text()
         self.update_names_and_labels(item)
         item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output_name"].lower())
         #print("_on_output_lineedit_changed ->", doc["output"])
-        self.set_settings_modified(store_button)
+        self.set_settings_modified(item.store_forget_button)
     
     def update_names_and_labels(self, item):
         doc = item.doc_settings
@@ -289,10 +291,9 @@ class QETree(QTreeWidget):
                 item.warning_label.hide()
                 self.scheduleDelayedItemsLayout()
     
-    def _on_item_btn_export_clicked(self, checked, filename, item, store_button):
+    def _on_item_btn_export_clicked(self, item):
         doc = item.doc_settings
         print(f"Clicked export for {doc['path']}")
-        self.sender().setText("Exporting...")
         
         result = export_image(doc)
         
@@ -305,7 +306,7 @@ class QETree(QTreeWidget):
             self.dialog.sbar.showMessage(f"Exported to '{export_file_path(doc)}'")
         
         if self.dialog.auto_store_on_export_button.checkState() == Qt.Checked:
-            store_button.setCheckState(Qt.Checked)
+            item.store_forget_button.setCheckState(Qt.Checked)
     
     def _on_settings_stack_popout_button_clicked(self, item):
         doc_settings = item.doc_settings
@@ -314,22 +315,22 @@ class QETree(QTreeWidget):
         page = settings_stack.widget(index)
         page.popOut(settings_stack, index)
     
-    def _on_item_scale_checkbox_action_triggered(self, checked, checkboxes, item, store_button):
+    def _on_item_scale_checkbox_action_triggered(self, checked, checkboxes, item):
         doc = item.doc_settings
         doc["scale"] = checked
         for checkbox in checkboxes:
             checkbox.setChecked(checked)
-        self.set_settings_modified(store_button)
+        self.set_settings_modified(item.store_forget_button)
     
-    def _on_item_scale_reset_action_triggered(self, checked, item, store_button):
+    def _on_item_scale_reset_action_triggered(self, checked, item):
         doc = item.doc_settings
         doc["scale_width"]  = -1
         doc["scale_height"] = -1
         doc["scale_filter"] = "Auto"
         doc["scale_res"]    = -1
-        self.set_settings_modified(store_button)
+        self.set_settings_modified(item.store_forget_button)
     
-    def _on_item_scale_settings_action_triggered(self, checked, item, store_button):
+    def _on_item_scale_settings_action_triggered(self, checked, item):
         doc = item.doc_settings
         document = doc['document']
         
@@ -352,9 +353,10 @@ class QETree(QTreeWidget):
             doc["scale_res"]    = sd.result_res
         del sd
         
-        self.set_settings_modified(store_button)
+        self.set_settings_modified(item.store_forget_button)
     
-    def _on_item_btn_store_forget_clicked(self, checked, btn, filename, item):
+    def _on_item_btn_store_forget_clicked(self, checked, item):
+        btn = item.store_forget_button
         doc = item.doc_settings
         #print("store/forget changed ->", checked, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["store"] = not doc["store"]
@@ -368,9 +370,10 @@ class QETree(QTreeWidget):
             if not bvs or item_.doc_settings["base_version_string"] == bvs:
                 self.add_file_versioning_subitems(item_)
     
-    def _on_output_path_menu_triggered(self, value, ext_combobox, item, store_button):
+    def _on_output_path_menu_triggered(self, value, item):
         name_edit = item.output_filename_edit
         path_button = item.output_filepath_button
+        ext_combobox = item.output_filetype_combobox
         doc = item.doc_settings
         if value in (True, False):
             print("Selected absolute/relative:", value)
@@ -411,15 +414,16 @@ class QETree(QTreeWidget):
                 ext_combobox.setCurrentIndex(ext_combobox.findData(ext))
             
             self.update_names_and_labels(item)
-        self.set_settings_modified(store_button)
+        self.set_settings_modified(item.store_forget_button)
     
-    def _on_outputext_combobox_current_index_changed(self, index, combobox, item, store_button):
+    def _on_outputext_combobox_current_index_changed(self, index, item):
         doc = item.doc_settings
+        combobox = item.output_filetype_combobox
         ext = combobox.itemText(index)
         doc["ext"] = ext
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
         self.set_item_settings_stack_page_for_extension(item, ext)
-        self.set_settings_modified(store_button)
+        self.set_settings_modified(item.store_forget_button)
         self.update_names_and_labels(item)
     
     def set_item_settings_stack_page_for_extension(self, item, ext):
@@ -439,25 +443,25 @@ class QETree(QTreeWidget):
                     return i
             print(f"couldn't find settings stack page index for extension '{ext}'.")
     
-    def _on_png_alpha_checkbox_toggled(self, checked, item, store_button):
+    def _on_png_alpha_checkbox_toggled(self, checked, item):
         doc = item.doc_settings
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["png_alpha"] = checked
         #item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["png_alpha"]))
-        self.set_settings_modified(store_button)
+        self.set_settings_modified(item.store_forget_button)
     
-    def _on_jpeg_subsampling_menu_triggered(self, value, button, item, store_button):
-        self._on_generic_setting_changed("jpeg_subsampling", value, item, store_button)
+    def _on_jpeg_subsampling_menu_triggered(self, value, button, item):
+        self._on_generic_setting_changed("jpeg_subsampling", value, item)
         button.set_icon_name(("subsampling", value))
     
-    def _on_jpeg_metadata_checkbox_toggled(self, checked, metadata_options_button, item, store_button):
-        self._on_generic_setting_changed("jpeg_metadata", checked, item, store_button)
+    def _on_jpeg_metadata_checkbox_toggled(self, checked, metadata_options_button, item):
+        self._on_generic_setting_changed("jpeg_metadata", checked, item)
         metadata_options_button.setChecked(checked)
     
-    def _on_generic_setting_changed(self, key, value, item, store_button):
+    def _on_generic_setting_changed(self, key, value, item):
         doc = item.doc_settings
         doc[key] = value
-        self.set_settings_modified(store_button)
+        self.set_settings_modified(item.store_forget_button)
     
     def set_settings_modified(self, store_button=None):
         if not self.dialog.tree_is_ready:
@@ -755,11 +759,11 @@ class QETree(QTreeWidget):
             item.export_button_opacity.setOpacity(0.33)
             item.export_button.setGraphicsEffect(item.export_button_opacity)
         
-        btn_store_forget = QCheckBox()
-        btn_store_forget.setChecked(s["store"])
-        btn_store_forget.setStyleSheet(checkbox_stylesheet)
-        btn_store_forget.toggled.connect(lambda checked, btn=btn_store_forget, fn=file_path.name, i=item: self._on_item_btn_store_forget_clicked(checked, btn, fn, i))
-        btn_store_widget = centered_checkbox_widget(btn_store_forget)
+        item.store_forget_button = QCheckBox()
+        item.store_forget_button.setChecked(s["store"])
+        item.store_forget_button.setStyleSheet(checkbox_stylesheet)
+        item.store_forget_button.toggled.connect(lambda checked, i=item: self._on_item_btn_store_forget_clicked(checked, i))
+        btn_store_widget = centered_checkbox_widget(item.store_forget_button)
         self.setItemWidget(item, QECols.STORE_SETTINGS_COLUMN, btn_store_widget)
         item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+s["store"]))
         
@@ -769,15 +773,15 @@ class QETree(QTreeWidget):
         scale_checkbox_action.setChecked(s["scale"])
         scale_reset_action = scale_menu.addAction("Reset to current size and resolution")
         scale_reset_action.setDisabled(s["document"] == None)
-        scale_reset_action.triggered.connect(lambda checked, i=item, sb=btn_store_forget: self._on_item_scale_reset_action_triggered(checked, i, sb))
+        scale_reset_action.triggered.connect(lambda checked, i=item: self._on_item_scale_reset_action_triggered(checked, i))
         scale_settings_action = scale_menu.addAction("Settings...")
         scale_settings_action.setDisabled(s["document"] == None)
-        scale_settings_action.triggered.connect(lambda checked, i=item, sb=btn_store_forget: self._on_item_scale_settings_action_triggered(checked, i, sb))
+        scale_settings_action.triggered.connect(lambda checked, i=item: self._on_item_scale_settings_action_triggered(checked, i))
         
         if (btn_group_key := str(s["path"])) in self.store_button_groups:
-            self.store_button_groups[btn_group_key].addButton(btn_store_forget)
+            self.store_button_groups[btn_group_key].addButton(item.store_forget_button)
             if s["store"] and self.store_button_groups[btn_group_key].btnLastChecked == None:
-                self.store_button_groups[btn_group_key].btnLastChecked = btn_store_forget
+                self.store_button_groups[btn_group_key].btnLastChecked = item.store_forget_button
         
         if s["document"] != None:
             self.thumbnail_queue.append([s["document"], item])
@@ -844,7 +848,7 @@ class QETree(QTreeWidget):
             action.setCheckable(True)
             action.setActionGroup(versions_action_group)
             action.setChecked(action.data() == s["versions"])
-        versions_menu.triggered.connect(lambda a, b=versions_button, d=s, i=item, sb=btn_store_forget: self._on_versions_menu_triggered(a.data(), b, i, sb))
+        versions_menu.triggered.connect(lambda a, b=versions_button, d=s, i=item: self._on_versions_menu_triggered(a.data(), b, i))
         
         versions_button.setMenu(versions_menu)
         
@@ -867,8 +871,8 @@ class QETree(QTreeWidget):
         item.output_filename_edit = FileNameEdit(s["output_name"])
         item.output_filename_edit.edit.settings = s
         
-        outputext_combobox = QEComboBox()
-        self.extension_comboboxes.append(outputext_combobox)
+        item.output_filetype_combobox = QEComboBox()
+        self.extension_comboboxes.append(item.output_filetype_combobox)
         
         item.output_filepath_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
         item.output_filepath_button.setPopupMode(QToolButton.InstantPopup)
@@ -886,7 +890,7 @@ class QETree(QTreeWidget):
         output_path_change_action = output_path_menu.addAction("Change...", "change", ("Choose the export location, and optionally change the file name and type.\n"
                                                                                        "Note that this does not actually export the file, only changes where it will export to.\n"
                                                                                        "If the file already exists, you will be asked if you want to export over it."))
-        output_path_menu.triggered.connect(lambda a, ec=outputext_combobox, i=item, sb=btn_store_forget: self._on_output_path_menu_triggered(a.data(), ec, i, sb))
+        output_path_menu.triggered.connect(lambda a, i=item: self._on_output_path_menu_triggered(a.data(), i))
         
         item.output_filepath_button.setMenu(output_path_menu)
         
@@ -912,7 +916,7 @@ class QETree(QTreeWidget):
         item.warning_label.setFont(item.warning_label_font)
         output_name_container_widget_layout.addWidget(item.warning_label)
         
-        item.output_filename_edit.edit.editingFinished.connect(lambda i=item, sb=btn_store_forget: self._on_output_name_edit_editing_finished(i, sb))
+        item.output_filename_edit.edit.editingFinished.connect(lambda i=item: self._on_output_name_edit_editing_finished(i))
         
         self.setItemWidget(item, QECols.OUTPUT_FILENAME_COLUMN, output_name_container_widget)
         item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, s["output_name"].lower())
@@ -921,11 +925,11 @@ class QETree(QTreeWidget):
         outputext_layout = QHBoxLayout()
         
         for e in supported_extensions():
-            outputext_combobox.addItem(e, e)
+            item.output_filetype_combobox.addItem(e, e)
         
-        outputext_combobox.setCurrentIndex(outputext_combobox.findData(s["ext"]))
+        item.output_filetype_combobox.setCurrentIndex(item.output_filetype_combobox.findData(s["ext"]))
         
-        outputext_layout.addWidget(outputext_combobox)
+        outputext_layout.addWidget(item.output_filetype_combobox)
         outputext_widget.setLayout(outputext_layout)
         
         self.setItemWidget(item, QECols.OUTPUT_FILETYPE_COLUMN, outputext_widget)
@@ -970,7 +974,7 @@ class QETree(QTreeWidget):
                   "Note: the compression level does not change the quality of the result."
         png_compression_slider = SpinBoxSlider(label_text="Compression", range_min=1, range_max=9, snap_interval=1, tooltip=tooltip)
         png_compression_slider.setValue(s["png_compression"])
-        png_compression_slider.valueChanged.connect(lambda value, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_compression", value, i, sb))
+        png_compression_slider.valueChanged.connect(lambda value, i=item: self._on_generic_setting_changed("png_compression", value, i))
         png_settings_page_layout.addWidget(png_compression_slider)
         
         png_settings_page_layout.addBreak()
@@ -980,7 +984,7 @@ class QETree(QTreeWidget):
                   "The PNG file format allows transparency in your image to be stored by saving an alpha channel.\n" \
                   "You can uncheck the box if you are not using transparency and you want to make the resulting file smaller."
         png_alpha_checkbox = CheckToolButton(icon_name="alpha", checked=s["png_alpha"], tooltip=tooltip)
-        png_alpha_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_png_alpha_checkbox_toggled(checked, i, sb))
+        png_alpha_checkbox.toggled.connect(lambda checked, i=item: self._on_png_alpha_checkbox_toggled(checked, i))
         png_settings_page_layout.addWidget(png_alpha_checkbox)
         
         png_alpha_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
@@ -990,7 +994,7 @@ class QETree(QTreeWidget):
         png_fillcolour_button = ColourToolButton(colour=s["png_fillcolour"], tooltip=tooltip)
         png_fillcolour_button.setDisabled(png_alpha_checkbox.isChecked())
         png_alpha_checkbox.toggled.connect(lambda checked, fcb=png_fillcolour_button: fcb.setDisabled(checked))
-        png_fillcolour_button.colourChanged.connect(lambda colour, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_fillcolour", colour, i, sb))
+        png_fillcolour_button.colourChanged.connect(lambda colour, i=item: self._on_generic_setting_changed("png_fillcolour", colour, i))
         png_settings_page_layout.addWidget(png_fillcolour_button)
         
         png_fillcolour_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
@@ -999,7 +1003,7 @@ class QETree(QTreeWidget):
                   "Indexed PNG images are smaller.\n" \
                   "If you enabled this option, your image will be analyzed to see whether it is possible to save as an indexed PNG."
         png_indexed_checkbox = CheckToolButton(icon_name="indexed", checked=s["png_indexed"], tooltip=tooltip)
-        png_indexed_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_indexed", checked, i, sb))
+        png_indexed_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("png_indexed", checked, i))
         png_settings_page_layout.addWidget(png_indexed_checkbox)
         
         png_index_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
@@ -1009,14 +1013,14 @@ class QETree(QTreeWidget):
                   "Interlacing is useful if you intend to publish your image on the Internet.\n" \
                   "Enabling interlacing will cause the image to be displayed by the browser even while downloading."
         png_interlaced_checkbox = CheckToolButton(icon_name="progressive", checked=s["png_interlaced"], tooltip=tooltip)
-        png_interlaced_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_interlaced", checked, i, sb))
+        png_interlaced_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("png_interlaced", checked, i))
         png_settings_page_layout.addWidget(png_interlaced_checkbox)
         
         png_interlaced_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Save as HDR image (Rec. 2020 PQ)"
         png_hdr_checkbox = CheckToolButton(icon_name="hdr", checked=s["png_hdr"], tooltip=tooltip)
-        png_hdr_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_hdr", checked, i, sb))
+        png_hdr_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("png_hdr", checked, i))
         png_settings_page_layout.addWidget(png_hdr_checkbox)
         
         png_hdr_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
@@ -1026,21 +1030,21 @@ class QETree(QTreeWidget):
                   "For use within websites, disable this option.\n" \
                   "For interchange with other applications, enable this option."
         png_embed_srgb_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["png_embed_srgb"], tooltip=tooltip)
-        png_embed_srgb_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_embed_srgb", checked, i, sb))
+        png_embed_srgb_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("png_embed_srgb", checked, i))
         png_settings_page_layout.addWidget(png_embed_srgb_checkbox)
         
         png_embed_srgb_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Force convert to sRGB"
         png_force_srgb_checkbox = CheckToolButton(icon_name="force_profile", checked=s["png_force_srgb"], tooltip=tooltip)
-        png_force_srgb_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_force_srgb", checked, i, sb))
+        png_force_srgb_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("png_force_srgb", checked, i))
         png_settings_page_layout.addWidget(png_force_srgb_checkbox)
         
         png_force_srgb_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Force convert to 8bits/channel"
         png_force_8bit_checkbox = CheckToolButton(icon_name="force_8bit", checked=s["png_force_8bit"], tooltip=tooltip)
-        png_force_8bit_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_force_8bit", checked, i, sb))
+        png_force_8bit_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("png_force_8bit", checked, i))
         png_settings_page_layout.addWidget(png_force_8bit_checkbox)
         
         png_force_8bit_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
@@ -1048,7 +1052,7 @@ class QETree(QTreeWidget):
         tooltip = "Store Metadata\n\n" \
                   "Store information like keywords, title and subject and license, if possible."
         png_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["png_metadata"], tooltip=tooltip)
-        png_metadata_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_metadata", checked, i, sb))
+        png_metadata_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("png_metadata", checked, i))
         png_settings_page_layout.addWidget(png_metadata_checkbox)
         
         png_metadata_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
@@ -1056,7 +1060,7 @@ class QETree(QTreeWidget):
         tooltip = "Sign with author data\n\n" \
                   "Save author nickname and first contact information of the author profile into the png, if possible."
         png_author_checkbox = CheckToolButton(icon_name="author", checked=s["png_author"], tooltip=tooltip)
-        png_author_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("png_author", checked, i, sb))
+        png_author_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("png_author", checked, i))
         png_settings_page_layout.addWidget(png_author_checkbox)
         
         png_author_label = setting_label_and_layout_break(png_settings_page_layout, tooltip.partition("\n")[0])
@@ -1081,21 +1085,21 @@ class QETree(QTreeWidget):
                   "Low: small files but bad quality. High: big files but good quality."
         jpeg_quality_slider = SpinBoxSlider(label_text="Quality", label_suffix="%", range_min=0, range_max=100, snap_interval=5, tooltip=tooltip)
         jpeg_quality_slider.setValue(s["jpeg_quality"])
-        jpeg_quality_slider.valueChanged.connect(lambda value, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_quality", value, i, sb))
+        jpeg_quality_slider.valueChanged.connect(lambda value, i=item: self._on_generic_setting_changed("jpeg_quality", value, i))
         jpeg_settings_page_layout.addWidget(jpeg_quality_slider)
         
         tooltip = "Smooth\n\n" \
                   "The result will be artificially smoothed to hide jpeg artifacts."
         jpeg_smooth_slider = SpinBoxSlider(label_text="Smooth", label_suffix="%", range_min=0, range_max=100, snap_interval=5, tooltip=tooltip)
         jpeg_smooth_slider.setValue(s["jpeg_smooth"])
-        jpeg_smooth_slider.valueChanged.connect(lambda value, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_smooth", value, i, sb))
+        jpeg_smooth_slider.valueChanged.connect(lambda value, i=item: self._on_generic_setting_changed("jpeg_smooth", value, i))
         jpeg_settings_page_layout.addWidget(jpeg_smooth_slider)
         
         jpeg_settings_page_layout.addBreak()
         
         tooltip = "Save ICC profile"
         jpeg_icc_profile_checkbox = CheckToolButton(icon_name="embed_profile", checked=s["jpeg_icc_profile"], tooltip=tooltip)
-        jpeg_icc_profile_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_icc_profile", checked, i, sb))
+        jpeg_icc_profile_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("jpeg_icc_profile", checked, i))
         jpeg_settings_page_layout.addWidget(jpeg_icc_profile_checkbox)
         
         jpeg_icc_profile_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
@@ -1103,7 +1107,7 @@ class QETree(QTreeWidget):
         tooltip = "Transparent pixel fill color\n\n" \
                   "Background color to replace transparent pixels with."
         jpeg_fillcolour_checkbox = ColourToolButton(colour=s["jpeg_fillcolour"], tooltip=tooltip)
-        jpeg_fillcolour_checkbox.colourChanged.connect(lambda colour, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_fillcolour", colour, i, sb))
+        jpeg_fillcolour_checkbox.colourChanged.connect(lambda colour, i=item: self._on_generic_setting_changed("jpeg_fillcolour", colour, i))
         jpeg_settings_page_layout.addWidget(jpeg_fillcolour_checkbox)
         
         jpeg_fillcolour_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
@@ -1111,7 +1115,7 @@ class QETree(QTreeWidget):
         tooltip = "Progressive\n\n" \
                   "A progressive jpeg can be displayed while loading."
         jpeg_progressive_checkbox = CheckToolButton(icon_name="progressive", checked=s["jpeg_progressive"], tooltip=tooltip)
-        jpeg_progressive_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_progressive", checked, i, sb))
+        jpeg_progressive_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("jpeg_progressive", checked, i))
         jpeg_settings_page_layout.addWidget(jpeg_progressive_checkbox)
         
         jpeg_progressive_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
@@ -1132,7 +1136,7 @@ class QETree(QTreeWidget):
             action.setCheckable(True)
             action.setActionGroup(jpeg_subsampling_action_group)
             action.setChecked(action.data() == s["jpeg_subsampling"])
-        jpeg_subsampling_menu.triggered.connect(lambda a, b=jpeg_subsampling_button, i=item, sb=btn_store_forget: self._on_jpeg_subsampling_menu_triggered(a.data(), b, i, sb))
+        jpeg_subsampling_menu.triggered.connect(lambda a, b=jpeg_subsampling_button, i=item: self._on_jpeg_subsampling_menu_triggered(a.data(), b, i))
         
         jpeg_subsampling_button.setMenu(jpeg_subsampling_menu)
         jpeg_settings_page_layout.addWidget(jpeg_subsampling_button)
@@ -1143,7 +1147,7 @@ class QETree(QTreeWidget):
                   "Force full JPEG baseline compatibility.\n" \
                   "Only really useful for compatibility with old devices. Does nothing if Quality is above 25%."
         jpeg_force_baseline_checkbox = CheckToolButton(icon_name="jpeg_baseline", checked=s["jpeg_force_baseline"], tooltip=tooltip)
-        jpeg_force_baseline_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_force_baseline", checked, i, sb))
+        jpeg_force_baseline_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("jpeg_force_baseline", checked, i))
         jpeg_settings_page_layout.addWidget(jpeg_force_baseline_checkbox)
         
         jpeg_force_baseline_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
@@ -1152,7 +1156,7 @@ class QETree(QTreeWidget):
                   "Compute optimal compression coding for the image, otherwise use the default coding.\n" \
                   "File size savings tend to be small. When Progressive is enabled, the image will be optimized regardless."
         jpeg_optimise_checkbox = CheckToolButton(icon_name="optimise", checked=s["jpeg_optimise"], tooltip=tooltip)
-        jpeg_optimise_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_optimise", checked, i, sb))
+        jpeg_optimise_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("jpeg_optimise", checked, i))
         jpeg_settings_page_layout.addWidget(jpeg_optimise_checkbox)
         
         jpeg_optimise_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
@@ -1180,7 +1184,7 @@ class QETree(QTreeWidget):
                 continue
             action.setCheckable(True)
             action.setChecked(s[f"jpeg_{action.data()}"])
-        jpeg_metadata_options_menu.triggered.connect(lambda a, i=item, sb=btn_store_forget: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), i, sb))
+        jpeg_metadata_options_menu.triggered.connect(lambda a, i=item: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), i))
         
         jpeg_metadata_options_button.setMenu(jpeg_metadata_options_menu)
         jpeg_settings_page_layout.addWidget(jpeg_metadata_options_button)
@@ -1191,7 +1195,7 @@ class QETree(QTreeWidget):
                   "Store document metadata that is in the document information.\n" \
                   "This will override any layer metadata."
         jpeg_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["jpeg_metadata"], tooltip=tooltip)
-        jpeg_metadata_checkbox.toggled.connect(lambda checked, mob=jpeg_metadata_options_button, i=item, sb=btn_store_forget: self._on_jpeg_metadata_checkbox_toggled(checked, mob, i, sb))
+        jpeg_metadata_checkbox.toggled.connect(lambda checked, mob=jpeg_metadata_options_button, i=item: self._on_jpeg_metadata_checkbox_toggled(checked, mob, i))
         jpeg_settings_page_layout.addWidget(jpeg_metadata_checkbox)
         
         jpeg_metadata_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
@@ -1200,7 +1204,7 @@ class QETree(QTreeWidget):
                   "Add the author nickname and the first contact of the author profile.\n" \
                   "This is overwritten by the anonymizer."
         jpeg_author_checkbox = CheckToolButton(icon_name="author", checked=s["jpeg_author"], tooltip=tooltip)
-        jpeg_author_checkbox.toggled.connect(lambda checked, i=item, sb=btn_store_forget: self._on_generic_setting_changed("jpeg_author", checked, i, sb))
+        jpeg_author_checkbox.toggled.connect(lambda checked, i=item: self._on_generic_setting_changed("jpeg_author", checked, i))
         jpeg_settings_page_layout.addWidget(jpeg_author_checkbox)
         
         jpeg_author_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
@@ -1220,7 +1224,7 @@ class QETree(QTreeWidget):
         self.setItemWidget(item, QECols.SETTINGS_COLUMN, item.settings_stack)
         self.set_item_settings_stack_page_for_extension(item, s["ext"])
         
-        scale_checkbox_action.triggered.connect(lambda checked, cb=[no_settings_scale_button,png_scale_button,jpeg_scale_button], i=item, sb=btn_store_forget: self._on_item_scale_checkbox_action_triggered(checked, cb, i, sb))
+        scale_checkbox_action.triggered.connect(lambda checked, cb=[no_settings_scale_button,png_scale_button,jpeg_scale_button], i=item: self._on_item_scale_checkbox_action_triggered(checked, cb, i))
         
         btns_widget = QWidget()
         btns_layout = QHBoxLayout()
@@ -1231,7 +1235,7 @@ class QETree(QTreeWidget):
         
         self.setItemWidget(item, QECols.BUTTONS_COLUMN, btns_widget)
         
-        outputext_combobox.currentIndexChanged.connect(lambda index, cb=outputext_combobox, i=item, sb=btn_store_forget: self._on_outputext_combobox_current_index_changed(index, cb, i, sb))
+        item.output_filetype_combobox.currentIndexChanged.connect(lambda index, i=item: self._on_outputext_combobox_current_index_changed(index, i))
         
         self.items.append(item)
         
