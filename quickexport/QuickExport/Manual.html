@@ -2,17 +2,453 @@
 <!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
-<head><title>Filter Manager Plugin Manual</title>
+<head><title>Quick Export Plugin Manual</title>
+<style>
+    * {
+        margin-top: 1.5em;
+        margin-bottom: 1.5em;
+        //line-height: 150%;
+    }
+    ul {
+        margin-top: 0.5em;
+        margin-bottom:0.5em;
+    }
+    li {
+        margin-top: 0.5em;
+        margin-bottom:0.5em;
+    }
+    dl {
+        margin-left: 2em;
+    }
+    dt {
+        font-weight: bold;
+    }
+    dd {
+        margin-left: 0em;
+    }
+    dl > dd > dl > dt {
+        margin-bottom: 0.75em;
+    }
+    dl > dd > dl > dd {
+        margin-top: 0em;
+    }
+    a {
+        text-decoration: none;
+    }
+    .back-to-top {
+        font-size: 0.75em;
+    }
+</style>
 </head>
 <body>
-<h1 id="filter-manager">Filter Manager</h1>
-<p>The Filter Manager Plugin allows you to select a document or one of its layers and quickly apply a filter.</p>
-<h2 id="basic-options">Basic Options</h2>
+<h1 id="quick-export">Quick Export</h1>
+<p>
+    The Quick Export Plugin allows you to configure export settings for
+    your images once and then export them with a single click.
+</p>
+<h2 id="contents">Contents</h2>
+<ul>
+    <li><a href="#overview">Overview</a></li>
+    <li>FAQ
+        <ul>
+            <li><a href="#faq/quickstart">How do I setup an image for use with this plugin?</a></li>
+            <li><a href="#faq/missing-in-dialog">Why does my image not appear in the dialog?</a></li>
+            <li><a href="#faq/bad-export">Why has my image not exported correctly?</a></li>
+            <li><a href="#faq/versions">How can I use the same settings for multiple versions of an image?</a></li>
+            <li><a href="#faq/">?</a></li>
+            <li><a href="#faq/">?</a></li>
+            <li><a href="#faq/">?</a></li>
+            <li><a href="#faq/">?</a></li>
+        </ul>
+    </li>
+    <li>Configuration Dialog
+        <ul>
+            <li><a href="#configuration-dialog/settings-rows">Settings rows</a></li>
+            <li><a href="#configuration-dialog/dialog-appearance-options">Dialog appearance options</a></li>
+            <li><a href="#configuration-dialog/dialog-behaviour-options">Dialog behaviour options</a></li>
+            <li><a href="#configuration-dialog/plugin-options-menu">Plugin options menu</a></li>
+        </ul>
+    </li>
+    
+</ul>
+<h2 id="overview">Overview <a class="back-to-top" href="#contents">↥</a></h2>
+<p>
+    If you are working on an image for another project and need to check
+    how it's looking in situ frequently, Krita's native export workflow
+    can slow you down. While it only takes a few seconds each time, these
+    can add up. You may find yourself exporting less often because of the
+    friction involved in doing so, and the result may suffer for it.
+</p><p>
+    The Quick Export plugin provides a set and forget workflow. The first
+    time you go to export your image, you'll first choose where to save
+    it, what type it will be, and the export settings for that type. From
+    then on, your image will export immediately.
+</p><p>
+    Quick Export also supports <a href="#versions-options">file versions</a> as produced when you use
+    Krita's save incremental version feature, so you can use the same
+    settings for the duration of a project. For example, the settings for
+    "file.kra" can automatically apply to "file_001.kra", "file_002.kra", 
+    and so on.
+</p><p>
+    You can add the Quick Export and Quick Export Configuration action
+    buttons to your toolbar from Settings → Configure Toolbars, and you can
+    assign shortcuts (eg. Alt+E) from Settings → Configure Krita → Keyboard Shortcuts → Menu → File.
+</p>
+<h2 id="faq">Configuration Dialog</h2>
+<h3 id="faq/quickstart">How do I setup an image for use with this plugin? <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    First make sure the image is saved. Then press Quick Export in the
+    file menu or toolbar. In the dialog, choose an export name, type and
+    settings. Close the dialog. Now when this is the active image in Krita
+    and you press Quick Export, the image will be exported.
+</p>
+<h3 id="faq/missing-in-dialog">Why does my image not appear in the dialog? <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    First, have you saved your image? Quick Export ignores unsaved images.
+</p><p>
+    Second, has it been filtered out? Enable show non-kra and show unopened
+    (and show unstored if in Advanced mode). If the image file isn't currently
+    open in Krita, check that it hasn't been moved to a different folder or
+    name. Open it in Krita then look in the dialog again: is it there?
+</p><p>
+    Perhaps its export settings had not been saved in the plugin. Remember to change
+    one of its settings or export it with the export now button, or check the store
+    settings checkbox directly (if in Advanced mode). If that checkbox isn't
+    checked, the plugin will not save settings for this image (and will forget
+    settings already saved, if any). By default, if the row is highlighted
+    in blue, it will be saved.
+</p>
+<h3 id="faq/bad-export">Why has my image not exported correctly? <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    If you've double checked your export settings and the image still comes
+    out wrong, you should first try exporting again with the same settings
+    using Krita's normal export workflow.
+</p><p>
+    Does Krita export the image wrongly too? If so, that may be a bug
+    in Krita. See if updating to a later version of Krita helps. If not,
+    consider filing a bug report on Krita's bug tracker.
+</p><p>
+    Does Krita export the image correctly? If so, that may be a bug in
+    the plugin. Check if a more recent version of the plugin is available.
+    If not, consider filing a bug report on the plugins bug tracker.
+</p><p>
+    Note that ultimately the plugins export capabilities are constrained
+    by what Krita's API makes available to it. Fixes for some plugin issues
+    may depend on changes to Krita's API.
+</p>
+<h3 id="faq/versions">How can I use the same settings for multiple versions of an image? <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    In the configuration dialog, on that image's row, set versions options
+    to "this and later versions of this file". See <a href=#versions-options>versions options.</a>
+</p><p>
+    To work, your images should follow the same naming convention as used
+    by Krita's "save incremental version" action.
+</p><p>
+    The version number must always be a series of digits following an
+    underscore after the base name and before the extension. It can not
+    be at the start of the name, in the middle, or after the extension.
+    It can not contain any non-numeric characters.
+</p><p>
+    <tt>"MyPic.kra"</tt>, <tt>"MyPic_0.kra"</tt>, <tt>"MyPic_000.kra"</tt> are examples
+    of acceptable names for the "base" version (or version 0) of the image <tt>"MyPic"</tt>.
+</p><p>
+    <tt>"MyPic_1.kra"</tt>, <tt>"MyPic_01.kra"</tt>, and <tt>"MyPic_001.kra"</tt> are
+    examples of acceptable names for version one of that image.
+</p><p>
+    <tt>"MyPic1.kra"</tt> or <tt>"MyPic01.kra"</tt> are not acceptable names for
+    version one of that image; they would instead be interpreted as the
+    "base" version (or version 0) of the images <tt>"MyPic1"</tt>  and <tt>"MyPic01"</tt>,
+    respectively.
+</p>
+<h3 id="faq/q">Question <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    Answer.
+</p>
+<h3 id="faq/q">Question <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    Answer.
+</p>
+<h2 id="configuration-dialog">Configuration Dialog</h2>
+<h3 id="configuration-dialog/settings-rows">Settings rows <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    Each row in the dialog represents a file, one for each file currently
+    open in Krita, plus those not currently open but for which export settings
+    have previously been saved.
+</p><p>
+    From left to right, the contents of a row are as follows:
+</p>
 <dl>
-  <dt>Documents</dt>
-  <dd>A the list of open documents to choose from, with their sublayers.</dd>
-  <dt>Filter</dt>
-  <dd>A list of filters, select the filter you wish to apply</dd>
+    <dt id="store-settings-checkbox">Store settings checkbox</dt>
+    <dd>
+        Indicates that these settings will be saved. If you no longer
+        need to export an image, you can uncheck this and Quick Export
+        will forget about it. Remember that this won't happen until
+        you save your changes. (<a href="#advanced-mode">Advanced mode</a> only.)
+    </dd>
+    <dt>Open file button</dt>
+    <dd>
+        Press this button to open a currently unopened file. An asterisk
+        will show here for the file that was active in Krita when the
+        dialog opened. Otherwise this space is blank.
+    </dd>
+    <dt>Source file path and name</dt>
+    <dd>
+        The folder and file name with extension for the image to export
+        from.
+    </dd>
+    <dt id="versions-options">Versions options</dt>
+    <dd>
+        Here you can choose which files these settings apply to.
+        <dl>
+            <dt>This exact file</dt>
+            <dd>
+                Settings apply to the specified source file alone. Versions
+                of this image are ignored.
+            </dd>
+            <dt>Versions of this file</dt>
+            <dd>
+                Settings apply to the specified source file and any file
+                in the same directory with the same name plus an
+                underscore and one or more digits (and the same file
+                extension). For example, settings for "file.kra" will
+                also apply to "file_001.kra", "file_002.kra", etc. If the
+                source file name already has a version number (even if
+                it's "_000"), you probably want to use the next option;
+                "file_000.kra" would be considered the base for version
+                files named "file_000_001.kra", "file_000_002.kra", etc.
+            </dd>
+            <dt>This and later versions of this file</dt>
+            <dd>
+                Settings apply to the specified source file and any version
+                of that file in the same directory with a greater version
+                number. For example, settings for "file_005.kra" will also
+                apply to "file_006.kra" and "file_007.kra", but not to
+                "file_004.kra" or "file.kra". Use this option if you name
+                the first version of your image with a version number, or
+                wish to change export settings part way through a project
+                but also keep the old settings for earlier versions.
+            </dd>
+        </dl>
+        Most of the time, use option 3 (this and later versions).
+        <br/>
+        Press the arrow button to show a list of all the files that
+        the settings on this row apply to.
+    </dd>
+    <dt>Export file path button</dt>
+    <dd>
+        Click this to open a file dialog where you can choose the
+        folder and name to export to. When you are exporting to
+        the same folder as the source, this will show as a dot.
+    </dd>
+    <dt>Export file name</dt>
+    <dd>
+        You can also set the name to export to here. Note that when
+        the settings on this row apply to multiple versions of the
+        image, exporting from any of them will overwrite this file.
+        That is, exported files are unversioned (eg. "file.kra",
+        "file_001.kra", "file_002.kra" etc. will all export to
+        "file.png", not "file.png", "file_001.png", "file_002.png",
+        etc.)
+    </dd>
+    <dt id="export-file-type">Export file type</dt>
+    <dd>
+        This dropdown lists all supported file types. Select which
+        type you wish to export to. Note that by default, only the
+        most commonly used types are shown; see <a href="#visible-file-types">Visible file types</a>.
+    </dd>
+    <dt>Export settings</dt>
+    <dd>
+        The settings shown here depends on the export file type you've
+        chosen. Each setting has a tooltip containing information about
+        what it does.
+    </dd>
+    <dt>Export now button</dt>
+    <dd>
+        You can export an image at any time directly from the dialog
+        (provided it is open in Krita). If this row applies to only
+        one file, it will be exported when you press the button; if it
+        applies to multiple, pressing the button will present a menu
+        where you can select which one you want to export. Again, the
+        image must be open in Krita or it will not appear. Note that
+        every open image gets its own row and settings, so you can also
+        do a one-off export with those different settings, so long as you
+        ensure they are not saved (or they will override the other settings
+        and this paragraph is a mess, rewrite plz.)
+    </dd>
+</dl>
+<h3 id="configuration-dialog/dialog-appearance-options">Dialog appearance options <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    Below the list are options for changing its appearance.
+</p>
+<dl>
+    <dt>Show non-kra/unopened/unstored</dt>
+    <dd>
+        Filters the list.
+        </dd><dd>
+        Non-kra: Typically you will work in and export from Krita
+        project files (.kra), so this option lets you hide images of
+        other types.
+        </dd><dd>
+        Unopened: By default the list will contain every file for which
+        export settings are stored, including those not currently open in
+        Krita. This option lets you hide those.
+        </dd><dd id="show-unstored">
+        Unstored (Advanced mode only): By default the list will contain
+        every file currently opened in Krita (excluding unsaved images),
+        including those for which no export settings are currently stored.
+        Once you have set up export settings for the images you want to
+        export, you can disable this option to reduce clutter.
+    </dd>
+    <dt>Display mode</dt>
+    <dd>
+        This dropdown lets you pick a display mode for this list.
+        </dd><dd>
+        Minimized: Every row will be as small as possible. Settings can
+        be accessed as a popup by pressing the button in the settings column.
+        </dd><dd>
+        Compact: Every row will be as short as it can be while still showing
+        all settings for the chosen image type. Settings will appear as
+        buttons without labels, but you can still see information about
+        them in their tooltips.
+        </dd><dd>
+        Focused: Every row will be compact or minimized, except for a
+        "focused" row which will appear expanded. By default, the image
+        that was active when the dialog opened will be focused. You can
+        change focus by double-clicking anywhere on a row.
+        </dd><dd>
+        Expanded: Every row will be as tall as necessary to show their
+        settings, each on their own line with a label.
+    </dd>
+    <dt>Minimize unfocused</dt>
+    <dd>
+        Only appears in focused display mode. When enabled, unfocused rows
+        will be minimized, as in minimized display mode except the settings
+        are hidden outright. When disabled, unfocused rows will be compact.
+    </dd>
+    <dt>Fade sliders</dt>
+    <dd>
+        These sliders let you fine tune the intensity of some visual effects.
+        Press the "Fade..." button to show them, and again to hide.
+        </dd><dd>
+        Contrast: adjust the intensity of the alternating row colours.
+        </dd><dd>
+        Settings: adjust the opacity of settings for unhovered rows. This
+        applies only to compact and expanded display modes. Fading unhovered
+        settings can make the list feel less cluttered.
+        </dd><dd>
+        Stored: adjust the intensity of the row highlight for settings that
+        will be saved (that is, rows where the <a href="#store-settings-checkbox">store settings checkbox</a> is
+        checked).
+    </dd>
+</dl>
+<h3 id="configuration-dialog/dialog-behaviour-options">Dialog behaviour options <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    The second line of options adjust the dialogs behaviour.
+</p>
+<dl>
+    <dt id="advanced-mode">Advanced mode</dt>
+    <dd>
+        Advanced mode allows you to more finely adjust how and when export
+        settings are saved.
+        </dd><dd>
+        When turned off:
+        <dl>
+            <dd>The store settings checkbox column will be hidden</dd>
+            <dd>The show unstored checkbox will be checked and hidden</dd>
+            <dd>The store on modify checkbox will be checked and hidden</dd>
+            <dd>The store on export checkbox will be checked and hidden</dd>
+            <dd>The autosave on close checkbox will be checked and hidden</dd>
+            <dd>The save settings button will be hidden</dd>
+        </dl>
+        Essentially, export settings will be saved for any row you interact
+        with automatically.
+        </dd><dd>
+        When turned on, these will be visible and return to whatever you
+        last set them to. You only need to turn advanced mode on if you
+        want to remove export settings for images from Quick Export.
+    </dd>
+    <dt>Store on modify/export</dt>
+    <dd>
+        When enabled, a row's <a href="#store-settings-checkbox">store settings checkbox</a> will be automatically
+        checked:
+        </dd><dd>
+        Modify: if you change any of its settings (the checkbox will not be
+        unchecked if you return them to their original state).
+        </dd><dd>
+        Export: if you export it with the export now button.
+    </dd>
+    <dt>Autosave on close</dt>
+    <dd>
+        When enabled, any changes you have made in the dialog will be
+        saved when it closes. Otherwise you will be asked to save
+        unsaved changes.
+    </dd>
+    <dt>Save settings</dt>
+    <dd>
+        Click this button to save changes made in the dialog. The button
+        will be greyed out if there are no changes to save.
+    </dd>
+</dl>
+<h3 id="configuration-dialog/plugin-options-menu">Plugin options menu <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    Finally, there is the Quick Export plugin options menu button on the
+    left side of the status bar.
+</p>
+<dl>
+    <dt>Custom icons submenu</dt>
+    <dd>
+        Use custom icons: enable or disable the use of the plugin's icons.
+        When disabled the icons will fall back to some close approximations
+        from Krita's own icon set.
+        </dd><dd>
+        Theme options: by default the plugin will try to match the current
+        theme with appropriate light or dark mode icons. If this goes wrong
+        you can manually specify the type of icons to use.
+    </dd>
+    <dt>Show export name in file menu</dt>
+    <dd>
+        When enabled, the Quick Export action in Krita's file menu will
+        show the file name that will be exported to. Otherwise it will
+        only say "Quick export".
+    </dd>
+    <dt>Default export for unsaved images</dt>
+    <dd>
+        When enabled, pressing the Quick Export action in the file menu
+        or toolbar for an as-yet unsaved image will instead perform a
+        normal Krita export, that is, it will behave as though you had
+        pressed the normal export button.
+        </dd><dd>
+        Otherwise, the Quick Export configuration dialog will appear.
+    </dd>
+    <dt>Show thumbnails for unopened images</dt>
+    <dd>
+        If enabled, the dialog will retrieve preview thumbnails from
+        stored but unopened files. If the file doesn't exist or can't be
+        opened, a cross will be shown instead. If disabled, those rows
+        will show no thumbnail until they are opened in Krita.
+    </dd>
+    <dt id="visible-file-types">Visible file types submenu</dt>
+    <dd>
+        This is a list of all file types that Quick Export can export to.
+        Here you can select a subset of these to show in the <a href="#export-file-type">file type
+        dropdown</a> on each export settings row. By default, only .jpg, .jpeg
+        and .png are enabled, so these will be the only ones you can export
+        to.
+        </dd><dd>
+        If you wish to export to .gif, for example, first enable it
+        in this menu, then you can select it from the export file type
+        dropdown for your image.
+        </dd><dd>
+        Hiding an image type does not affect any image already exporting
+        to that type.
+    </dd>
+    <dt>Wider grabber for resizing columns</dt>
+    <dd>
+        This is an accessibility tweak. When enabled, the region you must
+        click inside in order to resize columns will be twice as wide.
+        Enable this if you frequently sort or reorder columns by accident
+        when trying to resize them.
+    </dd>
 </dl>
 </body>
 </html>
