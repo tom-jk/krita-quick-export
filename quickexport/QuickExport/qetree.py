@@ -831,7 +831,7 @@ class QETree(QTreeWidget):
         versions_button = CheckToolButton(icon_name=("versions", s["versions"]), checked=(s["versions"] != "single"), tooltip="how to use settings for different versions of this image")
         versions_button.setPopupMode(QToolButton.InstantPopup)
         
-        bvs, mvn = base_stem_and_version_number_for_versioned_file(file_path)
+        bvs, mvn = base_stem_and_version_number_for_versioned_file(file_path, unversioned_version_num=0)
         stm, suf = file_path.stem, file_path.suffix
         
         # cache bvs and mvn.
