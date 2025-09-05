@@ -120,6 +120,7 @@ class MyTreeWidgetItem(QTreeWidgetItem):
         self.thumbnail_label = None
         self.store_forget_button = None
         self.export_button = None
+        self.export_button_clicked_connection = None
         self.warning_label = None
         self.settings_stack = None
         self.source_filepath_widget = None
@@ -291,11 +292,14 @@ class QETree(QTreeWidget):
                 item.warning_label.hide()
                 self.scheduleDelayedItemsLayout()
     
-    def _on_item_btn_export_clicked(self, item):
+    def _on_item_export_button_menu_triggered(self, doc, item):
+        self._on_item_btn_export_clicked(item, for_document=doc)
+    
+    def _on_item_btn_export_clicked(self, item, for_document=None):
         doc = item.doc_settings
         print(f"Clicked export for {doc['path']}")
         
-        result = export_image(doc)
+        result = export_image(doc, for_document)
         
         if not result:
             failed_msg = export_failed_msg()
@@ -752,6 +756,10 @@ class QETree(QTreeWidget):
         item.export_button.setAutoRaise(True)
         item.export_button.setIcon(app.icon('document-export'))
         item.export_button.setToolTip("Export now")
+        item.export_button.setPopupMode(QToolButton.InstantPopup)
+        
+        item.export_button_menu = QEMenu(keep_open=False)
+        item.export_button_menu.triggered.connect(lambda a, i=item: self._on_item_export_button_menu_triggered(a.data(), i))
         
         if s["document"] == None:
             item.export_button.setDisabled(True)
@@ -1228,7 +1236,6 @@ class QETree(QTreeWidget):
         
         btns_widget = QWidget()
         btns_layout = QHBoxLayout()
-        item.export_button.clicked.connect(lambda checked, fn=file_path.name, i=item, sb=btn_store_forget: self._on_item_btn_export_clicked(checked, fn, i, sb))
         btns_layout.addWidget(item.export_button)
         
         btns_widget.setLayout(btns_layout)
@@ -1247,16 +1254,22 @@ class QETree(QTreeWidget):
         bvs = doc["base_version_string"]
         suf = doc["path"].suffix
         
+        files = []
+        
         still_used_subitem = [False]*item.childCount()
         
         new_subitem_texts = []
         
         col = QECols.SOURCE_FILEPATH_COLUMN
         
-        # add new items.
+        # gather files.
         for test_path in file_path.parent.glob(f"{bvs}*{suf}"):
             if find_settings_for_file(test_path) != doc:
                 continue
+            files.append(test_path)
+        
+        # add new items.
+        for test_path in files:
             subitem = None
             for index_ in range(item.childCount()):
                 item_ = item.child(index_)
@@ -1292,6 +1305,27 @@ class QETree(QTreeWidget):
             index += 1
         
         item.sortChildren(col, Qt.AscendingOrder)
+        
+        # add currently open files to export now button list.
+        item.export_button_menu.clear()
+        export_path = export_file_path(doc)
+        header = item.export_button_menu.addAction(f"Export now to {str(export_path)}:")
+        header.setDisabled(True)
+        item.export_button_menu.addSeparator()
+        menu_count = 0
+        for doc_index, test_doc in enumerate(app.documents()):
+            test_doc_path = Path(test_doc.fileName())
+            if any(test_doc_path == (match:=test_path) for test_path in files):
+                item.export_button_menu.addAction(f"{doc_index} {test_doc_path.name}", test_doc)
+                menu_count += 1
+        if menu_count <= 1:
+            item.export_button.setMenu(None)
+            item.export_button_clicked_connection = item.export_button.clicked.connect(lambda checked, i=item: self._on_item_btn_export_clicked(i))
+        else:
+            item.export_button.setMenu(item.export_button_menu)
+            if item.export_button_clicked_connection:
+                item.export_button.clicked.disconnect(item.export_button_clicked_connection)
+                item.export_button_clicked_connection = None
 
     def thumbnail_worker_process(self):
         print("thumbnail worker: start.")
