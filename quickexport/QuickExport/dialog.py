@@ -342,10 +342,11 @@ class QEDialog(QDialog):
         
         self.tree.thumbnail_worker.close()
         
-        state = self.tree.header().saveState()
-        state_str = str(state.toBase64()).lstrip("b'").rstrip("'")
-        #print(f"save columns: {state_str=}")
-        writeSetting("columns_state", state_str)
+        if len(self.tree.items) > 0:
+            # only write columns state if they've been fit to any items.
+            state = self.tree.header().saveState()
+            state_str = str(state.toBase64()).lstrip("b'").rstrip("'")
+            writeSetting("columns_state", state_str)
         
         self.layout().removeWidget(self.tree)
         WidgetBin.addWidget(self.tree)
