@@ -708,16 +708,15 @@ class QETree(QTreeWidget):
             self.update_names_and_labels(item)
         
         QTimer.singleShot(0, self.scheduleDelayedItemsLayout)
-
-        if len(self.thumbnail_queue) == 0:
-            return
         
         self.thumbnail_worker = self.thumbnail_worker_process()
         self.thumbnail_worker_timer = QTimer(self)
         self.thumbnail_worker_timer.setInterval(0)
         self.thumbnail_worker_timer.setSingleShot(True)
         self.thumbnail_worker_timer.timeout.connect(lambda: next(self.thumbnail_worker, None))
-        self.thumbnail_worker_timer.start()
+
+        if len(self.thumbnail_queue) > 0:
+            self.thumbnail_worker_timer.start()
     
     def restore_columns(self):
         state_str = readSetting("columns_state")
