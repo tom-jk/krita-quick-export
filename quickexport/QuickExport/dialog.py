@@ -50,6 +50,9 @@ class QEDialog(QDialog):
         self.tree.set_settings_modified()
         
         self.tree.set_settings_display_mode()
+
+        if self.tree.focused_item:
+            self.tree.scrollToItem(self.tree.focused_item, QAbstractItemView.PositionAtCenter)
         
         self.set_advanced_mode(self.advanced_mode_button.checkState() == Qt.Checked)
         
