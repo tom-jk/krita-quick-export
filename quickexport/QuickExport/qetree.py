@@ -71,10 +71,11 @@ class ItemDelegate(QStyledItemDelegate):
     
     def paint(self, painter, option, index):
         tree = QETree.instance
+        item = tree.itemFromIndex(index)
         
         # TODO: lightly highlight row if mouse over.
-        if tree.indexOfTopLevelItem(tree.itemFromIndex(index)) != -1:
-            is_highlighted = index.model().index(index.row(), QECols.OPEN_FILE_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == tree.highlighted_doc_index
+        if tree.indexOfTopLevelItem(item) != -1:
+            is_highlighted = item == tree.highlighted_item
             is_stored = index.model().index(index.row(), QECols.STORE_SETTINGS_COLUMN, QModelIndex()).data(QERoles.CustomSortRole) == "1"
         else:
             is_highlighted = False
@@ -236,7 +237,7 @@ class QETree(QTreeWidget):
         item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(doc['doc_index']))
         for db in disabled_buttons:
             db.setDisabled(False)
-        item.export_button.setGraphicsEffect(None)
+        self.add_file_versioning_subitems(item)
         new_doc.waitForDone()
         self.thumbnail_queue.append([new_doc, item])
         self.thumbnail_worker_timer.start()
@@ -556,7 +557,8 @@ class QETree(QTreeWidget):
         
         self.hovered_item = None
         
-        self.highlighted_doc_index = -1
+        self.highlighted_settings = None
+        self.highlighted_item = None
         self.focused_item = None
         
         self.stored_highlight_alpha = round(int(readSetting("highlight_alpha"))*0.64)
@@ -649,10 +651,12 @@ class QETree(QTreeWidget):
         # TODO: detect if multiple documents would export to the same output file.
         
         if self.dialog.highlighted_doc:
-            for s in qe_settings:
-                if s["document"] == self.dialog.highlighted_doc:
-                    self.highlighted_doc_index = str(s["doc_index"])
-                    break
+            self.highlighted_settings = find_settings_for_file(Path(self.dialog.highlighted_doc.fileName()))
+            if not self.highlighted_settings:
+                for s in qe_settings:
+                    if s["document"] == self.dialog.highlighted_doc:
+                        self.highlighted_settings = s
+                        break
         
         self.setColumnCount(QECols.COLUMN_COUNT)
         self.setHeaderLabels(["", "", "", "File Path", "File Name", "Ver.", "Export Path", "Export Name", "Type", "Settings", ""])
@@ -692,11 +696,6 @@ class QETree(QTreeWidget):
         
         for s in qe_settings:
             self.add_item(s)
-        
-        for item in self.items:
-            if item.doc_settings["document"] == self.dialog.highlighted_doc:
-                self.focused_item = item
-                break
         
         self.refilter()
         
@@ -751,6 +750,10 @@ class QETree(QTreeWidget):
         item.setHidden(True)
         item.setFlags(item.flags() | Qt.ItemIsEditable)
         
+        if self.highlighted_settings == s:
+            self.highlighted_item = item
+            self.focused_item = item
+        
         item.export_button = QToolButton()
         item.export_button.setAutoRaise(True)
         item.export_button.setIcon(app.icon('document-export'))
@@ -759,12 +762,6 @@ class QETree(QTreeWidget):
         
         item.export_button_menu = QEMenu(keep_open=False)
         item.export_button_menu.triggered.connect(lambda a, i=item: self._on_item_export_button_menu_triggered(a.data(), i))
-        
-        if s["document"] == None:
-            item.export_button.setDisabled(True)
-            item.export_button_opacity = QGraphicsOpacityEffect(item.export_button)
-            item.export_button_opacity.setOpacity(0.33)
-            item.export_button.setGraphicsEffect(item.export_button_opacity)
         
         item.store_forget_button = QCheckBox()
         item.store_forget_button.setChecked(s["store"])
@@ -1317,15 +1314,32 @@ class QETree(QTreeWidget):
             if any(test_doc_path == (match:=test_path) for test_path in files):
                 item.export_button_menu.addAction(f"{doc_index} {test_doc_path.name}", test_doc)
                 menu_count += 1
-        if menu_count <= 1:
+        
+        if menu_count == 0:
+            # if unstored but currently open, allow exporting itself.
+            # TODO: won't show warning if would overwrite source.
+            if doc["document"] and not doc["store"]:
+                menu_count = 1 # no action added to menu, but won't be using it, so it's ok.
+        
+        if menu_count == 0:
+            item.export_button.setDisabled(True)
+            item.export_button_opacity = QGraphicsOpacityEffect(item.export_button)
+            item.export_button_opacity.setOpacity(0.33)
+            item.export_button.setGraphicsEffect(item.export_button_opacity)
             item.export_button.setMenu(None)
-            item.export_button_clicked_connection = item.export_button.clicked.connect(lambda checked, i=item: self._on_item_btn_export_clicked(i))
         else:
-            item.export_button.setMenu(item.export_button_menu)
+            if not item.export_button.isEnabled():
+                item.export_button.setDisabled(False)
+                item.export_button.setGraphicsEffect(None)
             if item.export_button_clicked_connection:
                 item.export_button.clicked.disconnect(item.export_button_clicked_connection)
                 item.export_button_clicked_connection = None
-
+            if menu_count == 1:
+                item.export_button.setMenu(None)
+                item.export_button_clicked_connection = item.export_button.clicked.connect(lambda checked, i=item: self._on_item_btn_export_clicked(i))
+            else:
+                item.export_button.setMenu(item.export_button_menu)
+            
     def thumbnail_worker_process(self):
         print("thumbnail worker: start.")
         
