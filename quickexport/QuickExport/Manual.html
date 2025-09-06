@@ -55,7 +55,7 @@
             <li><a href="#faq/missing-in-dialog">Why does my image not appear in the dialog?</a></li>
             <li><a href="#faq/bad-export">Why has my image not exported correctly?</a></li>
             <li><a href="#faq/versions">How can I use the same settings for multiple versions of an image?</a></li>
-            <li><a href="#faq/">?</a></li>
+            <li><a href="#faq/row-confusion">Why does my image not have the settings I previously set in the dialog?</a></li>
             <li><a href="#faq/">?</a></li>
             <li><a href="#faq/">?</a></li>
             <li><a href="#faq/">?</a></li>
@@ -160,9 +160,21 @@
     "base" version (or version 0) of the images <tt>"MyPic1"</tt>  and <tt>"MyPic01"</tt>,
     respectively.
 </p>
-<h3 id="faq/q">Question <a class="back-to-top" href="#contents">↥</a></h3>
+<h3 id="faq/row-confusion">Why does my image not have the settings I previously set in the dialog? <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
-    Answer.
+    You might be looking at the wrong row. Every currently open document
+    has a row of its own in the dialog, but in addition to that, a document
+    that is a version of an image will "inherit" the settings of that
+    image (provided that image's settings are set to apply to its versions).
+</p><p>
+    For example: settings are stored for "Image.kra", and its
+    versioning options are set to "versions of this file". Now we open the
+    dialog for "Image_001.kra". There will be a row for "Image_001.kra",
+    but the settings that are actually used when you export the document
+    from the file menu or toolbar are the settings for "Image.kra", because
+    it it set to apply to versions of it, and "Image_001.kra" is one. So
+    to change the export settings for "Image_001.kra", you should change
+    the export settings for "Image.kra".
 </p>
 <h3 id="faq/q">Question <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
@@ -174,6 +186,9 @@
     Each row in the dialog represents a file, one for each file currently
     open in Krita, plus those not currently open but for which export settings
     have previously been saved.
+</p><p>
+    When you open the dialog, it will scroll to show the row with the
+    settings that apply to the active document.
 </p><p>
     From left to right, the contents of a row are as follows:
 </p>
@@ -265,15 +280,9 @@
     <dt>Export now button</dt>
     <dd>
         You can export an image at any time directly from the dialog
-        (provided it is open in Krita). If this row applies to only
-        one file, it will be exported when you press the button; if it
-        applies to multiple, pressing the button will present a menu
-        where you can select which one you want to export. Again, the
-        image must be open in Krita or it will not appear. Note that
-        every open image gets its own row and settings, so you can also
-        do a one-off export with those different settings, so long as you
-        ensure they are not saved (or they will override the other settings
-        and this paragraph is a mess, rewrite plz.)
+        (provided it is open in Krita). For rows applying to multiple
+        currently open images, this button shows a menu where you can
+        select the one to export.
     </dd>
 </dl>
 <h3 id="configuration-dialog/dialog-appearance-options">Dialog appearance options <a class="back-to-top" href="#contents">↥</a></h3>
