@@ -186,12 +186,20 @@ class FlowLayout(QLayout):
         return y + line_height - rect.y() + cm.bottom()
 
 class QEComboBox(QComboBox):
+    def __init__(self, flat=True, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flat = flat
+    
     def addItem(self, text, data=None, tooltip=None):
         super().addItem(text, data)
         if tooltip:
             self.setItemData(self.count()-1, tooltip, Qt.ToolTipRole)
     
     def paintEvent(self, event):
+        if not self.flat:
+            super().paintEvent(event)
+            return
+        
         painter = QStylePainter(self)
         painter.setPen(self.palette().color(QPalette.Text))
         

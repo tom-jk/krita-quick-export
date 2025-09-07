@@ -13,7 +13,7 @@ from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
-from .qewidgets import QEMenu, SnapSlider, UncheckableButtonGroup, SpinBoxSlider, QEComboBox
+from .qewidgets import QEMenu, SnapSlider, UncheckableButtonGroup, SpinBoxSlider, QEComboBox, CheckToolButton
 from .qetree import QECols, QETree
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
@@ -78,24 +78,24 @@ class QEDialog(QDialog):
         # TODO: inform user that some items are currently hidden, and how many.
 
         # show unstored button.
-        self.show_unstored_button = QCheckBox("unstored")
-        self.show_unstored_button.setToolTip("Enable this to pick the images you're interested in exporting, then disable it to hide the rest.")
-        self.show_unstored_button.setCheckState(str2qtcheckstate(readSetting("show_unstored")))
+        tooltip = "Show unstored\n" \
+                  "Enable this to pick the images you're interested in exporting, then disable it to hide the rest."
+        self.show_unstored_button = CheckToolButton(icon_name="show_unstored", checked=str2bool(readSetting("show_unstored")), tooltip=tooltip)
         self.show_unstored_button.clicked.connect(self._on_show_unstored_button_clicked)
 
         # show unopened button.
-        self.show_unopened_button = QCheckBox("unopened")
-        self.show_unopened_button.setToolTip("Show the export settings of every file - currently open or not - for which settings have been saved.")
-        self.show_unopened_button.setCheckState(str2qtcheckstate(readSetting("show_unopened")))
+        tooltip = "Show unopened\n" \
+                  "Show the export settings of every file - currently open or not - for which settings have been saved."
+        self.show_unopened_button = CheckToolButton(icon_name="show_unopened", checked=str2bool(readSetting("show_unopened")), tooltip=tooltip)
         self.show_unopened_button.clicked.connect(self._on_show_unopened_button_clicked)
 
         # show non-kra files button.
-        self.show_non_kra_button = QCheckBox("non-kra")
-        self.show_non_kra_button.setToolTip("Show export settings for files of usually exported types, such as .png and .jpg. Disabled by default because it's kind of redundant.")
-        self.show_non_kra_button.setCheckState(str2qtcheckstate(readSetting("show_non_kra")))
+        tooltip = "Show non-kra\n" \
+                  "Show export settings for files of usually exported types, such as .png and .jpg. Disabled by default because it's kind of redundant."
+        self.show_non_kra_button = CheckToolButton(icon_name="show_non_kra", checked=str2bool(readSetting("show_non_kra")), tooltip=tooltip)
         self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
 
-        self.settings_display_mode_combobox = QEComboBox()
+        self.settings_display_mode_combobox = QEComboBox(flat=False)
         self.settings_display_mode_combobox.addItem("Minimized", "minimized", "All rows are minimized.")
         self.settings_display_mode_combobox.addItem("Compact", "compact", "All rows are compact.")
         self.settings_display_mode_combobox.addItem("Focused", "focused", "The focused row is expanded, all others are compact or minimized.\nDouble-click a row to focus it.")
@@ -103,7 +103,7 @@ class QEDialog(QDialog):
         self.settings_display_mode_combobox.setCurrentIndex(self.settings_display_mode_combobox.findData(readSetting("settings_display_mode")))
         self.settings_display_mode_combobox.currentIndexChanged.connect(self._on_settings_display_mode_combobox_current_index_changed)
 
-        self.settings_minimize_unfocused_button = QCheckBox("minimize unfocused")
+        self.settings_minimize_unfocused_button = QCheckBox("minimize")
         self.settings_minimize_unfocused_button.setToolTip("In focused display mode, reduce the size of the unfocused rows.")
         self.settings_minimize_unfocused_button.setCheckState(str2qtcheckstate(readSetting("minimize_unfocused")))
         self.settings_minimize_unfocused_button.setVisible(readSetting("settings_display_mode") == "focused")
@@ -151,7 +151,7 @@ class QEDialog(QDialog):
         config_buttons_layout = QHBoxLayout()
 
         # advanced mode button.
-        self.advanced_mode_button = QCheckBox("Advanced mode")
+        self.advanced_mode_button = QCheckBox("Advanced")
         self.advanced_mode_button.setToolTip("Basic mode: export settings are saved by default (recommended).\nAdvanced mode: configure how settings are stored.")
         self.advanced_mode_button.setCheckState(str2qtcheckstate(readSetting("advanced_mode")))
         self.advanced_mode_button.clicked.connect(self._on_advanced_mode_button_clicked)
@@ -183,7 +183,6 @@ class QEDialog(QDialog):
         self.save_button.setDisabled(True)
         self.save_button.clicked.connect(self._on_save_button_clicked)
 
-        config_buttons_layout.addWidget(self.advanced_mode_button)
         config_buttons_layout.addWidget(self.auto_store_label)
         config_buttons_layout.addWidget(self.auto_store_on_modify_button)
         config_buttons_layout.addWidget(self.auto_store_on_export_button)
@@ -296,6 +295,8 @@ class QEDialog(QDialog):
         wide_column_resize_grabber_action.toggled.connect(self._on_wide_column_resize_grabber_action_toggled)
         
         options_button.setMenu(options_menu)
+        
+        status_layout.addWidget(self.advanced_mode_button)
         
         # status bar.
         # TODO: allow custom prompt messages on startup to be reset once eg. an image has been exported?

@@ -44,6 +44,9 @@ class QuickExportExtension(Extension):
                     "hide":         app.icon("novisible"),
                     "show":         app.icon("visible")
                 },
+                "show_non_kra":     icon("show-non-kra"),
+                "show_unopened":    icon("show-unopened"),
+                "show_unstored":    icon("show-unstored"),
                 "versions": {
                     "single":       icon("single-file"),
                     "all":          icon("versions"),
@@ -78,6 +81,9 @@ class QuickExportExtension(Extension):
                 "hide":             app.icon("novisible"),
                 "show":             app.icon("visible")
             },
+            "show_non_kra":         app.icon("folder-pictures"),
+            "show_unopened":        app.icon("groupLayer"),
+            "show_unstored":        app.icon("hatchingbrush"),
             "versions": {
                 "single":           app.icon("colorizeMask"),
                 "all":              app.icon("object-ungroup-calligra"),
