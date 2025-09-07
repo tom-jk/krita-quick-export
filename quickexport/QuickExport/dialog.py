@@ -58,6 +58,9 @@ class QEDialog(QDialog):
         
         self.update_show_extensions_in_list_for_all_types()
         
+        # refresh options button icon, make sure isn't stuck on outdated theme.
+        self.options_button.setIcon(app.icon('view-choose'))
+        
         # status bar.
         self.sbar_ready_label.setText(" Ready." if msg == "" else " "+msg) # extra space to align with showmessage.
         
@@ -199,13 +202,12 @@ class QEDialog(QDialog):
         status_layout = QHBoxLayout()
         
         # qe options menu.
-        options_button = QToolButton()
-        options_button.setIcon(app.icon('view-choose'))
-        options_button.setToolButtonStyle(Qt.ToolButtonIconOnly)
-        options_button.setAutoRaise(True)
-        options_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
-        options_button.setPopupMode(QToolButton.InstantPopup)
-        status_layout.addWidget(options_button)
+        self.options_button = QToolButton()
+        self.options_button.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.options_button.setAutoRaise(True)
+        self.options_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
+        self.options_button.setPopupMode(QToolButton.InstantPopup)
+        status_layout.addWidget(self.options_button)
         
         options_menu = QEMenu()
         options_menu.setToolTipsVisible(True)
@@ -294,7 +296,7 @@ class QEDialog(QDialog):
         wide_column_resize_grabber_action.setChecked(str2qtcheckstate(readSetting("wide_column_resize_grabber")))
         wide_column_resize_grabber_action.toggled.connect(self._on_wide_column_resize_grabber_action_toggled)
         
-        options_button.setMenu(options_menu)
+        self.options_button.setMenu(options_menu)
         
         status_layout.addWidget(self.advanced_mode_button)
         

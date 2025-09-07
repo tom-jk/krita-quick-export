@@ -73,9 +73,18 @@ class QuickExportExtension(Extension):
                 "optimise":         icon("optimise")
             }
         
+        self.set_default_icons()
+        
+        self.default_export_action = None
+        
+        self.theme_name = ""
+        self.theme_is_dark = False
+        self.use_custom_icons = False
+    
+    def set_default_icons(self):
         self.icons["default"] = {
-            "qe":                   None,
-            "qec":                  None,
+            "qe":                   app.icon("document-export"),
+            "qec":                  app.icon("configure"),
             "settings":             app.icon("configure"),
             "visibility": {
                 "hide":             app.icon("novisible"),
@@ -104,17 +113,11 @@ class QuickExportExtension(Extension):
                 "1x1":              app.icon("tool_similar_selection"),
                 "1x2":              app.icon("tool_similar_selection"),
                 "2x1":              app.icon("tool_similar_selection"),
-                "2x2":              app.icon("tool_similar_selection"),
+                "2x2":              app.icon("tool_similar_selection")
             },
             "jpeg_baseline":        app.icon("krita_tool_rectangle"),
             "optimise":             app.icon("tool_crop")
         }
-        
-        self.default_export_action = None
-        
-        self.theme_name = ""
-        self.theme_is_dark = False
-        self.use_custom_icons = False
     
     def get_icon(self,  *args):
         return self._get_icons_internal(self.icons["default" if not self.use_custom_icons else "light" if self.theme_is_dark else "dark"], *args)
@@ -149,6 +152,7 @@ class QuickExportExtension(Extension):
         
         self.theme_is_dark = True if custom_icons_theme == "dark" else False if custom_icons_theme == "light" else self.is_theme_dark()
         self.set_action_icons()
+        self.set_default_icons()
         self.themeChanged.emit()
     
     def createActions(self, window):
