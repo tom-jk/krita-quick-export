@@ -230,7 +230,6 @@ class QETree(QTreeWidget):
             return
         self.dialog.sbar.showMessage(f"Opened '{str(doc['path'])}'", 5000)
         app.activeWindow().addView(new_doc)
-        item.setDisabled(False)
         self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, None)
         doc['document'] = new_doc
         doc['doc_index'] = app.documents().index(new_doc)
@@ -795,7 +794,6 @@ class QETree(QTreeWidget):
         else:
             if str2bool(readSetting("show_thumbnails_for_unopened")):
                 self.thumbnail_queue.append([s["path"], item])
-            item.setDisabled(True)
             btn_open = QPushButton("")
             btn_open.setIcon(app.icon('document-open'))
             btn_open.setStyleSheet("QPushButton {border:none; background:transparent;}")
