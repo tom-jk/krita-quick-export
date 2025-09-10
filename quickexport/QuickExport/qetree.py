@@ -229,12 +229,14 @@ class QETree(QTreeWidget):
         show_unopened = str2bool(readSetting("show_unopened"))
         show_non_kra  = str2bool(readSetting("show_non_kra"))
         file_filter   = self.dialog.filter_edit.text()
+        folder_filter = self.dialog.folder_filter_button.includedFolders()
         for index, s in enumerate(qe_settings):
             hide = (
                    (not show_unstored and s["store"] == False)
                 or (not show_unopened and s["document"] == None)
                 or (not show_non_kra  and s["path"].suffix != ".kra")
                 or (bool(file_filter) and not s["path"].name.startswith(file_filter))
+                or (bool(folder_filter) and s["path"].parent not in folder_filter)
             )
             self.items[index].setHidden(hide)
             num_items += 1

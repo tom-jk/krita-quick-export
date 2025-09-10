@@ -14,7 +14,7 @@ from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
 from .qewidgets import QEMenu, SnapSlider, UncheckableButtonGroup, SpinBoxSlider, QEComboBox, CheckToolButton
-from .qefilterwidgets import FilterLineEdit
+from .qefilterwidgets import FilterLineEdit, FolderFilterButton
 from .qetree import QECols, QETree
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
@@ -53,6 +53,9 @@ class QEDialog(QDialog):
         self.tree.set_settings_display_mode()
         
         self.tree.setup_filter_completer()
+        
+        for s in qe_settings:
+            self.folder_filter_button.add_folder_to_tree(s["path"].parent)
         
         if self.tree.focused_item:
             self.tree.scrollToItem(self.tree.focused_item, QAbstractItemView.PositionAtCenter)
@@ -117,6 +120,10 @@ class QEDialog(QDialog):
 
         self.filter_edit = FilterLineEdit()
         
+        self.folder_filter_button = FolderFilterButton()
+        self.folder_filter_button.setAutoDefault(False)
+        self.folder_filter_button.filterChanged.connect(self._on_folder_filter_button_filter_changed)
+
         self.fade_button = QToolButton()
         self.fade_button.setText("Fade")
         self.fade_button.setAutoRaise(True)
@@ -146,6 +153,7 @@ class QEDialog(QDialog):
         view_buttons_layout.addWidget(self.settings_display_mode_combobox)
         view_buttons_layout.addWidget(self.settings_minimize_unfocused_button)
         view_buttons_layout.addWidget(self.filter_edit)
+        view_buttons_layout.addWidget(self.folder_filter_button)
         view_buttons_layout.addWidget(self.fade_button)
         view_buttons_layout.addWidget(self.alt_row_contrast_slider)
         view_buttons_layout.addWidget(self.unhovered_fade_slider)
@@ -400,6 +408,9 @@ class QEDialog(QDialog):
     def _on_settings_minimize_unfocused_button_clicked(self, checked):
         writeSetting("minimize_unfocused", bool2str(checked))
         self.tree.set_settings_display_mode()
+    
+    def _on_folder_filter_button_filter_changed(self):
+        self.tree.refilter()
     
     def _on_fade_button_clicked(self, checked):
         checked = not str2bool(readSetting("show_fade_sliders"))
