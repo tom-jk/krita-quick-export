@@ -307,6 +307,13 @@ class QEDialog(QDialog):
         self.sbar.insertWidget(0, self.sbar_ready_label)
         status_layout.addWidget(self.sbar)
         
+        # statistics (number of items, of which hidden).
+        self.statistics_label = QLabel("")
+        self.statistics_label_opacity = QGraphicsOpacityEffect(self.statistics_label)
+        self.statistics_label_opacity.setOpacity(0.5)
+        self.statistics_label.setGraphicsEffect(self.statistics_label_opacity)
+        self.sbar.addPermanentWidget(self.statistics_label)
+        
         status_layout.setContentsMargins(0,0,0,0)
         status_widget.setLayout(status_layout)
         layout.addWidget(status_widget)

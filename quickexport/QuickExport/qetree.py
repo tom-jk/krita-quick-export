@@ -209,15 +209,21 @@ class QETree(QTreeWidget):
         self.hovered_item = None
     
     def refilter(self):
+        num_items = 0
+        num_hidden = 0
         show_unstored = str2bool(readSetting("show_unstored"))
         show_unopened = str2bool(readSetting("show_unopened"))
         show_non_kra  = str2bool(readSetting("show_non_kra"))
         for index, s in enumerate(qe_settings):
-            self.items[index].setHidden(
+            hide = (
                    (not show_unstored and s["store"] == False)
                 or (not show_unopened and s["document"] == None)
                 or (not show_non_kra  and s["path"].suffix != ".kra")
             )
+            self.items[index].setHidden(hide)
+            num_items += 1
+            num_hidden += hide
+        self.dialog.statistics_label.setText(f"{num_items} items" + (f" ({num_hidden} hidden)" if num_hidden > 0 else ""))
     
     def _on_btn_open_clicked(self, checked, btn, disabled_buttons, item):
         doc = item.doc_settings
