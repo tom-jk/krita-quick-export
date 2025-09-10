@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
                              QActionGroup, QToolButton, QComboBox, QStackedWidget, QStyle, QStyleOption,
                              QStyleOptionButton, QSpinBox, QStyleOptionSpinBox, QGraphicsOpacityEffect,
                              QFileDialog, QProxyStyle)
-from PyQt5.QtCore import Qt, QObject, QRegExp, QModelIndex, pyqtSignal, QEvent
+from PyQt5.QtCore import Qt, QObject, QRegExp, QModelIndex, pyqtSignal, QEvent, QIdentityProxyModel
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette, QMouseEvent, QTabletEvent
 import zipfile
 from pathlib import Path
@@ -16,6 +16,20 @@ from .utils import *
 from .qewidgets import QEMenu, CheckToolButton, ColourToolButton, QEComboBox, FadingStackedWidget, SpinBoxSlider, FlowLayout
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
+
+class FilterProxyModel(QIdentityProxyModel):
+    """used to coax filter completer into showing text correctly."""
+    def __init__(self, font_source=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.font_source = font_source
+    
+    def data(self, index, role):
+        if role == Qt.SizeHintRole:
+            fm = QFontMetrics(self.font_source.font())
+            return fm.boundingRect(super().data(index, Qt.UserRole)).size()
+        if role == Qt.DisplayRole or role == Qt.EditRole:
+            role = Qt.UserRole
+        return super().data(index, role)
 
 class SettingsWidget(QWidget):
     def popOut(self, settings_stack, index):
@@ -214,11 +228,13 @@ class QETree(QTreeWidget):
         show_unstored = str2bool(readSetting("show_unstored"))
         show_unopened = str2bool(readSetting("show_unopened"))
         show_non_kra  = str2bool(readSetting("show_non_kra"))
+        file_filter   = self.dialog.filter_edit.text()
         for index, s in enumerate(qe_settings):
             hide = (
                    (not show_unstored and s["store"] == False)
                 or (not show_unopened and s["document"] == None)
                 or (not show_non_kra  and s["path"].suffix != ".kra")
+                or (bool(file_filter) and not s["path"].name.startswith(file_filter))
             )
             self.items[index].setHidden(hide)
             num_items += 1
@@ -1427,3 +1443,15 @@ class QETree(QTreeWidget):
             altbase.alpha()
         ))
         self.setPalette(pal)
+    
+    def setup_filter_completer(self):
+        completer = self.dialog.filter_edit.completer
+        completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.filter_model = FilterProxyModel(font_source=completer.popup())
+        self.filter_model.setSourceModel(self.model())
+        completer.setModel(self.filter_model)
+        completer.setCompletionColumn(QECols.SOURCE_FILENAME_COLUMN)
+        completer.setCompletionRole(QERoles.CustomSortRole)
+        completer.setMaxVisibleItems(14)
+        self.dialog.filter_edit.setCompleter(completer)
+        self.dialog.filter_edit.textChanged.connect(self.refilter)

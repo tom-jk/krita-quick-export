@@ -14,6 +14,7 @@ from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
 from .qewidgets import QEMenu, SnapSlider, UncheckableButtonGroup, SpinBoxSlider, QEComboBox, CheckToolButton
+from .qefilterwidgets import FilterLineEdit
 from .qetree import QECols, QETree
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
@@ -50,7 +51,9 @@ class QEDialog(QDialog):
         self.tree.set_settings_modified()
         
         self.tree.set_settings_display_mode()
-
+        
+        self.tree.setup_filter_completer()
+        
         if self.tree.focused_item:
             self.tree.scrollToItem(self.tree.focused_item, QAbstractItemView.PositionAtCenter)
         
@@ -112,6 +115,8 @@ class QEDialog(QDialog):
         self.settings_minimize_unfocused_button.setVisible(readSetting("settings_display_mode") == "focused")
         self.settings_minimize_unfocused_button.clicked.connect(self._on_settings_minimize_unfocused_button_clicked)
 
+        self.filter_edit = FilterLineEdit()
+        
         self.fade_button = QToolButton()
         self.fade_button.setText("Fade")
         self.fade_button.setAutoRaise(True)
@@ -140,7 +145,7 @@ class QEDialog(QDialog):
         view_buttons_layout.addWidget(self.show_unstored_button)
         view_buttons_layout.addWidget(self.settings_display_mode_combobox)
         view_buttons_layout.addWidget(self.settings_minimize_unfocused_button)
-        view_buttons_layout.addStretch()
+        view_buttons_layout.addWidget(self.filter_edit)
         view_buttons_layout.addWidget(self.fade_button)
         view_buttons_layout.addWidget(self.alt_row_contrast_slider)
         view_buttons_layout.addWidget(self.unhovered_fade_slider)
