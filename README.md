@@ -1,4 +1,4 @@
-![krita_quickexport_githubimage3](https://github.com/user-attachments/assets/3496f959-d800-4ca6-9792-05a712a02a03)
+![krita_quickexport_githubimage4](https://github.com/user-attachments/assets/f635ee93-d2e4-4da4-b782-118e6e277ef4)
 
 Work-in-progress, but feedback welcome.
 
