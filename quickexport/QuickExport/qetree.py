@@ -587,10 +587,10 @@ class QETree(QTreeWidget):
         self.stored_highlight_alpha = round(int(readSetting("highlight_alpha"))*0.64)
         
         fm = QFontMetrics(self.font())
-        self.thumb_height = fm.height() * 4
         self.min_row_height = fm.height() * 5
-        self.minimized_thumb_height = fm.height() * 1
         self.minimized_row_height = fm.height() * 2
+        self.thumb_height = round(self.min_row_height*0.9)
+        self.minimized_thumb_height = round(self.minimized_row_height*0.9)
         
         self.setExpandsOnDoubleClick(False)
         
