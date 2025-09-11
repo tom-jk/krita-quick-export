@@ -56,9 +56,6 @@
             <li><a href="#faq/bad-export">Why has my image not exported correctly?</a></li>
             <li><a href="#faq/versions">How can I use the same settings for multiple versions of an image?</a></li>
             <li><a href="#faq/row-confusion">Why does my image not have the settings I previously set in the dialog?</a></li>
-            <li><a href="#faq/">?</a></li>
-            <li><a href="#faq/">?</a></li>
-            <li><a href="#faq/">?</a></li>
         </ul>
     </li>
     <li>Configuration Dialog
@@ -107,9 +104,10 @@
     First, have you saved your image? Quick Export ignores unsaved images.
 </p><p>
     Second, has it been filtered out? Enable show non-kra and show unopened
-    (and show unstored if in Advanced mode). If the image file isn't currently
-    open in Krita, check that it hasn't been moved to a different folder or
-    name. Open it in Krita then look in the dialog again: is it there?
+    (and show unstored if in Advanced mode). Make sure you are not filtering
+    by name or folder. If the image file isn't currently open in Krita,
+    check that it hasn't been moved to a different folder or name. Open
+    it in Krita then look in the dialog again: is it there?
 </p><p>
     Perhaps its export settings had not been saved in the plugin. Remember to change
     one of its settings or export it with the export now button, or check the store
@@ -175,10 +173,6 @@
     it it set to apply to versions of it, and "Image_001.kra" is one. So
     to change the export settings for "Image_001.kra", you should change
     the export settings for "Image.kra".
-</p>
-<h3 id="faq/q">Question <a class="back-to-top" href="#contents">↥</a></h3>
-<p>
-    Answer.
 </p>
 <h2 id="configuration-dialog">Configuration Dialog</h2>
 <h3 id="configuration-dialog/settings-rows">Settings rows <a class="back-to-top" href="#contents">↥</a></h3>
@@ -334,6 +328,36 @@
         will be minimized, as in minimized display mode except the settings
         are hidden outright. When disabled, unfocused rows will be compact.
     </dd>
+    <dt>Filter by name...</dt>
+    <dd>
+        Only show rows where the source image name starts with this text.
+        If left blank, no rows are hidden. A popup list will show possible
+        names as you type. If you remove all text or double-click the text
+        box when it is empty, all source image names currently in use will
+        be shown.
+    </dd>
+    <dt>Filter by folder...</dt>
+    <dd>
+        Only show rows where the source image is contained inside a set of
+        folders. Click the button to show a popup containing a tree of all
+        source folders currently in use. Only folders that contain source images
+        inside them (ncluding in any subfolder) are shown.
+    </dd><dd>
+        Click a folder name to include (check) or exclude (uncheck) it.
+        When you check a folder, its subfolders will appear "semi-checked"
+        to show that they are included implicitly. This implicit inclusion
+        propagates down all subfolders except those that are already
+        checked.
+    </dd><dd>
+        You can also check and uncheck particular folders explicitly.
+        Select rows (click in the empty space) and press the Check/Uncheck
+        buttons on the bottom-right of the popup. You can click and drag
+        to select multiple rows. Hold the control key to toggle selection.
+    </dd><dd>
+        Press the Clear button to uncheck everything (ie. do not filter).
+        You can use the Show all temporarily checkbox to disable filtering
+        without losing your current filter set.
+    </dd>
     <dt>Fade sliders</dt>
     <dd>
         These sliders let you fine tune the intensity of some visual effects.
@@ -352,7 +376,7 @@
 </dl>
 <h3 id="configuration-dialog/dialog-behaviour-options">Dialog behaviour options <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
-    The second line of options adjust the dialogs behaviour.
+    The second line of options (plus the Advanced mode checkbox below it) adjust the dialogs behaviour.
 </p>
 <dl>
     <dt id="advanced-mode">Advanced mode</dt>
@@ -360,7 +384,7 @@
         Advanced mode allows you to more finely adjust how and when export
         settings are saved.
         </dd><dd>
-        When turned off:
+        When turned <b>off</b>:
         <dl>
             <dd>The store settings checkbox column will be hidden</dd>
             <dd>The show unstored checkbox will be checked and hidden</dd>
@@ -372,8 +396,8 @@
         Essentially, export settings will be saved for any row you interact
         with automatically.
         </dd><dd>
-        When turned on, these will be visible and return to whatever you
-        last set them to. You only need to turn advanced mode on if you
+        When turned <b>on</b>, these will be visible and return to whatever you
+        last set them to. You only <i>have</i> to turn advanced mode on if you
         want to remove export settings for images from Quick Export.
     </dd>
     <dt>Store on modify/export</dt>
@@ -381,10 +405,10 @@
         When enabled, a row's <a href="#store-settings-checkbox">store settings checkbox</a> will be automatically
         checked:
         </dd><dd>
-        Modify: if you change any of its settings (the checkbox will not be
+        Modify: ...if you change any of its settings (the checkbox will not be
         unchecked if you return them to their original state).
         </dd><dd>
-        Export: if you export it with the export now button.
+        Export: ...if you export it with the export now button.
     </dd>
     <dt>Autosave on close</dt>
     <dd>
