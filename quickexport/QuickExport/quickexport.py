@@ -6,7 +6,6 @@ from krita import *
 
 from .utils import *
 from .dialog import QEDialog
-from .copysettingsdialog import CopySettingsDialogResult, CopySettingsDialog
 
 app = Krita.instance()
 app_notifier = app.notifier()
