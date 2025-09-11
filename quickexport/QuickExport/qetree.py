@@ -818,10 +818,16 @@ class QETree(QTreeWidget):
         else:
             if str2bool(readSetting("show_thumbnails_for_unopened")):
                 self.thumbnail_queue.append([s["path"], item])
-            btn_open = QPushButton("")
+            btn_open_widget = QWidget()
+            btn_open_widget_layout = QHBoxLayout(btn_open_widget)
+            btn_open_widget.setContentsMargins(0,0,0,0)
+            btn_open_widget_layout.setContentsMargins(0,0,0,0)
+            btn_open = QToolButton()
+            btn_open.setAutoRaise(True)
             btn_open.setIcon(app.icon('document-open'))
-            btn_open.setStyleSheet("QPushButton {border:none; background:transparent;}")
-            self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open)
+            btn_open.setToolTip(f"Open file in Krita\n{s['path']}")
+            btn_open_widget_layout.addWidget(btn_open)
+            self.setItemWidget(item, QECols.OPEN_FILE_COLUMN, btn_open_widget)
         
         item.setData(QECols.OPEN_FILE_COLUMN, QERoles.CustomSortRole, str(s["doc_index"]))
         
