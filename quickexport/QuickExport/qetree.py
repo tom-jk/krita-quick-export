@@ -482,9 +482,10 @@ class QETree(QTreeWidget):
         self._on_generic_setting_changed("jpeg_subsampling", value, item)
         button.set_icon_name(("subsampling", value))
     
-    def _on_jpeg_metadata_checkbox_toggled(self, checked, metadata_options_button, item):
-        self._on_generic_setting_changed("jpeg_metadata", checked, item)
-        metadata_options_button.setChecked(checked)
+    def _on_jpeg_metadata_options_menu_triggered(self, key, checked, metadata_options_button, item):
+        self._on_generic_setting_changed(key, checked, item)
+        if key == "jpeg_metadata":
+            metadata_options_button.setChecked(checked)
     
     def _on_generic_setting_changed(self, key, value, item):
         doc = item.doc_settings
@@ -1190,12 +1191,18 @@ class QETree(QTreeWidget):
         
         jpeg_optimise_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
         
-        tooltip = "Metadata formats and filters"
-        jpeg_metadata_options_button = CheckToolButton(icon_name="metadata_options", checked=s["jpeg_metadata"], tooltip=tooltip)
+        tooltip = "Metadata\n\n" \
+                  "Store document metadata that is in the document information.\n" \
+                  "This will override any layer metadata."
+        jpeg_metadata_options_button = CheckToolButton(icon_name="metadata", checked=s["jpeg_metadata"], tooltip=tooltip)
         jpeg_metadata_options_button.setPopupMode(QToolButton.InstantPopup)
         
         jpeg_metadata_options_menu = QEMenu()
         jpeg_metadata_options_menu.setToolTipsVisible(True)
+        
+        jpeg_metadata_options_enable_action = jpeg_metadata_options_menu.addAction("Store document metadata", "metadata")
+        
+        jpeg_metadata_options_menu.addSeparator()
         
         jpeg_metadata_options_header_action = jpeg_metadata_options_menu.addAction("Metadata formats")
         jpeg_metadata_options_header_action.setDisabled(True)
@@ -1213,21 +1220,12 @@ class QETree(QTreeWidget):
                 continue
             action.setCheckable(True)
             action.setChecked(s[f"jpeg_{action.data()}"])
-        jpeg_metadata_options_menu.triggered.connect(lambda a, i=item: self._on_generic_setting_changed(f"jpeg_{a.data()}", a.isChecked(), i))
+        jpeg_metadata_options_menu.triggered.connect(lambda a, mob=jpeg_metadata_options_button, i=item: self._on_jpeg_metadata_options_menu_triggered(f"jpeg_{a.data()}", a.isChecked(), mob, i))
         
         jpeg_metadata_options_button.setMenu(jpeg_metadata_options_menu)
         jpeg_settings_page_layout.addWidget(jpeg_metadata_options_button)
         
         jpeg_metadata_options_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
-        
-        tooltip = "Store Document Metadata\n\n" \
-                  "Store document metadata that is in the document information.\n" \
-                  "This will override any layer metadata."
-        jpeg_metadata_checkbox = CheckToolButton(icon_name="metadata", checked=s["jpeg_metadata"], tooltip=tooltip)
-        jpeg_metadata_checkbox.toggled.connect(lambda checked, mob=jpeg_metadata_options_button, i=item: self._on_jpeg_metadata_checkbox_toggled(checked, mob, i))
-        jpeg_settings_page_layout.addWidget(jpeg_metadata_checkbox)
-        
-        jpeg_metadata_label = setting_label_and_layout_break(jpeg_settings_page_layout, tooltip.partition("\n")[0])
         
         tooltip = "Sign with Author Profile Data\n\n" \
                   "Add the author nickname and the first contact of the author profile.\n" \
