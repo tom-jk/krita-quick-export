@@ -846,7 +846,7 @@ class QETree(QTreeWidget):
         item.setData(QECols.SOURCE_FILENAME_COLUMN, QERoles.CustomSortRole, file_path.name.lower())
         
         if s["document"] == None:
-            btn_open.clicked.connect(lambda checked, b=btn_open, db=[item.export_button,scale_reset_action,scale_settings_action,item.source_filepath_widget,item.source_filename_widget], i=item: self._on_btn_open_clicked(checked, b, db, i))
+            btn_open.clicked.connect(lambda checked, b=btn_open, db=[scale_reset_action,scale_settings_action,item.source_filepath_widget,item.source_filename_widget], i=item: self._on_btn_open_clicked(checked, b, db, i))
         
         item.warning_label = QLabel("")
         
