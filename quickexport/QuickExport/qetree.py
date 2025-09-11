@@ -617,9 +617,6 @@ class QETree(QTreeWidget):
         if len(children) == 1:
             children[0].animateClick()
             return
-        children = widget.findChildren(QLineEdit)
-        if len(children) == 1:
-            children[0].setFocus(Qt.MouseFocusReason)
     
     def _on_item_double_clicked(self, item, column):
         self.focused_item = item
