@@ -1251,6 +1251,12 @@ class QETree(QTreeWidget):
         self.setItemWidget(item, QECols.SETTINGS_COLUMN, item.settings_stack)
         self.set_item_settings_stack_page_for_extension(item, s["ext"])
         
+        # HACK: adjust sliders to not disrupt regular button grid.
+        btn_width = png_scale_button.sizeHint().width()
+        spacing = png_settings_page_layout.spacing() - 1
+        for slider in (png_compression_slider, jpeg_quality_slider, jpeg_smooth_slider):
+            slider._default_width = round(slider._default_width / (btn_width+spacing) + 0.5) * (btn_width+spacing) - spacing
+        
         scale_checkbox_action.triggered.connect(lambda checked, cb=[no_settings_scale_button,png_scale_button,jpeg_scale_button], i=item: self._on_item_scale_checkbox_action_triggered(checked, cb, i))
         
         btns_widget = QWidget()
