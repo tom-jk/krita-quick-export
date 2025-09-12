@@ -13,7 +13,7 @@ from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
-from .qewidgets import QEMenu, SnapSlider, UncheckableButtonGroup, SpinBoxSlider, QEComboBox, CheckToolButton
+from .qewidgets import QEMenu, SnapSlider, SpinBoxSlider, QEComboBox, CheckToolButton
 from .qefilterwidgets import FilterLineEdit, FolderFilterButton
 from .qetree import QECols, QETree
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
