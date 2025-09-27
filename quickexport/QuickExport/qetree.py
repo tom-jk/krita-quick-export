@@ -864,7 +864,6 @@ class QETree(QTreeWidget):
         s["matched_version_number"] = mvn
         
         versions_menu = QEMenu(keep_open=False)
-        versions_menu.setToolTipsVisible(True)
         versions_action_group = QActionGroup(versions_menu)
         versions_single_action      = versions_menu.addAction("This exact file", "single", f"applies only to '{file_path.name}'.")
         versions_all_action         = versions_menu.addAction("Versions of this image", "all", f"applies to:\n'{file_path.name}'\n'{stm}_001{suf}'\n'{stm}_002{suf}'\n'{stm}_003{suf}'\netc.")
@@ -903,7 +902,6 @@ class QETree(QTreeWidget):
         item.output_filepath_button.setPopupMode(QToolButton.InstantPopup)
         
         output_path_menu = QEMenu(keep_open=False)
-        output_path_menu.setToolTipsVisible(True)
         output_path_action_group = QActionGroup(output_path_menu)
         output_path_absolute_action = output_path_menu.addAction("Absolute", True)
         output_path_relative_action = output_path_menu.addAction("Relative", False)
@@ -1193,7 +1191,6 @@ class QETree(QTreeWidget):
         jpeg_metadata_options_button.setPopupMode(QToolButton.InstantPopup)
         
         jpeg_metadata_options_menu = QEMenu()
-        jpeg_metadata_options_menu.setToolTipsVisible(True)
         
         jpeg_metadata_options_enable_action = jpeg_metadata_options_menu.addAction("Store document metadata", "metadata")
         

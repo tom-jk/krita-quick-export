@@ -224,10 +224,8 @@ class QEDialog(QDialog):
         status_layout.addWidget(self.options_button)
         
         options_menu = QEMenu()
-        options_menu.setToolTipsVisible(True)
 
         custom_icons_menu = QEMenu()
-        custom_icons_menu.setToolTipsVisible(True)
 
         use_custom_icons_action = custom_icons_menu.addAction("Use custom icons")
         use_custom_icons_action.setCheckable(True)

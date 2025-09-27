@@ -212,9 +212,10 @@ class QEComboBox(QComboBox):
             super().paintEvent(event)
 
 class QEMenu(QMenu):
-    def __init__(self, keep_open=True, *args, **kwargs):
+    def __init__(self, keep_open=True, tooltips_visible=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.keep_open = keep_open
+        self.setToolTipsVisible(tooltips_visible)
     
     def addAction(self, text, data=None, tooltip=None):
         action = super().addAction(text)
