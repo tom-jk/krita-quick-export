@@ -68,7 +68,8 @@ setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_k
                     "visible_types":".jpg .jpeg .png", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"", "wide_column_resize_grabber":"false",
                     "show_fade_sliders":"true", "settings_display_mode":"focused", "minimize_unfocused":"true", "settings":""}
 
-filter_strategy_store_strings = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BSpline":"BS", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
+filter_strategy_store_strings     = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BSpline":"BS", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
+filter_strategy_rev_store_strings = {v:k for k,v in filter_strategy_store_strings.items()}
 
 def set_extension(extension):
     global qe_extension
@@ -305,8 +306,7 @@ def load_settings_from_config():
             elif k == "scale_h":
                 settings["scale_height"] = int(v)
             elif k == "scale_f":
-                sf = [fk for fk,fv in filter_strategy_store_strings.items() if fv == v]
-                settings["scale_filter"] = sf[0] if len(sf) > 0 else v
+                settings["scale_filter"] = filter_strategy_rev_store_strings.get(v, v)
             elif k == "scale_r":
                 settings["scale_res"] = float(v)
             elif k == "png_fc":
