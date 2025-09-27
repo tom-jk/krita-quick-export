@@ -48,7 +48,8 @@ class QEDialog(QDialog):
         self.tree.sortByColumn(QECols.OPEN_FILE_COLUMN, Qt.AscendingOrder)
         layout.insertWidget(0, self.tree)
         self.tree_is_ready = True
-        self.tree.set_settings_modified()
+        
+        self.update_save_button()
         
         self.tree.set_settings_display_mode()
         
@@ -386,6 +387,16 @@ class QEDialog(QDialog):
         
         extension().update_quick_export_display()
         event.accept()
+
+    def update_save_button(self):
+        if generate_save_string() != readSetting("settings"):
+            if not self.save_button.isEnabled():
+                self.save_button.setText("Save Settings*")
+                self.save_button.setDisabled(False)
+        else:
+            if self.save_button.isEnabled():
+                self.save_button.setText("Save Settings")
+                self.save_button.setDisabled(True)
 
     def _on_show_unstored_button_clicked(self, checked):
         writeSetting("show_unstored", bool2str(checked))

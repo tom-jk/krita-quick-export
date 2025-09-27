@@ -288,7 +288,7 @@ class QETree(QTreeWidget):
         self.update_names_and_labels(item)
         item.setData(QECols.OUTPUT_FILENAME_COLUMN, QERoles.CustomSortRole, doc["output_name"].lower())
         #print("_on_output_lineedit_changed ->", doc["output"])
-        self.set_settings_modified(item.store_forget_button)
+        self.set_settings_modified(item)
     
     def update_names_and_labels(self, item):
         doc = item.doc_settings
@@ -348,7 +348,7 @@ class QETree(QTreeWidget):
         doc["scale"] = checked
         for checkbox in checkboxes:
             checkbox.setChecked(checked)
-        self.set_settings_modified(item.store_forget_button)
+        self.set_settings_modified(item)
     
     def _on_item_scale_reset_action_triggered(self, checked, item):
         doc = item.doc_settings
@@ -356,7 +356,7 @@ class QETree(QTreeWidget):
         doc["scale_height"] = -1
         doc["scale_filter"] = "Auto"
         doc["scale_res"]    = -1
-        self.set_settings_modified(item.store_forget_button)
+        self.set_settings_modified(item)
     
     def _on_item_scale_settings_action_triggered(self, checked, item):
         doc = item.doc_settings
@@ -381,7 +381,7 @@ class QETree(QTreeWidget):
             doc["scale_res"]    = sd.result_res
         del sd
         
-        self.set_settings_modified(item.store_forget_button)
+        self.set_settings_modified(item)
     
     def _on_item_btn_store_forget_clicked(self, checked, item):
         btn = item.store_forget_button
@@ -390,7 +390,7 @@ class QETree(QTreeWidget):
         doc["store"] = not doc["store"]
         item.setData(QECols.STORE_SETTINGS_COLUMN, QERoles.CustomSortRole, str(+doc["store"]))
         self.redraw()
-        self.set_settings_modified()
+        self.set_settings_modified(item, skip_auto_store=True)
         self.add_file_versioning_subitems_for_all_items(doc["base_version_string"])
     
     def add_file_versioning_subitems_for_all_items(self, bvs=None):
@@ -442,7 +442,7 @@ class QETree(QTreeWidget):
                 ext_combobox.setCurrentIndex(ext_combobox.findData(ext))
             
             self.update_names_and_labels(item)
-        self.set_settings_modified(item.store_forget_button)
+        self.set_settings_modified(item)
     
     def _on_outputext_combobox_current_index_changed(self, index, item):
         doc = item.doc_settings
@@ -451,7 +451,7 @@ class QETree(QTreeWidget):
         doc["ext"] = ext
         item.setData(QECols.OUTPUT_FILETYPE_COLUMN, QERoles.CustomSortRole, doc["ext"])
         self.set_item_settings_stack_page_for_extension(item, ext)
-        self.set_settings_modified(item.store_forget_button)
+        self.set_settings_modified(item)
         self.update_names_and_labels(item)
     
     def set_item_settings_stack_page_for_extension(self, item, ext):
@@ -476,7 +476,7 @@ class QETree(QTreeWidget):
         #print("alpha checkbox changed ->", state, "for doc", doc["document"].fileName() if doc["document"] else "Untitled")
         doc["png_alpha"] = checked
         #item.setData(QECols.PNG_STORE_ALPHA_COLUMN, QERoles.CustomSortRole, str(+doc["png_alpha"]))
-        self.set_settings_modified(item.store_forget_button)
+        self.set_settings_modified(item)
     
     def _on_jpeg_subsampling_menu_triggered(self, value, button, item):
         self._on_generic_setting_changed("jpeg_subsampling", value, item)
@@ -490,24 +490,19 @@ class QETree(QTreeWidget):
     def _on_generic_setting_changed(self, key, value, item):
         doc = item.doc_settings
         doc[key] = value
-        self.set_settings_modified(item.store_forget_button)
+        self.set_settings_modified(item)
     
-    def set_settings_modified(self, store_button=None):
+    def set_settings_modified(self, item, skip_auto_store=False):
         if not self.dialog.tree_is_ready:
             return
         
-        if generate_save_string() != readSetting("settings"):
-            if not self.dialog.save_button.isEnabled():
-                self.dialog.save_button.setText("Save Settings*")
-                self.dialog.save_button.setDisabled(False)
-        else:
-            if self.dialog.save_button.isEnabled():
-                self.dialog.save_button.setText("Save Settings")
-                self.dialog.save_button.setDisabled(True)
+        self.dialog.update_save_button()
         
-        if store_button:
-            if self.dialog.auto_store_on_modify_button.checkState() == Qt.Checked:
-                store_button.setCheckState(Qt.Checked)
+        if skip_auto_store:
+            return
+        
+        if self.dialog.auto_store_on_modify_button.checkState() == Qt.Checked:
+            item.store_forget_button.setCheckState(Qt.Checked)
     
     def set_stored_highlight_alpha(self, value):
         self.stored_highlight_alpha = value
