@@ -1385,17 +1385,17 @@ class QETree(QTreeWidget):
                 if isinstance(job[0], Path):
                     file_path = job[0]
                     
-                    print(f"thumbnail_worker: do job for unopened document {file_path=}")
+                    print(f"thumbnail_worker: job for unopened file: {file_path}")
                     
                     self._make_thumbnail_for_file(file_path, item)
                 else:
                     doc = job[0]
                 
-                    print(f"thumbnail_worker: do job for open document {doc.fileName()=}")
+                    print(f"thumbnail_worker: job for open document: {doc.fileName()}")
                 
                     self._make_thumbnail(doc, item)
                 
-                print("thumbnail_worker: job done.")
+                #print("thumbnail_worker: job done.")
                 
                 yield self.thumbnail_worker_timer.start()
         
