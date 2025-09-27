@@ -20,7 +20,7 @@ class QuickExportExtension(Extension):
         
         set_extension(self)
         
-        load_settings_from_config()
+        load_settings_from_config(soft_warning_for_unsupported_version=True)
 
     def setup(self):
         print("QE: setup")
@@ -289,7 +289,8 @@ class QuickExportExtension(Extension):
     
     def run_dialog(self, msg="", doc=None):
         # ensure settings up to date.
-        load_settings_from_config()
+        if not load_settings_from_config():
+            return
         
         dialog = QEDialog.instance or QEDialog()
         dialog.setup(msg=msg, doc=doc)

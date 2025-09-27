@@ -66,7 +66,7 @@ setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_k
                     "advanced_mode":"false", "auto_store_on_modify":"true", "auto_store_on_export":"true", "auto_save_on_close":"true", "use_custom_icons":"true",
                     "custom_icons_theme":"follow", "show_export_name_in_menu":"true", "default_export_unsaved":"false", "show_thumbnails_for_unopened":"true",
                     "visible_types":".jpg .jpeg .png", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"", "wide_column_resize_grabber":"false",
-                    "show_fade_sliders":"true", "settings_display_mode":"focused", "minimize_unfocused":"true", "settings":""}
+                    "show_fade_sliders":"true", "settings_display_mode":"focused", "minimize_unfocused":"true", "settings":"", "settings_version":""}
 
 filter_strategy_store_strings     = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BSpline":"BS", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
 filter_strategy_rev_store_strings = {v:k for k,v in filter_strategy_store_strings.items()}
@@ -78,8 +78,8 @@ def set_extension(extension):
 def extension():
     return qe_extension
 
-def readSetting(setting):
-    return app.readSetting("TomJK_QuickExport", setting, setting_defaults[setting])
+def readSetting(setting, default_override=None):
+    return app.readSetting("TomJK_QuickExport", setting, default_override if default_override!=None else setting_defaults[setting])
 
 def writeSetting(setting, value):
     app.writeSetting("TomJK_QuickExport", setting, value)
@@ -188,6 +188,23 @@ def default_settings(document=None, doc_index=1024, store=False, path=None, vers
         "document":document,
         "doc_index":doc_index,
         "store":store,
+        "config_file_index":-1,
+        # values read from config.
+        "config_stored_path_string":"",
+        "config_stored_output_string":"",
+        "config_stored_macros_string":"",
+        "config_stored_settings_string":"",
+        # potentially modified values to write to config on save.
+        "config_path_string":"",
+        "config_output_string":"",
+        "config_macros_string":"",
+        "config_settings_string":"",
+        # if read and write strings differ (ie. settings modified).
+        "config_modified_path":False,
+        "config_modified_output":False,
+        "config_modified_macros":False,
+        "config_modified_settings":False,
+        "config_modified":False,
         "path":path,
         "versions": versions,
         "base_version_string": bvs,
@@ -230,7 +247,144 @@ def default_settings(document=None, doc_index=1024, store=False, path=None, vers
     }
     return settings
 
-def load_settings_from_config():
+def is_any_qe_setting_modified():
+    for s in qe_settings:
+        if s["config_modified"]:
+            return True
+    return False
+
+def load_settings_from_config(soft_warning_for_unsupported_version=False, suppress_version_warning=False):
+    qe_settings.clear()
+    
+    settings_version = readSetting("settings_version")
+    
+    if settings_version == "":
+        # <0.3.0 settings were saved as a single string with key 'settings'.
+        # 0.3.0+ save to different keys and leave 'settings' unchanged, so
+        # we don't have to backup these settings; they are their own backup.
+        # TODO: add a button somewhere so user can overwrite it with "".
+        load_0_2_0_settings_from_config()
+        for s in qe_settings:
+            generate_save_string(s)
+        save_settings_to_config()
+        
+    elif settings_version == "0.3.0":
+        load_0_3_0_settings_from_config()
+        
+    else:
+        if suppress_version_warning:
+            return True
+        
+        msgBox = QMessageBox(app.activeWindow().qwindow() if app.activeWindow() else None)
+        msgBox.setText("Quick Export settings in unsupported format found.")
+        msgBox.setInformativeText(
+            "Settings were saved in a different format by a later version of QuickExport. They can not be read by this version.\n\n" \
+            "compatible versions: 0.3.0 and below\n" \
+            f"saved as version: {settings_version}\n\n" \
+            "It may be that a backup was made before saving the later version settings - check in your kritarc file.\n\n" \
+            "You may also try opening an issue on the Github to request a converter, but using the latest version of the plugin is recommended.\n\n" \
+            f"{'You should now either update the plugin, or close Krita and retrieve your settings in a compatible format.' if soft_warning_for_unsupported_version else 'If you continue, your existing export settings will be lost.'}"
+        )
+        if soft_warning_for_unsupported_version:
+            msgBox.setStandardButtons(QMessageBox.Ok)
+        else:
+            msgBox.setStandardButtons(QMessageBox.Discard | QMessageBox.Cancel)
+            discard_button = msgBox.button(QMessageBox.Discard)
+            discard_button.setText('Continue')
+            msgBox.setDefaultButton(QMessageBox.Cancel)
+        ret = msgBox.exec()
+        
+        if ret in (QMessageBox.Ok, QMessageBox.Cancel):
+            return False
+        
+    return True
+
+def load_0_3_0_settings_from_config():
+    settings_index = 0
+    
+    while readSetting(f"file{settings_index}/path", "") != "":
+
+        settings = default_settings(store=True)
+        
+        settings["config_file_index"] = settings_index
+        settings["config_stored_path_string"]     = readSetting(f"file{settings_index}/path", "")
+        settings["config_stored_output_string"]   = readSetting(f"file{settings_index}/output", "")
+        settings["config_stored_macros_string"]   = readSetting(f"file{settings_index}/macros", "")
+        settings["config_stored_settings_string"] = readSetting(f"file{settings_index}/settings", "")
+        
+        settings["path"] = Path(settings["config_stored_path_string"])
+        path_string = str(settings["path"])
+        
+        for i, d in enumerate(app.documents()):
+            print("comparing", d.fileName(), path_string, d.fileName()==path_string)
+            if d.fileName() == path_string:
+                settings["document"] = d
+                settings["doc_index"] = i
+                break
+        
+        output_string = settings["config_stored_output_string"]
+        ext_at = output_string.rfind(".")
+        output = deserialize_stored_output_string(settings["path"].parent, output_string[:ext_at])
+        settings["output_is_abs"] = output[0]
+        settings["output_abs_dir"] = output[1]
+        settings["output_name"] = output[2]
+        settings["ext"] = output_string[ext_at:]
+        
+        def read_settings_string(string):
+            start_idx = 0
+            end_idx = 0
+            final_idx = len(string)
+            while True:
+                end_idx += 1
+                if end_idx == final_idx:
+                    yield string[start_idx:end_idx]
+                    break
+                if string[end_idx] == "," and string[end_idx-1] != "/":
+                    yield string[start_idx:end_idx]
+                    start_idx = end_idx+1
+        
+        ss = read_settings_string(settings["config_stored_settings_string"])
+        settings["versions"]              = {"s":"single", "a":"all", "f":"all_forward"}[next(ss)]
+        settings["scale"]                 = flag2bool(next(ss))
+        settings["scale_width"]           = int(next(ss))
+        settings["scale_height"]          = int(next(ss))
+        sf = next(ss)
+        settings["scale_filter"]          = filter_strategy_rev_store_strings.get(sf, sf)
+        sr = next(ss)
+        settings["scale_res"]             = float(sr) if sr != "-1" else -1
+        settings["png_fillcolour"]        = QColor(next(ss))
+        settings["png_compression"]       = int(next(ss))
+        png_flags = next(ss)
+        settings["png_alpha"]             = flag2bool(png_flags[0])
+        settings["png_indexed"]           = flag2bool(png_flags[1])
+        settings["png_interlaced"]        = flag2bool(png_flags[2])
+        settings["png_hdr"]               = flag2bool(png_flags[3])
+        settings["png_embed_srgb"]        = flag2bool(png_flags[4])
+        settings["png_force_srgb"]        = flag2bool(png_flags[5])
+        settings["png_metadata"]          = flag2bool(png_flags[6])
+        settings["png_author"]            = flag2bool(png_flags[7])
+        settings["png_force_8bit"]        = flag2bool(png_flags[8])
+        settings["jpeg_fillcolour"]       = QColor(next(ss))
+        settings["jpeg_quality"]          = int(next(ss))
+        settings["jpeg_smooth"]           = int(next(ss))
+        settings["jpeg_subsampling"]      = next(ss)
+        jpeg_flags = next(ss)
+        settings["jpeg_progressive"]      = flag2bool(jpeg_flags[0])
+        settings["jpeg_icc_profile"]      = flag2bool(jpeg_flags[1])
+        settings["jpeg_force_baseline"]   = flag2bool(jpeg_flags[2])
+        settings["jpeg_optimise"]         = flag2bool(jpeg_flags[3])
+        settings["jpeg_exif"]             = flag2bool(jpeg_flags[4])
+        settings["jpeg_iptc"]             = flag2bool(jpeg_flags[5])
+        settings["jpeg_xmp"]              = flag2bool(jpeg_flags[6])
+        settings["jpeg_tool_information"] = flag2bool(jpeg_flags[7])
+        settings["jpeg_anonymiser"]       = flag2bool(jpeg_flags[8])
+        settings["jpeg_metadata"]         = flag2bool(jpeg_flags[9])
+        settings["jpeg_author"]           = flag2bool(jpeg_flags[10])
+        
+        qe_settings.append(settings)
+        settings_index += 1
+
+def load_0_2_0_settings_from_config():
     """
     read in settings string from kritarc.
     example: "path=/a/b.kra,output=b,ext=.png,scale=[e=1,w=1024,h=768,f=Bic,r=72],png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
@@ -241,8 +395,6 @@ def load_settings_from_config():
     example: settings[{"path":Path("path=/pa,th/to/,a/file.kra", "output_name":"file,", "ext":".png", ... }]
     becomes: "path=/pa/,th/to//,a/file.kra,output=file/,,ext=.png ... "
     """
-    
-    qe_settings.clear()
     
     settings_string = readSetting("settings")
     #print(f"{settings_string=}")
@@ -458,54 +610,107 @@ def find_settings_for_file(file_path):
     print("done.")
     return best_s
 
-def generate_save_string():
-    save_strings = []
+def generate_save_string(s):    
+    if not s["store"]:
+        
+        s["config_path_string"] = ""
+        s["config_output_string"] = ""
+        s["config_macros_string"] = ""
+        s["config_settings_string"] = ""
+        
+    else:
+        
+        scale_filter = filter_strategy_store_strings[s['scale_filter']] if s['scale_filter'] in filter_strategy_store_strings else s['scale_filter']
+        scale_res = f"{s['scale_res']:.4f}".rstrip('0').rstrip('.') if s["scale_res"] != -1 else "-1"
+        
+        versions_string = {'single':'s', 'all':'a', 'all_forward':'f'}[s['versions']]
+        
+        s["config_path_string"] = str(s['path'])
+        s["config_output_string"] = serialize_stored_output_string(s['path'].parent, s['output_is_abs'], s['output_abs_dir'], s['output_name']) + s['ext']
+        s["config_macros_string"] = ""
+        s["config_settings_string"] = (
+            f"{versions_string},"
+            f"{bool2flag(s['scale'])},{s['scale_width']},{s['scale_height']},{scale_filter},{scale_res},"
+            f"{s['png_fillcolour'].name(QColor.HexRgb)},"
+            f"{s['png_compression']},"
+            f"{bool2flag(s['png_alpha'], s['png_indexed'], s['png_interlaced'], s['png_hdr'], s['png_embed_srgb'], s['png_force_srgb'], s['png_metadata'], s['png_author'], s['png_force_8bit'])},"
+            f"{s['jpeg_fillcolour'].name(QColor.HexRgb)},"
+            f"{s['jpeg_quality']},"
+            f"{s['jpeg_smooth']},"
+            f"{s['jpeg_subsampling']},"
+            f"{bool2flag(s['jpeg_progressive'], s['jpeg_icc_profile'], s['jpeg_force_baseline'], s['jpeg_optimise'], s['jpeg_exif'], s['jpeg_iptc'], s['jpeg_xmp'], s['jpeg_tool_information'], s['jpeg_anonymiser'], s['jpeg_metadata'], s['jpeg_author'])}"
+        )
+    
+    s["config_modified_path"]     = s["config_stored_path_string"]     != s["config_path_string"]
+    s["config_modified_output"]   = s["config_stored_output_string"]   != s["config_output_string"]
+    s["config_modified_macros"]   = s["config_stored_macros_string"]   != s["config_macros_string"]
+    s["config_modified_settings"] = s["config_stored_settings_string"] != s["config_settings_string"]
+    s["config_modified"] = s["config_modified_path"] or s["config_modified_output"] or s["config_modified_macros"] or s["config_modified_settings"]
+    
+    if False:
+        print(f"generated save string for {s['path']}")
+        print(f"       {s['config_stored_path_string']=}")
+        print(f"              {s['config_path_string']=}")
+        print(f"            {s['config_modified_path']=}")
+        print(f"     {s['config_stored_output_string']=}")
+        print(f"            {s['config_output_string']=}")
+        print(f"          {s['config_modified_output']=}")
+        print(f"     {s['config_stored_macros_string']=}")
+        print(f"            {s['config_macros_string']=}")
+        print(f"          {s['config_modified_macros']=}")
+        print(f"   {s['config_stored_settings_string']=}")
+        print(f"          {s['config_settings_string']=}")
+        print(f"        {s['config_modified_settings']=}")
+        print(f"                 {s['config_modified']=}")
+
+def save_settings_to_config():
+    print("save_settings_to_config")
+    
+    settings_index = 0
     
     for s in qe_settings:
         if not s["store"]:
             continue
         
-        scale_filter = filter_strategy_store_strings[s['scale_filter']] if s['scale_filter'] in filter_strategy_store_strings else s['scale_filter']
-        scale_strings = []
-        scale_strings.append(f"w={s['scale_width']}" if s['scale_width'] != -1 else "")
-        scale_strings.append(f"h={s['scale_height']}" if s['scale_height'] != -1 else "")
-        scale_strings.append(f"f={scale_filter}")
-        scale_strings.append(f"r={s['scale_res']:.4f}".rstrip('0').rstrip('.') if s['scale_res'] != -1 else "")
-        scale_string = ",".join([x for x in scale_strings if x != ""])
+        write_path, write_output, write_macros, write_settings = True, True, True, True
+        path_string     = s["config_path_string"]     or s["config_stored_path_string"]
+        output_string   = s["config_output_string"]   or s["config_stored_output_string"]
+        macros_string   = s["config_macros_string"]   or s["config_stored_macros_string"]
+        settings_string = s["config_settings_string"] or s["config_stored_settings_string"]
         
-        versions_string = {'single':'s', 'all':'a', 'all_forward':'f'}[s['versions']]
+        if s["config_file_index"] == settings_index:
+            write_path, write_output, write_macros, write_settings = s["config_modified_path"], s["config_modified_output"], s["config_modified_macros"], s["config_modified_settings"]
         
-        save_strings.append(
-            f"path={escape_settings_string(str(s['path']))},"
-            f"v={versions_string},"
-            f"output={escape_settings_string(serialize_stored_output_string(s['path'].parent, s['output_is_abs'], s['output_abs_dir'], s['output_name']))},"
-            f"ext={s['ext']},"
-            f"scale=["
-            f"e={bool2flag(s['scale'])},{scale_string}"
-            f"],"
-            f"png=["
-            f"fc={s['png_fillcolour'].name(QColor.HexRgb)},"
-            f"co={s['png_compression']},"
-            f"flag={bool2flag(s['png_alpha'], s['png_indexed'], s['png_interlaced'], s['png_hdr'], s['png_embed_srgb'], s['png_force_srgb'], s['png_metadata'], s['png_author'], s['png_force_8bit'])}"
-            f"],"
-            f"jpeg=["
-            f"fc={s['jpeg_fillcolour'].name(QColor.HexRgb)},"
-            f"qu={s['jpeg_quality']},"
-            f"sm={s['jpeg_smooth']},"
-            f"ss={s['jpeg_subsampling']},"
-            f"flag={bool2flag(s['jpeg_progressive'], s['jpeg_icc_profile'], s['jpeg_force_baseline'], s['jpeg_optimise'], s['jpeg_exif'], s['jpeg_iptc'], s['jpeg_xmp'], s['jpeg_tool_information'], s['jpeg_anonymiser'], s['jpeg_metadata'], s['jpeg_author'])}"
-            f"]"
-        )
+        if write_path:
+            writeSetting(f"file{settings_index}/path", path_string)
+            s["config_stored_path_string"] = s["config_path_string"]
+            s["config_modified_path"] = False
+        if write_output:
+            writeSetting(f"file{settings_index}/output", output_string)
+            s["config_stored_output_string"] = s["config_output_string"]
+            s["config_modified_output"] = False
+        if write_macros:
+            writeSetting(f"file{settings_index}/macros", macros_string)
+            s["config_stored_macros_string"] = s["config_macros_string"]
+            s["config_modified_macros"] = False
+        if write_settings:
+            writeSetting(f"file{settings_index}/settings", settings_string)
+            s["config_stored_settings_string"] = s["config_settings_string"]
+            s["config_modified_settings"] = False
+        
+        s["config_modified"] = False
+        
+        settings_index += 1
     
-    return ";".join(save_strings)
-
-def save_settings_to_config():
-    print("save_settings_to_config")
+    # clear up old config remnants.
+    while readSetting(f"file{settings_index}/path", "") != "":
+        writeSetting(f"file{settings_index}/path", "")
+        writeSetting(f"file{settings_index}/output", "")
+        writeSetting(f"file{settings_index}/macros", "")
+        writeSetting(f"file{settings_index}/settings", "")
+        settings_index += 1
     
-    save_string = generate_save_string()
-
-    print(f"{save_string=}")
-    writeSetting("settings", save_string)
+    writeSetting("settings_version", "0.3.0")
 
 def tokenize_settings_string(s, tokens):
     i = 0

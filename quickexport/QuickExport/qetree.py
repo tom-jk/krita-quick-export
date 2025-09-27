@@ -496,6 +496,8 @@ class QETree(QTreeWidget):
         if not self.dialog.tree_is_ready:
             return
         
+        generate_save_string(item.doc_settings)
+        
         self.dialog.update_save_button()
         
         if skip_auto_store:

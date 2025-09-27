@@ -381,13 +381,13 @@ class QEDialog(QDialog):
         if ret == QMessageBox.Save:
             save_settings_to_config()
         else:
-            load_settings_from_config()
+            load_settings_from_config(suppress_version_warning=True)
         
         extension().update_quick_export_display()
         event.accept()
 
     def update_save_button(self):
-        if generate_save_string() != readSetting("settings"):
+        if is_any_qe_setting_modified():
             if not self.save_button.isEnabled():
                 self.save_button.setText("Save Settings*")
                 self.save_button.setDisabled(False)
