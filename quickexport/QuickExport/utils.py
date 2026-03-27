@@ -6,6 +6,7 @@ from pathlib import Path
 from os.path import relpath
 from functools import reduce
 import re
+import math
 from krita import *
 app = Krita.instance()
 
@@ -70,6 +71,12 @@ setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_k
 
 filter_strategy_store_strings     = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BSpline":"BS", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
 filter_strategy_rev_store_strings = {v:k for k,v in filter_strategy_store_strings.items()}
+
+colour_label_colours = (
+    Qt.transparent,     QColor(91,173,220),  QColor(151,202,63),
+    QColor(247,229,61), QColor(255,170,63),  QColor(177,102,63),
+    QColor(238,50,51),  QColor(191,106,209), QColor(118,119,114)
+)
 
 def set_extension(extension):
     global qe_extension
@@ -316,7 +323,7 @@ def load_0_3_0_settings_from_config():
         path_string = str(settings["path"])
         
         for i, d in enumerate(app.documents()):
-            print("comparing", d.fileName(), path_string, d.fileName()==path_string)
+            #print("comparing", d.fileName(), path_string, d.fileName()==path_string)
             if d.fileName() == path_string:
                 settings["document"] = d
                 settings["doc_index"] = i
@@ -913,3 +920,43 @@ def base_stem_and_version_number_for_versioned_file(file_path, unversioned_versi
         base_version_stem = file_path.stem[:match.start()]
         match_version_num = int(match.group()[1:])
     return base_version_stem, match_version_num
+
+def rotate_point_around_point(px, py, ox, oy, angle):
+    """
+    rotate the point (px,py) clockwise around the point (ox,oy) by angle.
+    """
+    offset_x = px - ox
+    offset_y = py - oy
+    start_angle = math.atan2(offset_y, offset_x)
+    distance = math.sqrt(offset_x**2 + offset_y**2)
+    end_angle = start_angle + angle
+    x = ox + math.cos(end_angle) * distance
+    y = oy + math.sin(end_angle) * distance
+    return x,y
+
+def find_layers(root_node, name, name_is_regex, respect_locks, colour_labels, bad_regex_return_error=False):
+    # match name.
+    if name_is_regex:
+        import re
+        try:
+            pattern = re.compile(name)
+        except re.error as e:
+            print("Bad regular expression:", e)
+            return e if bad_regex_return_error else []
+        nodes = root_node.findChildNodes("", True, True, "", 0)
+        nodes = list(filter(lambda node: pattern.match(node.name()), nodes))
+    else:
+        nodes = root_node.findChildNodes(name, True, False, "", 0)
+    
+    # remove invalid nodes, eg. locked if respect_locks, or decorations-wrapper-layer for grids.
+    nodes = list(filter(lambda node: node.type() != "" and not (respect_locks and node.locked()), nodes))
+    
+    # match colour label.
+    if isinstance(colour_labels, list) and any(label==True for label in colour_labels):
+        nodes = list(filter(lambda node: colour_labels[node.colorLabel()], nodes))
+
+    print("find_layers results:")
+    for node in nodes:
+        print(f" - {node.name()}")
+
+    return nodes
