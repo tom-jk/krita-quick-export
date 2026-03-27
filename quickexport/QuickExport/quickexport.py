@@ -5,7 +5,7 @@ from pathlib import Path
 from krita import *
 
 from .utils import *
-from .dialog import QEDialog
+from .qedialog import QEDialog
 
 app = Krita.instance()
 app_notifier = app.notifier()

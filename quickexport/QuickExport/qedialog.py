@@ -13,7 +13,7 @@ from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
-from .qewidgets import QEMenu, SnapSlider, SpinBoxSlider, QEComboBox, CheckToolButton
+from .qewidgets import QEMenu, SnapSlider, SpinBoxSlider, QEComboBox, CheckToolButton, QSplitter
 from .qefilterwidgets import FilterLineEdit, FolderFilterButton
 from .qetree import QECols, QETree
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
@@ -29,7 +29,7 @@ class QEDialog(QDialog):
         
         self.__class__.instance = self
 
-        self.setWindowModality(Qt.ApplicationModal)
+        #self.setWindowModality(Qt.ApplicationModal)
 
         self.first_setup()
 
@@ -45,40 +45,187 @@ class QEDialog(QDialog):
         self.tree.setup()
         # TODO: disallow sorting by thumbnail and action button columns.
         self.tree.setSortingEnabled(True)
-        self.tree.sortByColumn(QECols.OPEN_FILE_COLUMN, Qt.AscendingOrder)
-        layout.insertWidget(0, self.tree)
+        #self.tree.sortByColumn(QECols.OPEN_FILE_COLUMN, Qt.AscendingOrder)
+        self.list_container_layout.addWidget(self.tree)
         self.tree_is_ready = True
         
         self.update_save_button()
         
-        self.tree.set_settings_display_mode()
+        #self.tree.set_settings_display_mode()
         
-        self.tree.setup_filter_completer()
+        #self.tree.setup_filter_completer()
         
         for s in qe_settings:
             self.folder_filter_button.add_folder_to_tree(s["path"].parent)
         
-        if self.tree.focused_item:
-            self.tree.scrollToItem(self.tree.focused_item, QAbstractItemView.PositionAtCenter)
+        #if self.tree.focused_item:
+        #    self.tree.scrollToItem(self.tree.focused_item, QAbstractItemView.PositionAtCenter)
         
-        self.set_advanced_mode(self.advanced_mode_button.checkState() == Qt.Checked)
+        #self.set_advanced_mode(self.advanced_mode_button.checkState() == Qt.Checked)
         
         self.update_show_extensions_in_list_for_all_types()
         
         # refresh options button icon, make sure isn't stuck on outdated theme.
-        self.options_button.setIcon(app.icon('view-choose'))
+        #self.options_button.setIcon(app.icon('view-choose'))
         
         # status bar.
         self.sbar_ready_label.setText(" Ready." if msg == "" else " "+msg) # extra space to align with showmessage.
         
         # TODO: inform user about having multiple copies of same file open.
-        if len(self.tree.dup_counts) == 1:
-            self.sbar_ready_label.setText(f"Note: Multiple copies of '{list(self.tree.dup_counts.keys())[0]}' are currently open in Krita.")
-        elif len(self.tree.dup_counts) > 1:
-            self.sbar_ready_label.setText(f"Note: Multiple copies of multiple files (hover mouse here to see) are currently open in Krita.")
-            self.sbar_ready_label.setToolTip("\n".join(self.tree.dup_counts.keys()))
+        #if len(self.tree.dup_counts) == 1:
+        #    self.sbar_ready_label.setText(f"Note: Multiple copies of '{list(self.tree.dup_counts.keys())[0]}' are currently open in Krita.")
+        #elif len(self.tree.dup_counts) > 1:
+        #    self.sbar_ready_label.setText(f"Note: Multiple copies of multiple files (hover mouse here to see) are currently open in Krita.")
+        #    self.sbar_ready_label.setToolTip("\n".join(self.tree.dup_counts.keys()))
 
     def first_setup(self):
+        layout = QVBoxLayout(self)
+        
+        top_level_splitter = QSplitter()
+        top_level_splitter.setHandleWidth(8)
+
+        list_container = QWidget()
+        self.list_container_layout = QVBoxLayout(list_container)
+        self.list_container_layout.setContentsMargins(0,0,round(11/2),0)
+        # ~ list_wgt = QTreeWidget()
+        # ~ header = QTreeWidgetItem(list_wgt)
+        # ~ header.setText(0, "Path/to/folder/one")
+        # ~ item = QTreeWidgetItem(header)
+        # ~ item.setText(0, "Hello")
+        # ~ item = QTreeWidgetItem(header)
+        # ~ item.setText(0, "World")
+        # ~ header = QTreeWidgetItem(list_wgt)
+        # ~ header.setText(0, "Path/to/folder/two")
+        # ~ item = QTreeWidgetItem(header)
+        # ~ item.setText(0, "Hello")
+        # ~ item = QTreeWidgetItem(header)
+        # ~ item.setText(0, "World")
+        # ~ list_wgt.expandAll()
+        # ~ list_layout.addWidget(list_wgt)
+
+        body = QWidget()
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(11-round(11/2),0,0,0)
+
+        body_top_layout = QHBoxLayout()
+
+        picture = QLabel()
+        picture.setPixmap(app.icon('document-edit').pixmap(64,64))
+
+        paths_layout = QVBoxLayout()
+
+        source_layout = QHBoxLayout()
+
+        source_edit = QLineEdit("Source path")
+        source_layout.addWidget(QToolButton())
+        source_layout.addWidget(source_edit)
+        source_layout.addWidget(QToolButton())
+
+        output_layout = QHBoxLayout()
+
+        output_edit = QLineEdit("Output path")
+        output_layout.addWidget(QToolButton())
+        output_layout.addWidget(output_edit)
+        output_layout.addWidget(QToolButton())
+
+        paths_layout.addLayout(source_layout)
+        paths_layout.addLayout(output_layout)
+
+        body_top_layout.addWidget(picture)
+        body_top_layout.addLayout(paths_layout)
+        body_layout.addLayout(body_top_layout)
+
+        body_splitter = QSplitter()
+        body_splitter.setContentsMargins(0,0,0,0)
+
+        macro_tree = QTreeWidget()
+        item = QTreeWidgetItem(macro_tree)
+        item.setText(0, "Macro1")
+        item = QTreeWidgetItem(macro_tree)
+        item.setText(0, "Macro2")
+
+        settings_box = QWidget()
+        settings_box_layout = QVBoxLayout(settings_box)
+
+        settings_box_layout.addWidget(QCheckBox("Store Alpha"))
+        settings_box_layout.addWidget(QCheckBox("Save as indexed if possible"))
+        settings_box_layout.addWidget(QCheckBox("Interlacing"))
+        settings_box_layout.addWidget(QCheckBox("Embed sRGB Profile"))
+        settings_box_layout.addWidget(QCheckBox("Force sRGB"))
+        settings_box_layout.addWidget(QCheckBox("Store Metadata"))
+        settings_box_layout.addWidget(QCheckBox("Store Author"))
+        settings_box_layout.addWidget(QCheckBox("Setting 8"))
+        settings_box_layout.addWidget(QCheckBox("Setting 9"))
+        settings_box_layout.addStretch()
+
+        body_splitter.addWidget(macro_tree)
+        body_splitter.addWidget(settings_box)
+
+        body_layout.addWidget(body_splitter)
+
+        top_level_splitter.addWidget(list_container)
+        top_level_splitter.addWidget(body)
+
+        layout.addWidget(top_level_splitter, 1)
+        
+        view_buttons = QWidget()
+        view_buttons_layout = QHBoxLayout()
+        
+        self.filter_edit = FilterLineEdit()
+        
+        self.folder_filter_button = FolderFilterButton()
+        self.folder_filter_button.setAutoDefault(False)
+        self.folder_filter_button.filterChanged.connect(self._on_folder_filter_button_filter_changed)
+        
+        view_buttons_layout.addWidget(self.filter_edit)
+        view_buttons_layout.addWidget(self.folder_filter_button)
+        
+        view_buttons_layout.setContentsMargins(0,0,0,0)
+        view_buttons.setLayout(view_buttons_layout)
+        layout.addWidget(view_buttons)
+
+        # save button.
+        self.save_button = QPushButton("Save Settings*")
+        self.save_button.setFlat(True)
+        self.save_button.setMinimumWidth(self.save_button.sizeHint().width())
+        self.save_button.setText("Save Settings")
+        self.save_button.setDisabled(True)
+        self.save_button.clicked.connect(self._on_save_button_clicked)
+        
+        # status bar area.
+        status_widget = QWidget()
+        status_layout = QHBoxLayout()
+        
+        # status bar.
+        # TODO: allow custom prompt messages on startup to be reset once eg. an image has been exported?
+        self.sbar = QStatusBar()
+        self.sbar_ready_label = QLabel()
+        self.sbar.insertWidget(0, self.sbar_ready_label)
+        
+        # statistics (number of items, of which hidden).
+        self.statistics_label = QLabel("")
+        self.statistics_label_opacity = QGraphicsOpacityEffect(self.statistics_label)
+        self.statistics_label_opacity.setOpacity(0.5)
+        self.statistics_label.setGraphicsEffect(self.statistics_label_opacity)
+        self.sbar.addPermanentWidget(self.statistics_label)
+        
+        self.sbar.addPermanentWidget(self.save_button)
+        #status_layout.addWidget(self.save_button)
+        
+        status_layout.addWidget(self.sbar)
+        
+        status_layout.setContentsMargins(0,0,0,0)
+        status_widget.setLayout(status_layout)
+        layout.addWidget(status_widget)
+
+        # setup dialog window.
+        self.setLayout(layout)
+        self.setWindowTitle("Quick Export")
+        dialog_width = int(readSetting("dialogWidth"))
+        dialog_height = int(readSetting("dialogHeight"))
+        self.resize(dialog_width, dialog_height)
+
+    def OLD_first_setup(self):
 
         layout = QVBoxLayout()
 
@@ -344,7 +491,7 @@ class QEDialog(QDialog):
         # TODO: export file name not set if user doesn't unfocus lineedit before closing.
         ret = QMessageBox.Discard
         
-        if self.auto_save_on_close_button.checkState() == Qt.Checked:
+        if str2bool(readSetting("auto_save_on_close")):
             # save without asking.
             ret = QMessageBox.Save
         elif self.save_button.isEnabled():
@@ -373,7 +520,7 @@ class QEDialog(QDialog):
             state_str = str(state.toBase64()).lstrip("b'").rstrip("'")
             writeSetting("columns_state", state_str)
         
-        self.layout().removeWidget(self.tree)
+        self.list_container_layout.removeWidget(self.tree)
         WidgetBin.addWidget(self.tree)
         QETree.instance = None
         self.tree = None
@@ -511,6 +658,7 @@ class QEDialog(QDialog):
         extension().update_quick_export_display()
 
     def update_show_extensions_in_list_for_all_types(self):
+        return
         for action in self.show_extensions_in_list_menu.actions():
             self.update_show_extensions_in_list_for_type(action.text(), action.isChecked())
         self.post_update_show_extensions_in_list()
@@ -562,6 +710,3 @@ class QEDialog(QDialog):
         self.save_button.setIcon(QIcon())
         self.save_button.setDisabled(True)
         self.sbar.showMessage("Settings saved.", 2500)
-
-
-# TODO: if __main__ etc. to allow running script by itself?
