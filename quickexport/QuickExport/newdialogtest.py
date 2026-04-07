@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect
 import zipfile
 import re
 from pathlib import Path
-from krita import Krita, InfoObject
+from krita import Krita, InfoObject, FileDialog
 app = Krita.instance()
 
 # cleanup if last run bugged.
@@ -288,7 +288,7 @@ basic_export_settings_folder_name.currentIndexChanged.connect(_on_basic_export_s
 basic_export_settings_folder_name_custom.textChanged.connect(update_basic_export_settings_output_path_label)
 
 def _on_basic_export_settings_folder_pick_custom_clicked():
-    result = QFileDialog.getExistingDirectory(dialog, "Locate folder", str(Path(app.activeDocument().fileName()).parent), QFileDialog.ShowDirsOnly)
+    result = FileDialog.getExistingDirectory(dialog, "Locate folder", str(Path(app.activeDocument().fileName()).parent), "QE_CustomExportFolder")
     basic_export_settings_folder_name_custom.setText(result)
     update_basic_export_settings_output_path_label()
 
@@ -517,7 +517,21 @@ def add_base_to_tree(path):
     thumb = _make_thumbnail_for_file(path)
     icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
     
-    return add_item_to_tree(folder_item, path, path.name, icon, "base")
+    item = add_item_to_tree(folder_item, path, path.name, icon, "base")
+
+    if path.parent.exists():
+        sorted_list = sorted(path.parent.glob("*.kra"), key = lambda file: Path(file).stat().st_mtime)
+        latest_file = None
+        for file in sorted_list:
+            file_base = base_stem_and_version_number_for_versioned_file(file)[0]
+            if path.stem == file_base:
+                #print("add file", file, "for base", path.stem)
+                add_file_to_tree(file)
+                latest_file = file
+        if latest_file:
+            thumb = _make_thumbnail_for_file(latest_file)
+            icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
+            item.setIcon(icon)
 
 def add_file_to_tree(path):
     base, version = base_stem_and_version_number_for_versioned_file(path)
@@ -558,23 +572,6 @@ for path in store:
         item = add_folder_to_tree(path)
     else:
         item = add_base_to_tree(path)
-        
-        if path.parent.exists():
-            sorted_list = sorted(path.parent.glob("*.kra"), key = lambda file: Path(file).stat().st_mtime)
-            latest_file = None
-            for file in sorted_list:#path.parent.iterdir():
-                #if file.suffix != ".kra":
-                #    continue
-                file_base = base_stem_and_version_number_for_versioned_file(file)[0]
-                #print(f"{path.stem=} {file_base=} {path.stem==file_base}")
-                if path.stem == file_base:
-                    print("add file", file, "for base", path.stem)
-                    add_file_to_tree(file)
-                    latest_file = file
-            if latest_file:
-                thumb = _make_thumbnail_for_file(latest_file)
-                icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
-                item.setIcon(icon)
 
 # remove temporarily added docs from store.
 # TODO: 
@@ -623,6 +620,38 @@ tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
 tree.selectionModel().selectionChanged.connect(_on_tree_selection_changed)
 
 
+def _on_tree_custom_context_menu_requested(pos):
+    print("context menu", pos, tree.indexAt(pos))
+    
+    index = tree.indexAt(pos)
+    print(index.row(), index.column(), index.data(PathRole), index.data(ItemTypeRole))
+    
+    data = index.data(PathRole)
+    
+    if not data:
+        return
+    
+    menu = QMenu(dialog)
+    ac_folder = menu.addAction("Add folder...")
+    ac_project = menu.addAction("Add project...")
+    result = menu.exec(tree.viewport().mapToGlobal(pos))
+    
+    if not result:
+        return
+    
+    path = data
+    if index.data(ItemTypeRole) != "folder":
+        path = path.parent
+    
+    if result == ac_folder:
+        _on_add_folder_action_triggered(path)
+    elif result == ac_project:
+        _on_add_project_action_triggered(path)
+
+tree.setContextMenuPolicy(Qt.CustomContextMenu)
+tree.customContextMenuRequested.connect(_on_tree_custom_context_menu_requested)
+
+
 add_button = QToolButton()
 add_button.setIcon(app.icon("list-add"))
 add_button.setPopupMode(QToolButton.InstantPopup)
@@ -632,17 +661,18 @@ add_folder_action = add_button_menu.addAction("Add folder...")
 add_project_action = add_button_menu.addAction("Add project...")
 add_button.setMenu(add_button_menu)
 
-def _on_add_folder_action_triggered():
-    print("add folder")
-    result = QFileDialog.getExistingDirectory(dialog, "Locate folder", str(Path(app.activeDocument().fileName()).parent), QFileDialog.ShowDirsOnly)
+def _on_add_folder_action_triggered(start_path = None):
+    start_path = start_path or Path(app.activeDocument().fileName()).parent
+    print("add folder at start_path =", start_path)
+    result = FileDialog.getExistingDirectory(dialog, "Locate folder", str(start_path), "QE_AddFolderToTree")
     if not result:
         return
     item = add_folder_to_tree(Path(result))
 
-def _on_add_project_action_triggered():
-    print("add project")
-    #result = QFileDialog.getExistingDirectory(dialog, "Locate file", str(Path(app.activeDocument().fileName()).parent), QFileDialog.ShowDirsOnly)
-    file, unused = QFileDialog.getOpenFileName(dialog, "locate file", str(Path(app.activeDocument().fileName()).parent), "Krita Project File (*.kra)")
+def _on_add_project_action_triggered(start_path = None):
+    start_path = start_path or Path(app.activeDocument().fileName()).parent
+    print("add project at start_path =", start_path)
+    file = FileDialog.getOpenFileName(dialog, "locate file", str(start_path), "Krita document (*.kra)", None, "QE_AddProjectToTree")
     print(f"{file=}")
     if not file:
         return
