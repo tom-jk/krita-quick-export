@@ -7,6 +7,10 @@ from pathlib import Path
 from krita import Krita, InfoObject
 app = Krita.instance()
 
+# cleanup if last run bugged.
+#app.documents()[1].close()
+#STOP
+
 #import sys
 #myModulePath='/home/user/Projects/kritaQuickExport/quickexport/QuickExport'
 #if myModulePath not in sys.path: sys.path.append(myModulePath)
@@ -20,7 +24,9 @@ store = {
     Path("path/to/file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("path/to/another_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("path/with/settings/a_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
-    Path("/home/user/Projects/Game/design/environments/volcanoenv290326"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}}
+    Path("/home/user/Projects/Game/design/environments/volcanoenv290326"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("/home/user/Projects/Game/design/environments/spanishtown0"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("path/to"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".jpg", "location":"parsib"}}
 }
 
 def base_stem_and_version_number_for_versioned_file(file_path, unversioned_version_num=None):
@@ -125,7 +131,8 @@ class ItemDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         #print(index.row(), index.column(), index.model(), model, source_model, model_root, model.mapToSource(index.parent()), PathRole, model.data(index, PathRole))
         painter.save()
-        if not index.parent() == model_root.index(): # if not at folder level
+        #if not index.parent() == model_root.index(): # if not at folder level
+        if index.data(PathRole) not in store:
             painter.setOpacity(0.5)
         super().paint(painter, option, index)
         painter.restore()
@@ -185,14 +192,14 @@ basic_export_settings_folder_pick_custom.setIcon(app.icon("folder"))
 basic_export_settings_folder_pick_custom.hide()
 basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_pick_custom)
 
-basic_export_settings_output_path = QLabel("output path lorem ipsum dolor sit amet adipiscing hello world etc blah blah blah")
+basic_export_settings_output_path = QLabel("")
 basic_export_settings_output_path.setWordWrap(True)
 basic_export_settings_output_path.setAlignment(Qt.AlignHCenter)
 
 basic_export_settings_container_layout.addWidget(basic_export_settings_file_container)
 basic_export_settings_container_layout.addWidget(basic_export_settings_folder_container)
-basic_export_settings_container_layout.addWidget(basic_export_settings_output_path)
 dialog_layout.addWidget(basic_export_settings_container)
+dialog_layout.addWidget(basic_export_settings_output_path)
 
 suppress_store_on_widget_edit = False
 
@@ -208,18 +215,22 @@ def update_basic_export_settings_output_path_label():
     path = index.data(PathRole)#Path(app.activeDocument().fileName())
     item_type = index.data(ItemTypeRole)
     
-    if item_type == "base":
+    name_index = basic_export_settings_file_name.currentIndex()
+    custom_name = basic_export_settings_file_name_custom.text()
+    file_name = path.stem
+    
+    if item_type in ("base", "file"):
         folder = path.parent
         base, version = base_stem_and_version_number_for_versioned_file(path)
         print(base, version)
+        if item_type == "base":
+            file_name = "<FileName>"
     else:
         folder = path
-        base, version = ("BASE", "VERSION")
+        base, version = ("<ProjectName>", "VERSION")
+        file_name = "<FileName>"
     
-    name_index = basic_export_settings_file_name.currentIndex()
-    custom_name = basic_export_settings_file_name_custom.text()
-    
-    output_stem = base if name_index == 0 else path.stem if name_index == 1 else custom_name
+    output_stem = base if name_index == 0 else file_name if name_index == 1 else custom_name
     
     folder_index = basic_export_settings_folder_location.currentIndex()
     folder_name_index = basic_export_settings_folder_name.currentIndex()
@@ -285,14 +296,29 @@ basic_export_settings_folder_pick_custom.clicked.connect(_on_basic_export_settin
 
 
 def set_basic_export_settings_controls_for_path(path):
-    if path not in store:
+    global suppress_store_on_widget_edit
+    
+    if False:#path not in store:
         basic_export_settings_container.setDisabled(True)
+        suppress_store_on_widget_edit = True
+        update_basic_export_settings_output_path_label()
+        suppress_store_on_widget_edit = False
         return
     
-    global suppress_store_on_widget_edit
+    if path in store:
+        s = store[path]["basic_export_settings"]
+    else:
+        basic_export_settings_container.setDisabled(True)
+        inherit_from_path = path.parent / base_stem_and_version_number_for_versioned_file(path)[0]
+        if inherit_from_path not in store:
+            inherit_from_path = path.parent
+            if inherit_from_path not in store:
+                basic_export_settings_output_path.setText("")
+                return
+        s = store[inherit_from_path]["basic_export_settings"]
+    
     suppress_store_on_widget_edit = True
     
-    s = store[path]["basic_export_settings"]
     basic_export_settings_file_name.setCurrentIndex(("proj", "file", "cust").index(s["file_name_src"]))
     basic_export_settings_file_name_custom.setText(s["file_name_cust"] if "file_name_cust" in s else "")
     basic_export_settings_file_type.setCurrentIndex((".png", ".jpg", ".jxl").index(s["type"]))
@@ -343,17 +369,21 @@ tree.setAlternatingRowColors(True)
 model_root = source_model.invisibleRootItem()
 
 class TreeButton(QToolButton):
-    def __init__(self, role, path, item_type, icon, *args, **kwargs):
+    def __init__(self, role, path, item_type, icon, item=None, item2=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.role = role
         self.path = path
         self.item_type = item_type
+        self.item = item
+        self.item2 = item2
         self.setIcon(icon)
         self.setAutoRaise(True)
         self.clicked.connect(self._on_clicked)
 
     def _on_clicked(self):
         print("clicked", self.role, self.path)
+        
+        global store
         
         if self.role == "del":
             if self.path not in store:
@@ -366,10 +396,17 @@ class TreeButton(QToolButton):
                     }
                 }
                 self.setIcon(app.icon("edit-delete"))
+                l = self.parent().layout()
+                for i in (1,2,4):
+                    l.itemAt(i).widget().show()
             else:
                 del store[self.path]
                 self.setIcon(app.icon("list-add"))
+                l = self.parent().layout()
+                for i in (1,2,4):
+                    l.itemAt(i).widget().hide()
             
+            model.dataChanged.emit(self.item.index(), self.item2.index())
             _on_tree_selection_changed(None, None)
         
         elif self.role == "opn":
@@ -382,10 +419,34 @@ class TreeButton(QToolButton):
             plugin_dir = Path(app.getAppDataLocation()) / "pykrita" / "QuickExport"
 
             doc = app.createDocument(2,2,"QuickExportDummyDoc","RGBA","U8","",72.0)
-
+            
+            extension = store[self.path]["basic_export_settings"]["type"]
+            dummy_file_name = "ExportDummy" + extension
+            
             info = InfoObject()
-            result = doc.exportImage(str(plugin_dir / "ExportDummy.jxl"), info)
+            
+            if "type_export_settings" in store[self.path]:
+                tes = store[self.path]["type_export_settings"]
+                if extension in tes:
+                    for k,v in tes[extension].items():
+                        info.setProperty(k, v)
+            
+            for p in info.properties():
+                print(p)
+            
+            result = doc.exportImage(str(plugin_dir / dummy_file_name), info)
             print(result, info.properties())
+            
+            if result:
+                print("BEFORE:")
+                print(store[self.path])
+                
+                if "type_export_settings" not in store[self.path]:
+                    store[self.path]["type_export_settings"] = {}
+                store[self.path]["type_export_settings"][extension] = info.properties()
+                
+                print("AFTER:")
+                print(store[self.path])
 
             doc.waitForDone()
             doc.close()
@@ -406,7 +467,7 @@ def add_item_to_tree(parent, path, text, icon, item_type):
     buttons_widget.setContentsMargins(0,0,0,0)
     buttons_layout.setContentsMargins(0,0,0,0)
     buttons_layout.setSpacing(0)
-    del_button = TreeButton(role="del", path=path, item_type=item_type, icon=app.icon("edit-delete"))
+    del_button = TreeButton(role="del", path=path, item_type=item_type, icon=app.icon("edit-delete"), item=item, item2=item2)
     row_height = del_button.sizeHint().height()
     cpy_button = TreeButton(role="cpy", path=path, item_type=item_type, icon=app.icon("edit-copy"))
     cfg_button = TreeButton(role="cfg", path=path, item_type=item_type, icon=app.icon("configure"))
@@ -431,7 +492,7 @@ def add_item_to_tree(parent, path, text, icon, item_type):
         cpy_button.hide()
         cfg_button.hide()
     
-    if path not in store:
+    if path not in store or "TEMP" in store[path]:
         del_button.setIcon(app.icon("list-add"))
         cpy_button.hide()
         cfg_button.hide()
@@ -481,15 +542,56 @@ def add_folder_to_tree(path):
     
     return add_item_to_tree(source_model, path, str(path), app.icon("folder"), "folder")
 
+# temporarily add projects currently open in krita to store so they appear in dialog with thumbnails and files.
 for doc in app.documents():
     file = Path(doc.fileName())
-    item = add_file_to_tree(file)
+    base = base_stem_and_version_number_for_versioned_file(file)[0]
+    path = file.parent / base
+    if not path in store:
+        store[path] = {"node_type": "base", "TEMP":True}
+
+for k,v in store.items():
+    print(k,":",v)
 
 for path in store:
     if store[path]["node_type"] == "folder":
         item = add_folder_to_tree(path)
     else:
         item = add_base_to_tree(path)
+        
+        if path.parent.exists():
+            sorted_list = sorted(path.parent.glob("*.kra"), key = lambda file: Path(file).stat().st_mtime)
+            latest_file = None
+            for file in sorted_list:#path.parent.iterdir():
+                #if file.suffix != ".kra":
+                #    continue
+                file_base = base_stem_and_version_number_for_versioned_file(file)[0]
+                #print(f"{path.stem=} {file_base=} {path.stem==file_base}")
+                if path.stem == file_base:
+                    print("add file", file, "for base", path.stem)
+                    add_file_to_tree(file)
+                    latest_file = file
+            if latest_file:
+                thumb = _make_thumbnail_for_file(latest_file)
+                icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
+                item.setIcon(icon)
+
+# remove temporarily added docs from store.
+# TODO: 
+d = []
+for path in store:
+    if "TEMP" in store[path]:
+        d.append(path)
+for path in d:
+    del store[path]
+
+#for doc in app.documents():
+#    file = Path(doc.fileName())
+#    item = add_file_to_tree(file)
+
+add_file_to_tree(Path("path/to/file_001.kra"))
+add_file_to_tree(Path("path/to/file_002.kra"))
+add_file_to_tree(Path("path/to/file_003.kra"))
 
 def _on_tree_expanded(model_index):
     pass
@@ -515,6 +617,7 @@ def _on_tree_selection_changed(selected, deselected):
         set_basic_export_settings_controls_for_path(index.data(PathRole))
     else:
         basic_export_settings_container.setDisabled(True)
+        basic_export_settings_output_path.setText("")
 
 tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
 tree.selectionModel().selectionChanged.connect(_on_tree_selection_changed)
