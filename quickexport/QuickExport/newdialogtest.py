@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QWidget, QDialog, QFileDialog, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
 from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect
 import zipfile
@@ -139,6 +139,108 @@ item_delegate = ItemDelegate()
 tree = QTreeView()
 dialog_layout.addWidget(tree)
 
+
+basic_export_settings_container = QWidget()
+basic_export_settings_container_layout = QVBoxLayout(basic_export_settings_container)
+basic_export_settings_container.setContentsMargins(0,0,0,0)
+basic_export_settings_container_layout.setContentsMargins(0,0,0,0)
+
+basic_export_settings_file_container = QWidget()
+basic_export_settings_file_container_layout = QHBoxLayout(basic_export_settings_file_container)
+basic_export_settings_file_container.setContentsMargins(0,0,0,0)
+basic_export_settings_file_container_layout.setContentsMargins(0,0,0,0)
+
+basic_export_settings_file_name = QComboBox()
+basic_export_settings_file_name.addItems(["Project name", "File name", "Custom name"])
+basic_export_settings_file_container_layout.addWidget(basic_export_settings_file_name)
+basic_export_settings_file_name_custom = QLineEdit("Hello")
+basic_export_settings_file_container_layout.addWidget(basic_export_settings_file_name_custom)
+basic_export_settings_file_type = QComboBox()
+basic_export_settings_file_type.addItems([".png", ".jpg", ".jxl"])
+basic_export_settings_file_container_layout.addWidget(basic_export_settings_file_type)
+
+basic_export_settings_folder_container = QWidget()
+basic_export_settings_folder_container_layout = QHBoxLayout(basic_export_settings_folder_container)
+basic_export_settings_folder_container.setContentsMargins(0,0,0,0)
+basic_export_settings_folder_container_layout.setContentsMargins(0,0,0,0)
+
+basic_export_settings_folder_location = QComboBox()
+basic_export_settings_folder_location.addItems(["In same folder", "In subfolder", "As parent sibling", "In parent sibling folder", "In another folder"])
+basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_location)
+basic_export_settings_folder_name = QComboBox()
+basic_export_settings_folder_name.addItems(["with project name", "with custom name"])
+basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_name)
+basic_export_settings_folder_name_custom = QLineEdit("Hello")
+basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_name_custom)
+basic_export_settings_folder_pick_custom = QToolButton()
+basic_export_settings_folder_pick_custom.setIcon(app.icon("folder"))
+basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_pick_custom)
+
+basic_export_settings_output_path = QLabel("output path lorem ipsum dolor sit amet adipiscing hello world etc blah blah blah")
+basic_export_settings_output_path.setWordWrap(True)
+basic_export_settings_output_path.setAlignment(Qt.AlignHCenter)
+
+basic_export_settings_container_layout.addWidget(basic_export_settings_file_container)
+basic_export_settings_container_layout.addWidget(basic_export_settings_folder_container)
+basic_export_settings_container_layout.addWidget(basic_export_settings_output_path)
+dialog_layout.addWidget(basic_export_settings_container)
+
+
+def update_basic_export_settings_output_path_label():
+    path = Path(app.activeDocument().fileName())
+    
+    folder = path.parent
+    base, version = base_stem_and_version_number_for_versioned_file(path)
+    print(base, version)
+    
+    name_index = basic_export_settings_file_name.currentIndex()
+    custom_name = basic_export_settings_file_name_custom.text()
+    
+    output_stem = base if name_index == 0 else path.stem if name_index == 1 else custom_name
+    
+    folder_index = basic_export_settings_folder_location.currentIndex()
+    folder_name_index = basic_export_settings_folder_name.currentIndex()
+    folder_custom_name = basic_export_settings_folder_name_custom.text()
+    
+    folder_name = path.stem if folder_name_index == 0 and folder_index != 4 else folder_custom_name
+    
+    output_folder = folder if folder_index == 0 else folder / folder_name if folder_index == 1 else folder.parent if folder_index == 2 else folder.parent / folder_name if folder_index == 3 else folder_name
+    
+    output_extension = basic_export_settings_file_type.currentText()
+    
+    basic_export_settings_output_path.setText(str(Path(output_folder) / (output_stem + output_extension)))
+
+def _on_basic_export_settings_file_name_activated(index):
+    basic_export_settings_file_name_custom.setVisible(index == 2)
+    update_basic_export_settings_output_path_label()
+
+basic_export_settings_file_name.activated.connect(_on_basic_export_settings_file_name_activated)
+basic_export_settings_file_name_custom.textChanged.connect(update_basic_export_settings_output_path_label)
+basic_export_settings_file_type.activated.connect(update_basic_export_settings_output_path_label)
+
+def _on_basic_export_settings_folder_location_activated(index):
+    basic_export_settings_folder_name.setVisible(index in (1,3))
+    basic_export_settings_folder_name_custom.setVisible((index in (1,3) and basic_export_settings_folder_name.currentIndex() == 1) or index == 4)
+    update_basic_export_settings_output_path_label()
+
+basic_export_settings_folder_location.activated.connect(_on_basic_export_settings_folder_location_activated)
+
+def _on_basic_export_settings_folder_name_activated(index):
+    #basic_export_settings_folder_name.setVisible(index in (1,3))
+    basic_export_settings_folder_name_custom.setVisible(basic_export_settings_folder_location.currentIndex() in (1,3,4) and index == 1)
+    update_basic_export_settings_output_path_label()
+
+basic_export_settings_folder_name.activated.connect(_on_basic_export_settings_folder_name_activated)
+
+def _on_basic_export_settings_folder_pick_custom_clicked():
+    result = QFileDialog.getExistingDirectory(dialog, "Locate file", str(Path(app.activeDocument().fileName()).parent), QFileDialog.ShowDirsOnly)
+    basic_export_settings_folder_name_custom.setText(result)
+    update_basic_export_settings_output_path_label()
+
+
+basic_export_settings_folder_pick_custom.clicked.connect(_on_basic_export_settings_folder_pick_custom_clicked)
+
+
 tree_icon_size = tree.style().pixelMetric(QStyle.PM_SmallIconSize)
 
 PathRole = Qt.UserRole
@@ -232,18 +334,14 @@ def add_item_to_tree(parent, path, text, icon, item_type):
     buttons_layout.addStretch()
     
     if item_type == "file":
-        hidden_button_opacity_effect = QGraphicsOpacityEffect(del_button)
-        hidden_button_opacity_effect.setOpacity(0.01)
-        del_button.setGraphicsEffect(hidden_button_opacity_effect)
-        hidden_button_opacity_effect = QGraphicsOpacityEffect(cpy_button)
-        hidden_button_opacity_effect.setOpacity(0.01)
-        cpy_button.setGraphicsEffect(hidden_button_opacity_effect)
-        hidden_button_opacity_effect = QGraphicsOpacityEffect(cfg_button)
-        hidden_button_opacity_effect.setOpacity(0.01)
-        cfg_button.setGraphicsEffect(hidden_button_opacity_effect)
-        del_button.setDisabled(True)
-        cpy_button.setDisabled(True)
-        cfg_button.setDisabled(True)
+        sp = del_button.sizePolicy()
+        sp.setRetainSizeWhenHidden(True)
+        del_button.setSizePolicy(sp)
+        cpy_button.setSizePolicy(sp)
+        cfg_button.setSizePolicy(sp)
+        del_button.hide()
+        cpy_button.hide()
+        cfg_button.hide()
     
     index = model.mapFromSource(item2.index())
     tree.setIndexWidget(index, buttons_widget)
@@ -311,5 +409,5 @@ for i in range(source_model.rowCount()):
     tree.setExpanded(index, True)
 #tree.expandAll()
 
-dialog.resize(420, 640)
+dialog.resize(480, 640)
 dialog.open()
