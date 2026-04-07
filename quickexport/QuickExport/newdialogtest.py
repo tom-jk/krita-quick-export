@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QDialog, QFileDialog, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QFileDialog, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
 from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect
 import zipfile
@@ -151,10 +151,14 @@ basic_export_settings_file_name = QComboBox()
 basic_export_settings_file_name.addItems(["Project name", "File name", "Custom name"])
 basic_export_settings_file_container_layout.addWidget(basic_export_settings_file_name)
 basic_export_settings_file_name_custom = QLineEdit("Hello")
+sp = basic_export_settings_file_name_custom.sizePolicy()
+sp.setRetainSizeWhenHidden(True)
+basic_export_settings_file_name_custom.setSizePolicy(sp)
 basic_export_settings_file_name_custom.hide()
 basic_export_settings_file_container_layout.addWidget(basic_export_settings_file_name_custom)
 basic_export_settings_file_type = QComboBox()
 basic_export_settings_file_type.addItems([".png", ".jpg", ".jxl"])
+basic_export_settings_file_type.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
 basic_export_settings_file_container_layout.addWidget(basic_export_settings_file_type)
 
 basic_export_settings_folder_container = QWidget()
@@ -164,12 +168,16 @@ basic_export_settings_folder_container_layout.setContentsMargins(0,0,0,0)
 
 basic_export_settings_folder_location = QComboBox()
 basic_export_settings_folder_location.addItems(["In same folder", "In subfolder", "As parent sibling", "In parent sibling folder", "In another folder"])
+basic_export_settings_folder_location.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
 basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_location)
 basic_export_settings_folder_name = QComboBox()
 basic_export_settings_folder_name.addItems(["with project name", "with custom name"])
 basic_export_settings_folder_name.hide()
 basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_name)
 basic_export_settings_folder_name_custom = QLineEdit("Hello")
+sp = basic_export_settings_folder_name_custom.sizePolicy()
+sp.setRetainSizeWhenHidden(True)
+basic_export_settings_folder_name_custom.setSizePolicy(sp)
 basic_export_settings_folder_name_custom.hide()
 basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_name_custom)
 basic_export_settings_folder_pick_custom = QToolButton()
@@ -186,13 +194,27 @@ basic_export_settings_container_layout.addWidget(basic_export_settings_folder_co
 basic_export_settings_container_layout.addWidget(basic_export_settings_output_path)
 dialog_layout.addWidget(basic_export_settings_container)
 
+suppress_store_on_widget_edit = False
 
 def update_basic_export_settings_output_path_label():
-    path = Path(app.activeDocument().fileName())
+    sel_rows = tree.selectionModel().selectedRows()
     
-    folder = path.parent
-    base, version = base_stem_and_version_number_for_versioned_file(path)
-    print(base, version)
+    if len(sel_rows) != 1:
+        return
+    
+    index = sel_rows[0]
+    index = model.mapToSource(index)
+    
+    path = index.data(PathRole)#Path(app.activeDocument().fileName())
+    item_type = index.data(ItemTypeRole)
+    
+    if item_type == "base":
+        folder = path.parent
+        base, version = base_stem_and_version_number_for_versioned_file(path)
+        print(base, version)
+    else:
+        folder = path
+        base, version = ("BASE", "VERSION")
     
     name_index = basic_export_settings_file_name.currentIndex()
     custom_name = basic_export_settings_file_name_custom.text()
@@ -203,13 +225,32 @@ def update_basic_export_settings_output_path_label():
     folder_name_index = basic_export_settings_folder_name.currentIndex()
     folder_custom_name = basic_export_settings_folder_name_custom.text()
     
-    folder_name = path.stem if folder_name_index == 0 and folder_index != 4 else folder_custom_name
+    #folder_name = path.stem if folder_name_index == 0 and folder_index != 4 else folder_custom_name
+    folder_name = base if folder_name_index == 0 and folder_index != 4 else folder_custom_name
     
     output_folder = folder if folder_index == 0 else folder / folder_name if folder_index == 1 else folder.parent if folder_index == 2 else folder.parent / folder_name if folder_index == 3 else folder_name
     
     output_extension = basic_export_settings_file_type.currentText()
     
     basic_export_settings_output_path.setText(str(Path(output_folder) / (output_stem + output_extension)))
+    
+    global suppress_store_on_widget_edit
+    if suppress_store_on_widget_edit:
+        print("suppressed store on widget edit")
+        return
+    
+    s = store[index.data(PathRole)]["basic_export_settings"]
+    s["file_name_src"] = ("proj", "file", "cust")[name_index]
+    s["file_name_cust"] = custom_name
+    s["type"] = output_extension
+    s["location"] = ("same", "sub", "parsib", "parsibdir", "cust")[folder_index]
+    s["folder_name_src"] = ("proj", "cust")[folder_name_index]
+    s["location_cust"] = folder_custom_name
+    
+    print("--update_basic_export_settings_output_path_label--")
+    for x,y in enumerate(store):
+        print(x, y, store[y])
+    print("--")
 
 def _on_basic_export_settings_file_name_current_index_changed(index):
     basic_export_settings_file_name_custom.setVisible(index == 2)
@@ -233,6 +274,7 @@ def _on_basic_export_settings_folder_name_current_index_changed(index):
     update_basic_export_settings_output_path_label()
 
 basic_export_settings_folder_name.currentIndexChanged.connect(_on_basic_export_settings_folder_name_current_index_changed)
+basic_export_settings_folder_name_custom.textChanged.connect(update_basic_export_settings_output_path_label)
 
 def _on_basic_export_settings_folder_pick_custom_clicked():
     result = QFileDialog.getExistingDirectory(dialog, "Locate file", str(Path(app.activeDocument().fileName()).parent), QFileDialog.ShowDirsOnly)
@@ -247,6 +289,9 @@ def set_basic_export_settings_controls_for_path(path):
         basic_export_settings_container.setDisabled(True)
         return
     
+    global suppress_store_on_widget_edit
+    suppress_store_on_widget_edit = True
+    
     s = store[path]["basic_export_settings"]
     basic_export_settings_file_name.setCurrentIndex(("proj", "file", "cust").index(s["file_name_src"]))
     basic_export_settings_file_name_custom.setText(s["file_name_cust"] if "file_name_cust" in s else "")
@@ -254,6 +299,15 @@ def set_basic_export_settings_controls_for_path(path):
     basic_export_settings_folder_location.setCurrentIndex(("same", "sub", "parsib", "parsibdir", "cust").index(s["location"]))
     basic_export_settings_folder_name.setCurrentIndex(("proj", "cust").index(s["folder_name_src"]) if "folder_name_src" in s else 0)
     basic_export_settings_folder_name_custom.setText(s["location_cust"] if "location_cust" in s else "")
+    
+    print("--set_basic_export_settings_controls_for_path--")
+    for x,y in enumerate(store):
+        print(x, y, store[y])
+    print("--")
+    
+    update_basic_export_settings_output_path_label()
+    
+    suppress_store_on_widget_edit = False
 
 
 tree_icon_size = tree.style().pixelMetric(QStyle.PM_SmallIconSize)
@@ -315,6 +369,8 @@ class TreeButton(QToolButton):
             else:
                 del store[self.path]
                 self.setIcon(app.icon("list-add"))
+            
+            _on_tree_selection_changed(None, None)
         
         elif self.role == "opn":
             doc = app.openDocument(str(self.path))
@@ -445,8 +501,8 @@ for i in range(source_model.rowCount()):
     tree.setExpanded(index, True)
 
 def _on_tree_selection_changed(selected, deselected):
-    print(len(selected), "selected", selected)
-    print(len(deselected), "deselected", deselected)
+    #print(len(selected), "selected", selected)
+    #print(len(deselected), "deselected", deselected)
     
     rows = tree.selectionModel().selectedRows()#selected.indexes()
     
@@ -455,7 +511,7 @@ def _on_tree_selection_changed(selected, deselected):
         
         index = rows[0]
         index = model.mapToSource(index)
-        print(index.row(), index.column(), index.parent(), index.model(), index.data(PathRole))
+        print("_on_tree_selection_changed:", index.row(), index.column(), index.parent(), index.model(), index.data(PathRole))
         set_basic_export_settings_controls_for_path(index.data(PathRole))
     else:
         basic_export_settings_container.setDisabled(True)
