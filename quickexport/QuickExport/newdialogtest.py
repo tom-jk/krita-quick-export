@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QDialog, QFileDialog, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QWidget, QDialog, QFileDialog, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
 from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect
 import zipfile
@@ -15,16 +15,12 @@ app = Krita.instance()
 # TODO: merge folders and files into one list. are separate currently so files don't create no-settings folder items before
 #       the settings for the folder are read (they would be discarded as the folder item already existed).
 store = {
-    "folders": [
-        {"path":Path("path/with/settings")},
-        {"path":Path("/home/user/Projects/Game/design/environments")}
-    ],
-    "files": [
-        {"path":Path("path/to/file.kra")},
-        {"path":Path("path/to/another_file.kra")},
-        {"path":Path("path/with/settings/a_file.kra")},
-        {"path":Path("/home/user/Projects/Game/design/environments/volcanoenv290326_001.kra")}
-    ]
+    Path("path/with/settings"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("/home/user/Projects/Game/design/environments"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("path/to/file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("path/to/another_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("path/with/settings/a_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("/home/user/Projects/Game/design/environments/volcanoenv290326"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}}
 }
 
 def base_stem_and_version_number_for_versioned_file(file_path, unversioned_version_num=None):
@@ -141,6 +137,7 @@ dialog_layout.addWidget(tree)
 
 
 basic_export_settings_container = QWidget()
+basic_export_settings_container.setDisabled(True)
 basic_export_settings_container_layout = QVBoxLayout(basic_export_settings_container)
 basic_export_settings_container.setContentsMargins(0,0,0,0)
 basic_export_settings_container_layout.setContentsMargins(0,0,0,0)
@@ -154,6 +151,7 @@ basic_export_settings_file_name = QComboBox()
 basic_export_settings_file_name.addItems(["Project name", "File name", "Custom name"])
 basic_export_settings_file_container_layout.addWidget(basic_export_settings_file_name)
 basic_export_settings_file_name_custom = QLineEdit("Hello")
+basic_export_settings_file_name_custom.hide()
 basic_export_settings_file_container_layout.addWidget(basic_export_settings_file_name_custom)
 basic_export_settings_file_type = QComboBox()
 basic_export_settings_file_type.addItems([".png", ".jpg", ".jxl"])
@@ -169,11 +167,14 @@ basic_export_settings_folder_location.addItems(["In same folder", "In subfolder"
 basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_location)
 basic_export_settings_folder_name = QComboBox()
 basic_export_settings_folder_name.addItems(["with project name", "with custom name"])
+basic_export_settings_folder_name.hide()
 basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_name)
 basic_export_settings_folder_name_custom = QLineEdit("Hello")
+basic_export_settings_folder_name_custom.hide()
 basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_name_custom)
 basic_export_settings_folder_pick_custom = QToolButton()
 basic_export_settings_folder_pick_custom.setIcon(app.icon("folder"))
+basic_export_settings_folder_pick_custom.hide()
 basic_export_settings_folder_container_layout.addWidget(basic_export_settings_folder_pick_custom)
 
 basic_export_settings_output_path = QLabel("output path lorem ipsum dolor sit amet adipiscing hello world etc blah blah blah")
@@ -210,40 +211,55 @@ def update_basic_export_settings_output_path_label():
     
     basic_export_settings_output_path.setText(str(Path(output_folder) / (output_stem + output_extension)))
 
-def _on_basic_export_settings_file_name_activated(index):
+def _on_basic_export_settings_file_name_current_index_changed(index):
     basic_export_settings_file_name_custom.setVisible(index == 2)
     update_basic_export_settings_output_path_label()
 
-basic_export_settings_file_name.activated.connect(_on_basic_export_settings_file_name_activated)
+basic_export_settings_file_name.currentIndexChanged.connect(_on_basic_export_settings_file_name_current_index_changed)
 basic_export_settings_file_name_custom.textChanged.connect(update_basic_export_settings_output_path_label)
-basic_export_settings_file_type.activated.connect(update_basic_export_settings_output_path_label)
+basic_export_settings_file_type.currentIndexChanged.connect(update_basic_export_settings_output_path_label)
 
-def _on_basic_export_settings_folder_location_activated(index):
+def _on_basic_export_settings_folder_location_current_index_changed(index):
     basic_export_settings_folder_name.setVisible(index in (1,3))
     basic_export_settings_folder_name_custom.setVisible((index in (1,3) and basic_export_settings_folder_name.currentIndex() == 1) or index == 4)
+    basic_export_settings_folder_pick_custom.setVisible(index == 4)
     update_basic_export_settings_output_path_label()
 
-basic_export_settings_folder_location.activated.connect(_on_basic_export_settings_folder_location_activated)
+basic_export_settings_folder_location.currentIndexChanged.connect(_on_basic_export_settings_folder_location_current_index_changed)
 
-def _on_basic_export_settings_folder_name_activated(index):
+def _on_basic_export_settings_folder_name_current_index_changed(index):
     #basic_export_settings_folder_name.setVisible(index in (1,3))
     basic_export_settings_folder_name_custom.setVisible(basic_export_settings_folder_location.currentIndex() in (1,3,4) and index == 1)
     update_basic_export_settings_output_path_label()
 
-basic_export_settings_folder_name.activated.connect(_on_basic_export_settings_folder_name_activated)
+basic_export_settings_folder_name.currentIndexChanged.connect(_on_basic_export_settings_folder_name_current_index_changed)
 
 def _on_basic_export_settings_folder_pick_custom_clicked():
     result = QFileDialog.getExistingDirectory(dialog, "Locate file", str(Path(app.activeDocument().fileName()).parent), QFileDialog.ShowDirsOnly)
     basic_export_settings_folder_name_custom.setText(result)
     update_basic_export_settings_output_path_label()
 
-
 basic_export_settings_folder_pick_custom.clicked.connect(_on_basic_export_settings_folder_pick_custom_clicked)
+
+
+def set_basic_export_settings_controls_for_path(path):
+    if path not in store:
+        basic_export_settings_container.setDisabled(True)
+        return
+    
+    s = store[path]["basic_export_settings"]
+    basic_export_settings_file_name.setCurrentIndex(("proj", "file", "cust").index(s["file_name_src"]))
+    basic_export_settings_file_name_custom.setText(s["file_name_cust"] if "file_name_cust" in s else "")
+    basic_export_settings_file_type.setCurrentIndex((".png", ".jpg", ".jxl").index(s["type"]))
+    basic_export_settings_folder_location.setCurrentIndex(("same", "sub", "parsib", "parsibdir", "cust").index(s["location"]))
+    basic_export_settings_folder_name.setCurrentIndex(("proj", "cust").index(s["folder_name_src"]) if "folder_name_src" in s else 0)
+    basic_export_settings_folder_name_custom.setText(s["location_cust"] if "location_cust" in s else "")
 
 
 tree_icon_size = tree.style().pixelMetric(QStyle.PM_SmallIconSize)
 
 PathRole = Qt.UserRole
+ItemTypeRole = Qt.UserRole + 1
 
 class MySortFilterProxyModel(QSortFilterProxyModel):
     def filterAcceptsRow(self, source_row, source_parent):
@@ -273,10 +289,11 @@ tree.setAlternatingRowColors(True)
 model_root = source_model.invisibleRootItem()
 
 class TreeButton(QToolButton):
-    def __init__(self, role, path, icon, *args, **kwargs):
+    def __init__(self, role, path, item_type, icon, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.role = role
         self.path = path
+        self.item_type = item_type
         self.setIcon(icon)
         self.setAutoRaise(True)
         self.clicked.connect(self._on_clicked)
@@ -284,7 +301,22 @@ class TreeButton(QToolButton):
     def _on_clicked(self):
         print("clicked", self.role, self.path)
         
-        if self.role == "opn":
+        if self.role == "del":
+            if self.path not in store:
+                store[self.path] = {
+                    "node_type": self.item_type,
+                    "basic_export_settings": {
+                        "file_name_src": "proj",
+                        "type": ".png",
+                        "location": "same"
+                    }
+                }
+                self.setIcon(app.icon("edit-delete"))
+            else:
+                del store[self.path]
+                self.setIcon(app.icon("list-add"))
+        
+        elif self.role == "opn":
             doc = app.openDocument(str(self.path))
             
             app.activeWindow().addView(doc)
@@ -303,14 +335,12 @@ class TreeButton(QToolButton):
             doc.close()
             print(doc)
 
-def on_del_button_clicked(path):
-    print("del button clicked", path)
-
 def add_item_to_tree(parent, path, text, icon, item_type):
     item = QStandardItem()
     item2 = QStandardItem()
     parent.appendRow([item, item2])
     item.setData(path, PathRole)
+    item.setData(item_type, ItemTypeRole)
     item.setData(text, Qt.DisplayRole)
     item.setIcon(icon)
     
@@ -320,12 +350,19 @@ def add_item_to_tree(parent, path, text, icon, item_type):
     buttons_widget.setContentsMargins(0,0,0,0)
     buttons_layout.setContentsMargins(0,0,0,0)
     buttons_layout.setSpacing(0)
-    del_button = TreeButton(role="del", path=path, icon=app.icon("edit-delete"))
+    del_button = TreeButton(role="del", path=path, item_type=item_type, icon=app.icon("edit-delete"))
     row_height = del_button.sizeHint().height()
-    cpy_button = TreeButton(role="cpy", path=path, icon=app.icon("edit-copy"))
-    cfg_button = TreeButton(role="cfg", path=path, icon=app.icon("configure"))
-    opn_button = TreeButton(role="opn", path=path, icon=app.icon("document-open"))
-    exp_button = TreeButton(role="exp", path=path, icon=app.icon("document-export"))
+    cpy_button = TreeButton(role="cpy", path=path, item_type=item_type, icon=app.icon("edit-copy"))
+    cfg_button = TreeButton(role="cfg", path=path, item_type=item_type, icon=app.icon("configure"))
+    opn_button = TreeButton(role="opn", path=path, item_type=item_type, icon=app.icon("document-open"))
+    exp_button = TreeButton(role="exp", path=path, item_type=item_type, icon=app.icon("document-export"))
+    sp = del_button.sizePolicy()
+    sp.setRetainSizeWhenHidden(True)
+    del_button.setSizePolicy(sp)
+    cpy_button.setSizePolicy(sp)
+    cfg_button.setSizePolicy(sp)
+    opn_button.setSizePolicy(sp)
+    exp_button.setSizePolicy(sp)
     buttons_layout.addWidget(del_button)
     buttons_layout.addWidget(cpy_button)
     buttons_layout.addWidget(cfg_button)
@@ -334,14 +371,15 @@ def add_item_to_tree(parent, path, text, icon, item_type):
     buttons_layout.addStretch()
     
     if item_type == "file":
-        sp = del_button.sizePolicy()
-        sp.setRetainSizeWhenHidden(True)
-        del_button.setSizePolicy(sp)
-        cpy_button.setSizePolicy(sp)
-        cfg_button.setSizePolicy(sp)
         del_button.hide()
         cpy_button.hide()
         cfg_button.hide()
+    
+    if path not in store:
+        del_button.setIcon(app.icon("list-add"))
+        cpy_button.hide()
+        cfg_button.hide()
+        exp_button.hide()
     
     index = model.mapFromSource(item2.index())
     tree.setIndexWidget(index, buttons_widget)
@@ -391,13 +429,11 @@ for doc in app.documents():
     file = Path(doc.fileName())
     item = add_file_to_tree(file)
 
-for store_item in store["folders"]:
-    folder = store_item["path"]
-    folder_item = add_folder_to_tree(folder)
-
-for store_item in store["files"]:
-    file = store_item["path"]
-    item = add_file_to_tree(file)
+for path in store:
+    if store[path]["node_type"] == "folder":
+        item = add_folder_to_tree(path)
+    else:
+        item = add_base_to_tree(path)
 
 def _on_tree_expanded(model_index):
     pass
@@ -407,7 +443,26 @@ tree.expanded.connect(_on_tree_expanded)
 for i in range(source_model.rowCount()):
     index = model.mapFromSource(source_model.index(i, 0))
     tree.setExpanded(index, True)
-#tree.expandAll()
 
-dialog.resize(480, 640)
+def _on_tree_selection_changed(selected, deselected):
+    print(len(selected), "selected", selected)
+    print(len(deselected), "deselected", deselected)
+    
+    rows = tree.selectionModel().selectedRows()#selected.indexes()
+    
+    if len(rows) == 1:
+        basic_export_settings_container.setDisabled(False)
+        
+        index = rows[0]
+        index = model.mapToSource(index)
+        print(index.row(), index.column(), index.parent(), index.model(), index.data(PathRole))
+        set_basic_export_settings_controls_for_path(index.data(PathRole))
+    else:
+        basic_export_settings_container.setDisabled(True)
+
+tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
+tree.selectionModel().selectionChanged.connect(_on_tree_selection_changed)
+
+
+dialog.resize(512, 640)
 dialog.open()
