@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton
+from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
 from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect
 import zipfile
@@ -12,6 +12,8 @@ app = Krita.instance()
 #if myModulePath not in sys.path: sys.path.append(myModulePath)
 #import qemacrobuilder.py
 
+# TODO: merge folders and files into one list. are separate currently so files don't create no-settings folder items before
+#       the settings for the folder are read (they would be discarded as the folder item already existed).
 store = {
     "folders": [
         {"path":Path("path/with/settings")},
@@ -163,6 +165,7 @@ tree.setModel(model)
 tree.header().setStretchLastSection(False)
 tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
 tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+tree.setAlternatingRowColors(True)
 #tree.setModel(source_model)
 
 model_root = source_model.invisibleRootItem()
@@ -201,7 +204,7 @@ class TreeButton(QToolButton):
 def on_del_button_clicked(path):
     print("del button clicked", path)
 
-def add_item_to_tree(parent, path, text, icon=QIcon()):
+def add_item_to_tree(parent, path, text, icon, item_type):
     item = QStandardItem()
     item2 = QStandardItem()
     parent.appendRow([item, item2])
@@ -218,23 +221,37 @@ def add_item_to_tree(parent, path, text, icon=QIcon()):
     del_button = TreeButton(role="del", path=path, icon=app.icon("edit-delete"))
     row_height = del_button.sizeHint().height()
     cpy_button = TreeButton(role="cpy", path=path, icon=app.icon("edit-copy"))
-    opn_button = TreeButton(role="opn", path=path, icon=app.icon("document-open"))
     cfg_button = TreeButton(role="cfg", path=path, icon=app.icon("configure"))
+    opn_button = TreeButton(role="opn", path=path, icon=app.icon("document-open"))
     exp_button = TreeButton(role="exp", path=path, icon=app.icon("document-export"))
     buttons_layout.addWidget(del_button)
     buttons_layout.addWidget(cpy_button)
-    buttons_layout.addWidget(opn_button)
     buttons_layout.addWidget(cfg_button)
+    buttons_layout.addWidget(opn_button)
     buttons_layout.addWidget(exp_button)
     buttons_layout.addStretch()
-    tree.setIndexWidget(model.mapFromSource(item2.index()), buttons_widget)
+    
+    if item_type == "file":
+        hidden_button_opacity_effect = QGraphicsOpacityEffect(del_button)
+        hidden_button_opacity_effect.setOpacity(0.01)
+        del_button.setGraphicsEffect(hidden_button_opacity_effect)
+        hidden_button_opacity_effect = QGraphicsOpacityEffect(cpy_button)
+        hidden_button_opacity_effect.setOpacity(0.01)
+        cpy_button.setGraphicsEffect(hidden_button_opacity_effect)
+        hidden_button_opacity_effect = QGraphicsOpacityEffect(cfg_button)
+        hidden_button_opacity_effect.setOpacity(0.01)
+        cfg_button.setGraphicsEffect(hidden_button_opacity_effect)
+        del_button.setDisabled(True)
+        cpy_button.setDisabled(True)
+        cfg_button.setDisabled(True)
+    
+    index = model.mapFromSource(item2.index())
+    tree.setIndexWidget(index, buttons_widget)
     
     return item
 
 def add_base_to_tree(path):
-    pass
-
-def add_file_to_tree(path):
+    print(path)
     folder = path.parent
     folder_item = add_folder_to_tree(folder)
     
@@ -247,7 +264,22 @@ def add_file_to_tree(path):
     thumb = _make_thumbnail_for_file(path)
     icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
     
-    return add_item_to_tree(folder_item, path, path.name, icon)
+    return add_item_to_tree(folder_item, path, path.name, icon, "base")
+
+def add_file_to_tree(path):
+    base, version = base_stem_and_version_number_for_versioned_file(path)
+    base_item = add_base_to_tree(path.parent / base)
+    
+    for i in range(base_item.rowCount()):
+        item = base_item.child(i, 0)
+        #print(i, index, folder_item.data(index, PathRole))
+        if item.data(PathRole) == path:
+            return item
+    
+    thumb = _make_thumbnail_for_file(path)
+    icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
+    
+    return add_item_to_tree(base_item, path, path.name, icon, "file")
 
 def add_folder_to_tree(path):
     for i in range(source_model.rowCount()):
@@ -255,7 +287,7 @@ def add_folder_to_tree(path):
         if source_model.data(index, PathRole) == path:
             return source_model.item(i)
     
-    return add_item_to_tree(source_model, path, str(path), app.icon("folder"))
+    return add_item_to_tree(source_model, path, str(path), app.icon("folder"), "folder")
 
 for doc in app.documents():
     file = Path(doc.fileName())
@@ -274,7 +306,10 @@ def _on_tree_expanded(model_index):
 
 tree.expanded.connect(_on_tree_expanded)
 
-tree.expandAll()
+for i in range(source_model.rowCount()):
+    index = model.mapFromSource(source_model.index(i, 0))
+    tree.setExpanded(index, True)
+#tree.expandAll()
 
 dialog.resize(420, 640)
 dialog.open()
