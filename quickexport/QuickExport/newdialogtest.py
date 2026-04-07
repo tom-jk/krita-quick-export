@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QFileDialog, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QFileDialog, QMenu, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
 from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect
 import zipfile
@@ -288,7 +288,7 @@ basic_export_settings_folder_name.currentIndexChanged.connect(_on_basic_export_s
 basic_export_settings_folder_name_custom.textChanged.connect(update_basic_export_settings_output_path_label)
 
 def _on_basic_export_settings_folder_pick_custom_clicked():
-    result = QFileDialog.getExistingDirectory(dialog, "Locate file", str(Path(app.activeDocument().fileName()).parent), QFileDialog.ShowDirsOnly)
+    result = QFileDialog.getExistingDirectory(dialog, "Locate folder", str(Path(app.activeDocument().fileName()).parent), QFileDialog.ShowDirsOnly)
     basic_export_settings_folder_name_custom.setText(result)
     update_basic_export_settings_output_path_label()
 
@@ -622,6 +622,39 @@ def _on_tree_selection_changed(selected, deselected):
 tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
 tree.selectionModel().selectionChanged.connect(_on_tree_selection_changed)
 
+
+add_button = QToolButton()
+add_button.setIcon(app.icon("list-add"))
+add_button.setPopupMode(QToolButton.InstantPopup)
+
+add_button_menu = QMenu()
+add_folder_action = add_button_menu.addAction("Add folder...")
+add_project_action = add_button_menu.addAction("Add project...")
+add_button.setMenu(add_button_menu)
+
+def _on_add_folder_action_triggered():
+    print("add folder")
+    result = QFileDialog.getExistingDirectory(dialog, "Locate folder", str(Path(app.activeDocument().fileName()).parent), QFileDialog.ShowDirsOnly)
+    if not result:
+        return
+    item = add_folder_to_tree(Path(result))
+
+def _on_add_project_action_triggered():
+    print("add project")
+    #result = QFileDialog.getExistingDirectory(dialog, "Locate file", str(Path(app.activeDocument().fileName()).parent), QFileDialog.ShowDirsOnly)
+    file, unused = QFileDialog.getOpenFileName(dialog, "locate file", str(Path(app.activeDocument().fileName()).parent), "Krita Project File (*.kra)")
+    print(f"{file=}")
+    if not file:
+        return
+    file = Path(file)
+    base = base_stem_and_version_number_for_versioned_file(file)[0]
+    path = file.parent / base
+    item = add_base_to_tree(path)
+
+add_folder_action.triggered.connect(_on_add_folder_action_triggered)
+add_project_action.triggered.connect(_on_add_project_action_triggered)
+
+dialog_layout.addWidget(add_button)
 
 dialog.resize(512, 640)
 dialog.open()
