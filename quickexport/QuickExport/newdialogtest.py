@@ -1,9 +1,10 @@
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTreeView, QLabel
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
-from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp
+from PyQt5.QtWidgets import QWidget, QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
+from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect
 import zipfile
+import re
 from pathlib import Path
-from krita import *
+from krita import Krita, InfoObject
 app = Krita.instance()
 
 #import sys
@@ -13,14 +14,32 @@ app = Krita.instance()
 
 store = {
     "folders": [
-        {"path":Path("path/with/settings")}
+        {"path":Path("path/with/settings")},
+        {"path":Path("/home/user/Projects/Game/design/environments")}
     ],
     "files": [
         {"path":Path("path/to/file.kra")},
         {"path":Path("path/to/another_file.kra")},
-        {"path":Path("path/with/settings/a_file.kra")}
+        {"path":Path("path/with/settings/a_file.kra")},
+        {"path":Path("/home/user/Projects/Game/design/environments/volcanoenv290326_001.kra")}
     ]
 }
+
+def base_stem_and_version_number_for_versioned_file(file_path, unversioned_version_num=None):
+    """
+    for file with stem "filename0_000", return ("filename0", 0).
+    for file with stem "filename0_003", return ("filename0", 3).
+    for file with stem "filename0_003_007", return ("filename0_003", 7).
+    if not versioned, eg. "filename0", return ("filename0", unversioned_version_num).
+    """
+    matches = list(re.finditer("(_[0-9]+)$", file_path.stem))
+    base_version_stem = file_path.stem
+    match_version_num = unversioned_version_num
+    if matches:
+        match = matches[0]
+        base_version_stem = file_path.stem[:match.start()]
+        match_version_num = int(match.group()[1:])
+    return base_version_stem, match_version_num
 
 # borrowed from the Last Documents Docker.
 def _make_thumbnail_for_file(path):
@@ -106,8 +125,10 @@ class ItemDelegate(QStyledItemDelegate):
         return size
     
     def paint(self, painter, option, index):
+        #print(index.row(), index.column(), index.model(), model, source_model, model_root, model.mapToSource(index.parent()), PathRole, model.data(index, PathRole))
         painter.save()
-        painter.setOpacity(0.5)
+        if not index.parent() == model_root.index(): # if not at folder level
+            painter.setOpacity(0.5)
         super().paint(painter, option, index)
         painter.restore()
 
@@ -147,14 +168,35 @@ tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
 model_root = source_model.invisibleRootItem()
 
 class TreeButton(QToolButton):
-    def __init__(self, role, path, *args, **kwargs):
+    def __init__(self, role, path, icon, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.role = role
         self.path = path
+        self.setIcon(icon)
+        self.setAutoRaise(True)
         self.clicked.connect(self._on_clicked)
 
     def _on_clicked(self):
-        print("click", self.role, self.path)
+        print("clicked", self.role, self.path)
+        
+        if self.role == "opn":
+            doc = app.openDocument(str(self.path))
+            
+            app.activeWindow().addView(doc)
+            doc.waitForDone()
+        
+        elif self.role == "cfg":
+            plugin_dir = Path(app.getAppDataLocation()) / "pykrita" / "QuickExport"
+
+            doc = app.createDocument(2,2,"QuickExportDummyDoc","RGBA","U8","",72.0)
+
+            info = InfoObject()
+            result = doc.exportImage(str(plugin_dir / "ExportDummy.jxl"), info)
+            print(result, info.properties())
+
+            doc.waitForDone()
+            doc.close()
+            print(doc)
 
 def on_del_button_clicked(path):
     print("del button clicked", path)
@@ -163,7 +205,6 @@ def add_item_to_tree(parent, path, text, icon=QIcon()):
     item = QStandardItem()
     item2 = QStandardItem()
     parent.appendRow([item, item2])
-    #item.setColumnCount(2)
     item.setData(path, PathRole)
     item.setData(text, Qt.DisplayRole)
     item.setIcon(icon)
@@ -174,36 +215,18 @@ def add_item_to_tree(parent, path, text, icon=QIcon()):
     buttons_widget.setContentsMargins(0,0,0,0)
     buttons_layout.setContentsMargins(0,0,0,0)
     buttons_layout.setSpacing(0)
-    del_button = TreeButton("del", path)#QToolButton()
+    del_button = TreeButton(role="del", path=path, icon=app.icon("edit-delete"))
     row_height = del_button.sizeHint().height()
-    del_button.setIcon(app.icon("edit-delete"))
-    del_button.setAutoRaise(True)
-    #del_button.clicked.connect(lambda: print("clicked del button for", path))
-    #del_button.clicked.connect(on_del_button_clicked, path)
-    cpy_button = QToolButton()
-    cpy_button.setAutoRaise(True)
-    cpy_button.setIcon(app.icon("edit-copy"))
-    cpy_button.clicked.connect(lambda: print("clicked cpy button for", path))
-    opn_button = QToolButton()
-    opn_button.setAutoRaise(True)
-    opn_button.setIcon(app.icon("document-open"))
-    opn_button.clicked.connect(lambda: print("clicked opn button for", path))
-    cfg_button = QToolButton()
-    cfg_button.setAutoRaise(True)
-    cfg_button.setIcon(app.icon("configure"))
-    cfg_button.clicked.connect(lambda: print("clicked cfg button for", path))
-    exp_button = QToolButton()
-    exp_button.setAutoRaise(True)
-    exp_button.setIcon(app.icon("document-export"))
-    exp_button.clicked.connect(lambda: print("clicked exp button for", path))
+    cpy_button = TreeButton(role="cpy", path=path, icon=app.icon("edit-copy"))
+    opn_button = TreeButton(role="opn", path=path, icon=app.icon("document-open"))
+    cfg_button = TreeButton(role="cfg", path=path, icon=app.icon("configure"))
+    exp_button = TreeButton(role="exp", path=path, icon=app.icon("document-export"))
     buttons_layout.addWidget(del_button)
     buttons_layout.addWidget(cpy_button)
     buttons_layout.addWidget(opn_button)
     buttons_layout.addWidget(cfg_button)
     buttons_layout.addWidget(exp_button)
     buttons_layout.addStretch()
-    #list_wgt2.setIndexWidget(list_model.index(0,1,list_model.indexFromItem(parent)), buttons_widget)
-    #tree.setIndexWidget(item.index().siblingAtColumn(1), buttons_widget)
     tree.setIndexWidget(model.mapFromSource(item2.index()), buttons_widget)
     
     return item
@@ -212,7 +235,19 @@ def add_base_to_tree(path):
     pass
 
 def add_file_to_tree(path):
-    pass
+    folder = path.parent
+    folder_item = add_folder_to_tree(folder)
+    
+    for i in range(folder_item.rowCount()):
+        item = folder_item.child(i, 0)
+        #print(i, index, folder_item.data(index, PathRole))
+        if item.data(PathRole) == path:
+            return item
+    
+    thumb = _make_thumbnail_for_file(path)
+    icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
+    
+    return add_item_to_tree(folder_item, path, path.name, icon)
 
 def add_folder_to_tree(path):
     for i in range(source_model.rowCount()):
@@ -224,31 +259,15 @@ def add_folder_to_tree(path):
 
 for doc in app.documents():
     file = Path(doc.fileName())
-    folder = file.parent
-    print(f"{folder=}")
-    
-    folder_item = add_folder_to_tree(folder)
-    
-    thumb = _make_thumbnail_for_file(file)
-    icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
-    item = add_item_to_tree(folder_item, file, file.name, icon)
-
+    item = add_file_to_tree(file)
 
 for store_item in store["folders"]:
     folder = store_item["path"]
-    
     folder_item = add_folder_to_tree(folder)
 
 for store_item in store["files"]:
     file = store_item["path"]
-    folder = file.parent
-
-    folder_item = add_folder_to_tree(folder)
-
-    thumb = _make_thumbnail_for_file(file)
-    icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
-    item = add_item_to_tree(folder_item, file, file.name, icon)
-
+    item = add_file_to_tree(file)
 
 def _on_tree_expanded(model_index):
     pass
@@ -258,4 +277,4 @@ tree.expanded.connect(_on_tree_expanded)
 tree.expandAll()
 
 dialog.resize(420, 640)
-dialog.exec()
+dialog.open()
