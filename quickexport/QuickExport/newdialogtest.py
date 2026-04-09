@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QFileDialog, QMenu, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QMessageBox, QFileDialog, QMenu, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
 from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect
 import zipfile
@@ -61,6 +61,7 @@ def _make_thumbnail_for_file(path):
         print(f"error trying to read file '{path}'. the error is:\n{type(e).__name__}: {e}")
 
     if thumbnail.isNull():
+        # TODO: make and return only one copy of the not-found icon.
         print(f"couldn't make thumbnail for file '{path}'.")
         thumbnail = app.icon('window-close').pixmap(64,64)#self.thumb_height, self.thumb_height)
 
@@ -461,6 +462,11 @@ def add_item_to_tree(parent, path, text, icon, item_type):
     item.setData(text, Qt.DisplayRole)
     item.setIcon(icon)
     
+    add_buttons_for_row(path, item_type, item, item2)
+    
+    return item
+
+def add_buttons_for_row(path, item_type, item, item2):
     global row_height
     buttons_widget = QWidget()
     buttons_layout = QHBoxLayout(buttons_widget)
@@ -500,8 +506,6 @@ def add_item_to_tree(parent, path, text, icon, item_type):
     
     index = model.mapFromSource(item2.index())
     tree.setIndexWidget(index, buttons_widget)
-    
-    return item
 
 def add_base_to_tree(path):
     print(path)
@@ -518,7 +522,16 @@ def add_base_to_tree(path):
     icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
     
     item = add_item_to_tree(folder_item, path, path.name, icon, "base")
+    
+    populate_base_item_with_file_items(item, path)
 
+def populate_base_item_with_file_items(item, path=Path()):
+    if not path:
+        path = item.data(PathRole)
+    
+    while item.child(0):
+        item.takeRow(0)
+    
     if path.parent.exists():
         sorted_list = sorted(path.parent.glob("*.kra"), key = lambda file: Path(file).stat().st_mtime)
         latest_file = None
@@ -624,29 +637,138 @@ def _on_tree_custom_context_menu_requested(pos):
     print("context menu", pos, tree.indexAt(pos))
     
     index = tree.indexAt(pos)
-    print(index.row(), index.column(), index.data(PathRole), index.data(ItemTypeRole))
+    print(index.row(), index.column(), index.data(PathRole), index.data(ItemTypeRole), index.model())
     
     data = index.data(PathRole)
+    item_type = index.data(ItemTypeRole)
     
     if not data:
         return
     
+    target_text = ("folder and projects", "project", "file")[("folder", "base", "file").index(item_type)]
+    
     menu = QMenu(dialog)
-    ac_folder = menu.addAction("Add folder...")
-    ac_project = menu.addAction("Add project...")
+    ac_add_folder = menu.addAction("Add folder...")
+    ac_add_project = menu.addAction("Add project...")
+    menu.addSeparator()
+    if item_type != "file":
+        ac_relocate = menu.addAction(f"Relocate {target_text}...")
+        menu.addSeparator()
+        ac_remove = menu.addAction(f"Remove {target_text} from the tree")
+    
     result = menu.exec(tree.viewport().mapToGlobal(pos))
     
     if not result:
         return
     
     path = data
-    if index.data(ItemTypeRole) != "folder":
+    if item_type != "folder":
         path = path.parent
     
-    if result == ac_folder:
-        _on_add_folder_action_triggered(path)
-    elif result == ac_project:
-        _on_add_project_action_triggered(path)
+    if result == ac_add_folder:
+        _on_add_folder_action_triggered(start_path = path, force_use_start_path = True)
+    elif result == ac_add_project:
+        _on_add_project_action_triggered(start_path = path, force_use_start_path = True)
+    elif result == ac_relocate:
+        print("ac_relocate start")
+        for k,v in store.items():
+            print("  ",k,":",v)
+        start_path = path
+        while not start_path.exists():
+            start_path = start_path.parent
+            if start_path == Path():
+                start_path = Path.home()
+                break
+        new_folder = FileDialog.getExistingDirectory(dialog, "Locate folder", str(start_path))
+        if not new_folder:
+            return
+        new_folder = Path(new_folder)
+        print(f"relocating {path} to {new_folder}")
+        
+        source_index = model.mapToSource(index)
+        source_item = source_model.itemFromIndex(source_index)
+        
+        # If new location is already an item in tree, first ask user if they're sure they wish to merge them.
+        # If merging, reparent existing projects to whichever folder is merged into, then remove merged-from folder from tree.
+        # Otherwise, items remain where they are in tree.
+        
+        new_folder_exists_in_tree = False
+        for i in range(source_model.rowCount()):
+            check_index = source_model.index(i, 0)
+            if source_model.data(check_index, PathRole) == new_folder:
+                #return source_model.item(i)
+                if item_type == "folder":
+                    if QMessageBox.question(dialog,
+                                            "Merge with existing folder in tree?",
+                                            f"The target folder {new_folder} is in the tree already.\n\n" \
+                                            f"Do you want to move the projects from {path} into it?\n\n" \
+                                            "The old folder's item will remain in the tree."
+                    ) != QMessageBox.Yes:
+                        return
+                new_folder_exists_in_tree = True
+                target_parent = source_model.itemFromIndex(check_index)
+                break
+        
+        if not new_folder_exists_in_tree:
+            if item_type == "folder":
+                # TODO: names are all over the place!
+                change_store_path_for_item(source_item, new_folder)
+                source_item2_source_index = source_model.sibling(source_item.row(), source_item.column()+1, source_index)
+                source_item2_index = model.mapFromSource(source_item2_source_index)
+                tree.setIndexWidget(source_item2_index, None)
+                add_buttons_for_row(source_item.data(PathRole), source_item.data(ItemTypeRole), source_item, source_model.itemFromIndex(source_item2_source_index))
+                for child_idx in range(source_item.rowCount()):
+                    child_item = source_item.child(child_idx)
+                    change_store_path_for_item(child_item, new_folder)
+                    populate_base_item_with_file_items(child_item, child_item.data(PathRole))
+                print("done")
+                for k,v in store.items():
+                    print("  ",k,":",v)
+                print(f"ac_relocate end")
+                return
+            else:
+                target_parent = add_folder_to_tree(new_folder)
+                tree.setExpanded(model.mapFromSource(target_parent.index()), True)
+        
+        print("moving...")
+        
+        print(f"{source_index=}, {source_item=}, rowCount={source_item.rowCount()}, {check_index=}")
+        
+        if item_type == "folder":
+            while source_item.child(0):
+                reparent_base_row_in_tree(source_item, 0, target_parent, new_folder)
+        else:
+            reparent_base_row_in_tree(source_item.parent(), source_item.row(), target_parent, new_folder)
+        
+        print("done")
+        for k,v in store.items():
+            print("  ",k,":",v)
+        print(f"ac_relocate end")
+    elif result == ac_remove:
+        print("ac_remove start")
+        model.removeRow(index.row(), index.parent())
+        if path in store:
+            del store[path]
+        print("ac_remove end")
+
+def reparent_base_row_in_tree(source_parent_item, source_child_index, target_parent, target_folder_path): 
+    row_items = source_parent_item.takeRow(source_child_index)
+    change_store_path_for_item(row_items[0], target_folder_path)
+    target_parent.appendRow(row_items)
+    add_buttons_for_row(row_items[0].data(PathRole), row_items[0].data(ItemTypeRole), *row_items)
+    populate_base_item_with_file_items(row_items[0])#, row_new_path)
+
+def change_store_path_for_item(item, target_folder_path):
+    old_path = item.data(PathRole)
+    item_type = item.data(ItemTypeRole)
+    new_path = target_folder_path / old_path.name if item_type != "folder" else target_folder_path
+    if old_path in store:
+        store_temp_copy = store[old_path]
+        del store[old_path]
+        store[new_path] = store_temp_copy
+    if item_type == "folder":
+        item.setData(str(new_path), Qt.DisplayRole)
+    item.setData(new_path, PathRole)
 
 tree.setContextMenuPolicy(Qt.CustomContextMenu)
 tree.customContextMenuRequested.connect(_on_tree_custom_context_menu_requested)
@@ -661,18 +783,19 @@ add_folder_action = add_button_menu.addAction("Add folder...")
 add_project_action = add_button_menu.addAction("Add project...")
 add_button.setMenu(add_button_menu)
 
-def _on_add_folder_action_triggered(start_path = None):
+def _on_add_folder_action_triggered(start_path = None, force_use_start_path = False):
     start_path = start_path or Path(app.activeDocument().fileName()).parent
     print("add folder at start_path =", start_path)
-    result = FileDialog.getExistingDirectory(dialog, "Locate folder", str(start_path), "QE_AddFolderToTree")
+    result = FileDialog.getExistingDirectory(dialog, "Locate folder", str(start_path), "QE_AddFolderToTree" if not force_use_start_path else None)
     if not result:
         return
     item = add_folder_to_tree(Path(result))
 
-def _on_add_project_action_triggered(start_path = None):
+def _on_add_project_action_triggered(start_path = None, force_use_start_path = False):
     start_path = start_path or Path(app.activeDocument().fileName()).parent
     print("add project at start_path =", start_path)
-    file = FileDialog.getOpenFileName(dialog, "locate file", str(start_path), "Krita document (*.kra)", None, "QE_AddProjectToTree")
+
+    file = FileDialog.getOpenFileName(dialog, "locate file", str(start_path), "Krita document (*.kra)", None, "QE_AddProjectToTree" if not force_use_start_path else None)
     print(f"{file=}")
     if not file:
         return
