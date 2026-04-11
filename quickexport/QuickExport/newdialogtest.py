@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QMessageBox, QFileDialog, QMenu, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
-from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect
+from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect, QTimer
 import zipfile
 import re
 from pathlib import Path
@@ -453,7 +453,7 @@ class TreeButton(QToolButton):
             doc.close()
             print(doc)
 
-def add_item_to_tree(parent, path, text, icon, item_type):
+def add_item_to_tree(parent, path, text, icon, item_type, selectable=True):
     item = QStandardItem()
     item2 = QStandardItem()
     parent.appendRow([item, item2])
@@ -461,6 +461,8 @@ def add_item_to_tree(parent, path, text, icon, item_type):
     item.setData(item_type, ItemTypeRole)
     item.setData(text, Qt.DisplayRole)
     item.setIcon(icon)
+    item.setSelectable(selectable)
+    item2.setSelectable(selectable)
     
     add_buttons_for_row(path, item_type, item, item2)
     
@@ -508,7 +510,7 @@ def add_buttons_for_row(path, item_type, item, item2):
     tree.setIndexWidget(index, buttons_widget)
 
 def add_base_to_tree(path):
-    print(path)
+    #print(path)
     folder = path.parent
     folder_item = add_folder_to_tree(folder)
     
@@ -525,16 +527,17 @@ def add_base_to_tree(path):
     
     populate_base_item_with_file_items(item, path)
 
-def populate_base_item_with_file_items(item, path=Path()):
+def populate_base_item_with_file_items(item, path=None):
     if not path:
         path = item.data(PathRole)
     
     while item.child(0):
         item.takeRow(0)
     
+    latest_file = None
+    
     if path.parent.exists():
         sorted_list = sorted(path.parent.glob("*.kra"), key = lambda file: Path(file).stat().st_mtime)
-        latest_file = None
         for file in sorted_list:
             file_base = base_stem_and_version_number_for_versioned_file(file)[0]
             if path.stem == file_base:
@@ -545,6 +548,12 @@ def populate_base_item_with_file_items(item, path=Path()):
             thumb = _make_thumbnail_for_file(latest_file)
             icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
             item.setIcon(icon)
+    
+    if not latest_file:
+        # fallback to file-not-found icon.
+        thumb = _make_thumbnail_for_file(path)
+        icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
+        item.setIcon(icon)
 
 def add_file_to_tree(path):
     base, version = base_stem_and_version_number_for_versioned_file(path)
@@ -559,7 +568,7 @@ def add_file_to_tree(path):
     thumb = _make_thumbnail_for_file(path)
     icon = QIcon(_square_thumbnail(thumb, tree_icon_size))
     
-    return add_item_to_tree(base_item, path, path.name, icon, "file")
+    return add_item_to_tree(base_item, path, path.name, icon, "file", selectable=False)
 
 def add_folder_to_tree(path):
     for i in range(source_model.rowCount()):
@@ -634,122 +643,190 @@ tree.selectionModel().selectionChanged.connect(_on_tree_selection_changed)
 
 
 def _on_tree_custom_context_menu_requested(pos):
-    print("context menu", pos, tree.indexAt(pos))
+    # Defer context menu until after tree selection has updated.
+    # otherwise, closing a context menu and reopening one on another item by rapidly right-clicking
+    # twice will show the menu with the old selection, both visually and in selection model.
+    QTimer.singleShot(0, lambda: _on_tree_custom_context_menu_requested_main(pos))
+    
+def _on_tree_custom_context_menu_requested_main(pos):
+    print("context menu", pos, tree.indexAt(pos), tree.indexAt(pos).data(PathRole))
+    
+    rows = tree.selectionModel().selectedRows()
+    
+    if len(rows) == 0:
+        return
+    
+    selection_folder_count = 0
+    selection_project_count = 0
+    selection_contains_children_of_other_selected = False
+    print("selected rows:")
+    for i, row_index in enumerate(rows):
+        #row_source_index = model.mapToSource(row_index)
+        if row_index.data(ItemTypeRole) == "folder":
+            selection_folder_count += 1
+        else:
+            selection_project_count += 1
+            if row_index.parent() in rows:
+                selection_contains_children_of_other_selected = True
+        print("   ",i,":", row_index.data(PathRole))    
+    
+    print(f"Selection contains {selection_folder_count} Folders and {selection_project_count} Projects.")
+    if selection_contains_children_of_other_selected:
+        print("Some selected projects are inside folders that are also selected.")
     
     index = tree.indexAt(pos)
     print(index.row(), index.column(), index.data(PathRole), index.data(ItemTypeRole), index.model())
     
-    data = index.data(PathRole)
+    path = index.data(PathRole)
     item_type = index.data(ItemTypeRole)
     
-    if not data:
+    if not path:
         return
     
-    target_text = ("folder and projects", "project", "file")[("folder", "base", "file").index(item_type)]
-    
     menu = QMenu(dialog)
-    ac_add_folder = menu.addAction("Add folder...")
-    ac_add_project = menu.addAction("Add project...")
+    ac_add_folder = ac_add_project = ac_relocate = ac_remove = None
+    if len(rows) == 1:
+        ac_add_folder = menu.addAction("Add folder...")
+        ac_add_project = menu.addAction("Add project...")
     menu.addSeparator()
     if item_type != "file":
-        ac_relocate = menu.addAction(f"Relocate {target_text}...")
+        ac_relocate = menu.addAction(f"Relocate...")
         menu.addSeparator()
-        ac_remove = menu.addAction(f"Remove {target_text} from the tree")
+        ac_remove = menu.addAction(f"Remove from tree")
     
     result = menu.exec(tree.viewport().mapToGlobal(pos))
     
     if not result:
         return
     
-    path = data
     if item_type != "folder":
         path = path.parent
     
     if result == ac_add_folder:
         _on_add_folder_action_triggered(start_path = path, force_use_start_path = True)
+        
     elif result == ac_add_project:
         _on_add_project_action_triggered(start_path = path, force_use_start_path = True)
+        
     elif result == ac_relocate:
+        print("- - - - -")
         print("ac_relocate start")
+        
         for k,v in store.items():
             print("  ",k,":",v)
+        
         start_path = path
         while not start_path.exists():
             start_path = start_path.parent
             if start_path == Path():
                 start_path = Path.home()
                 break
-        new_folder = FileDialog.getExistingDirectory(dialog, "Locate folder", str(start_path))
-        if not new_folder:
+        
+        if (target_folder_path := Path(FileDialog.getExistingDirectory(dialog, "Locate folder", str(start_path)))) == Path():
             return
-        new_folder = Path(new_folder)
-        print(f"relocating {path} to {new_folder}")
         
-        source_index = model.mapToSource(index)
-        source_item = source_model.itemFromIndex(source_index)
-        
-        # If new location is already an item in tree, first ask user if they're sure they wish to merge them.
-        # If merging, reparent existing projects to whichever folder is merged into, then remove merged-from folder from tree.
-        # Otherwise, items remain where they are in tree.
-        
-        new_folder_exists_in_tree = False
+        target_folder_exists_in_tree = False
         for i in range(source_model.rowCount()):
             check_index = source_model.index(i, 0)
-            if source_model.data(check_index, PathRole) == new_folder:
-                #return source_model.item(i)
-                if item_type == "folder":
-                    if QMessageBox.question(dialog,
-                                            "Merge with existing folder in tree?",
-                                            f"The target folder {new_folder} is in the tree already.\n\n" \
-                                            f"Do you want to move the projects from {path} into it?\n\n" \
-                                            "The old folder's item will remain in the tree."
-                    ) != QMessageBox.Yes:
-                        return
-                new_folder_exists_in_tree = True
-                target_parent = source_model.itemFromIndex(check_index)
+            if source_model.data(check_index, PathRole) == target_folder_path:
+                target_folder_exists_in_tree = True
+                target_folder_item = source_model.itemFromIndex(check_index)
                 break
         
-        if not new_folder_exists_in_tree:
-            if item_type == "folder":
-                # TODO: names are all over the place!
-                change_store_path_for_item(source_item, new_folder)
-                source_item2_source_index = source_model.sibling(source_item.row(), source_item.column()+1, source_index)
-                source_item2_index = model.mapFromSource(source_item2_source_index)
-                tree.setIndexWidget(source_item2_index, None)
-                add_buttons_for_row(source_item.data(PathRole), source_item.data(ItemTypeRole), source_item, source_model.itemFromIndex(source_item2_source_index))
-                for child_idx in range(source_item.rowCount()):
-                    child_item = source_item.child(child_idx)
-                    change_store_path_for_item(child_item, new_folder)
-                    populate_base_item_with_file_items(child_item, child_item.data(PathRole))
-                print("done")
-                for k,v in store.items():
-                    print("  ",k,":",v)
-                print(f"ac_relocate end")
-                return
+        # gather items to be moved, excluding projects inside folders that are being moved, as they'll be moved with the folder anyway.
+        row_items = []
+        for row_index in rows:
+            row_item = source_model.itemFromIndex(model.mapToSource(row_index))
+            if row_index.data(ItemTypeRole) == "folder":
+                row_items.append(row_item)
             else:
-                target_parent = add_folder_to_tree(new_folder)
-                tree.setExpanded(model.mapFromSource(target_parent.index()), True)
+                if not row_index.parent() in rows:
+                    row_items.append(row_item)
         
-        print("moving...")
+        for selected_row_item in row_items:
+            path = selected_row_item.data(PathRole)
+            item_type = selected_row_item.data(ItemTypeRole)
+            print("- -")
+            print(f"relocating {path} to {target_folder_path}")
+            
+            selected_row_index = selected_row_item.index()
         
-        print(f"{source_index=}, {source_item=}, rowCount={source_item.rowCount()}, {check_index=}")
+            if not target_folder_exists_in_tree:
+                print("Target folder item doesn't exist in tree yet.")
+                target_folder_exists_in_tree = True
+                if item_type == "folder":
+                    print("This folder item will become the target folder item.")
+                    change_store_path_for_item(selected_row_item, target_folder_path)
+                    selected_row_item2_source_index = source_model.sibling(selected_row_item.row(), selected_row_item.column()+1, selected_row_index)
+                    selected_row_item2_index = model.mapFromSource(selected_row_item2_source_index)
+                    tree.setIndexWidget(selected_row_item2_index, None)
+                    add_buttons_for_row(selected_row_item.data(PathRole), selected_row_item.data(ItemTypeRole), selected_row_item, source_model.itemFromIndex(selected_row_item2_source_index))
+                    for child_idx in range(selected_row_item.rowCount()):
+                        child_item = selected_row_item.child(child_idx)
+                        change_store_path_for_item(child_item, target_folder_path)
+                        populate_base_item_with_file_items(child_item, child_item.data(PathRole))
+                    target_folder_item = selected_row_item
+                    continue
+                else:
+                    print("A new target folder item will be added to tree.")
+                    target_folder_item = add_folder_to_tree(target_folder_path)
+                    tree.setExpanded(model.mapFromSource(target_folder_item.index()), True)
         
-        if item_type == "folder":
-            while source_item.child(0):
-                reparent_base_row_in_tree(source_item, 0, target_parent, new_folder)
-        else:
-            reparent_base_row_in_tree(source_item.parent(), source_item.row(), target_parent, new_folder)
+            if item_type == "folder":
+                print("Projects in this folder will be moved to the target folder item.")
+                while selected_row_item.child(0):
+                    reparent_base_row_in_tree(selected_row_item, 0, target_folder_item, target_folder_path)
+            else:
+                print("This project will be moved to the target folder item.")
+                reparent_base_row_in_tree(selected_row_item.parent(), selected_row_item.row(), target_folder_item, target_folder_path)
         
         print("done")
         for k,v in store.items():
             print("  ",k,":",v)
         print(f"ac_relocate end")
+        print("- - - - -")
+        
     elif result == ac_remove:
+        print("- - - - -")
         print("ac_remove start")
-        model.removeRow(index.row(), index.parent())
-        if path in store:
-            del store[path]
+        
+        for k,v in store.items():
+            print("  ",k,":",v)
+            
+        # gather items to be removed, excluding projects inside folders that are being removed, as they'll be removed with the folder anyway.
+        print("building list of rows to remove...")
+        row_items = []
+        for row_index in rows:
+            row_item = source_model.itemFromIndex(model.mapToSource(row_index))
+            if row_index.data(ItemTypeRole) == "folder":
+                print(f" - add folder {row_index.data(PathRole)}.")
+                row_items.append(row_item)
+            else:
+                if not row_index.parent() in rows:
+                    print(f" - add project {row_index.data(PathRole)}.")
+                    row_items.append(row_item)
+        
+        print("removing...")
+        for item in row_items:
+            path = item.data(PathRole)
+            item_type = item.data(ItemTypeRole)
+            if item_type == "folder":
+                for child_idx in range(item.rowCount()):
+                    child = item.child(child_idx)
+                    child_path = child.data(PathRole)
+                    print(f" - {child_path=}")
+                    if child_path in store:
+                        del store[child_path]
+            print(f" - {path=}")
+            model.removeRow(item.row(), model.mapFromSource((item.parent() or source_model.invisibleRootItem()).index()))
+            if path in store:
+                del store[path]
+        
+        print("done")
+        for k,v in store.items():
+            print("  ",k,":",v)
         print("ac_remove end")
+        print("- - - - -")
 
 def reparent_base_row_in_tree(source_parent_item, source_child_index, target_parent, target_folder_path): 
     row_items = source_parent_item.takeRow(source_child_index)
