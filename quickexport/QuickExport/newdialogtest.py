@@ -7,6 +7,10 @@ from pathlib import Path
 from krita import Krita, InfoObject, FileDialog
 app = Krita.instance()
 
+# for testing menu icons.
+from PyQt5.QtCore import QCoreApplication
+#QCoreApplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
+
 # cleanup if last run bugged.
 #app.documents()[1].close()
 #STOP
@@ -735,9 +739,9 @@ def _on_tree_custom_context_menu_requested_main(pos):
             ac_show_in_file_browser = menu.addAction("Show in file browser")
     menu.addSeparator()
     if item_type != "file":
-        ac_relocate = menu.addAction(f"Relocate...")
+        ac_relocate = menu.addAction("Relocate...")
         menu.addSeparator()
-        ac_remove = menu.addAction(f"Remove")
+        ac_remove = menu.addAction(app.icon("list-remove"), "Remove")
     
     result = menu.exec(tree.viewport().mapToGlobal(pos))
     
