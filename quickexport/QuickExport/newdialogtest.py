@@ -33,6 +33,8 @@ store = {
     Path("path/to"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".jpg", "location":"parsib"}}
 }
 
+config_clipboard = {}
+
 # https://stackoverflow.com/a/16204023
 def open_folder_in_file_browser(path):
     if not (path.exists() and path.is_dir()):
@@ -694,6 +696,8 @@ def _on_tree_custom_context_menu_requested(pos):
 def _on_tree_custom_context_menu_requested_main(pos):
     print("context menu", pos, tree.indexAt(pos), tree.indexAt(pos).data(PathRole))
     
+    global config_clipboard
+    
     rows = tree.selectionModel().selectedRows()
     
     if len(rows) == 0:
@@ -728,6 +732,7 @@ def _on_tree_custom_context_menu_requested_main(pos):
     
     menu = QMenu(dialog)
     ac_add_folder = ac_add_project = ac_relocate = ac_remove = ac_add_all_projects_in_folder = ac_remove_unconfigured_in_folder = ac_show_in_file_browser = None
+    ac_copy_config = ac_paste_config = None
     if len(rows) == 1:
         ac_add_folder = menu.addAction("Add folder...")
         ac_add_project = menu.addAction("Add project...")
@@ -737,6 +742,13 @@ def _on_tree_custom_context_menu_requested_main(pos):
             ac_remove_unconfigured_in_folder = menu.addAction("Remove unconfigured projects")
             menu.addSeparator()
             ac_show_in_file_browser = menu.addAction("Show in file browser")
+        menu.addSeparator()
+    ac_copy_config = menu.addAction(app.icon("edit-copy"), "Copy")
+    ac_paste_config = menu.addAction(app.icon("edit-paste"), "Paste")
+    if not (len(rows) == 1 and path in store):
+        ac_copy_config.setDisabled(True)
+    if not config_clipboard:
+        ac_paste_config.setDisabled(True)
     menu.addSeparator()
     if item_type != "file":
         ac_relocate = menu.addAction("Relocate...")
@@ -778,6 +790,35 @@ def _on_tree_custom_context_menu_requested_main(pos):
     
     elif result == ac_show_in_file_browser:
         open_folder_in_file_browser(folder_path)
+    
+    elif result == ac_copy_config:
+        config_clipboard = deepcopy(store[path])
+        #print(store[path])
+        print(config_clipboard)
+    
+    elif result == ac_paste_config:
+        print("- - - - -")
+        print("ac_paste_config start")
+        
+        #for k,v in store.items():
+        #    print("  ",k,":",v)
+        
+        for row_index in rows:
+            source_index = model.mapToSource(row_index)
+            
+            path = source_index.data(PathRole)
+            
+            if path in store:
+                print(f"paste to {path}")
+                store[path] = deepcopy(config_clipboard)
+            
+        _on_tree_selection_changed(None, None)
+            
+        #for k,v in store.items():
+        #    print("  ",k,":",v)
+            
+        print("ac_paste_config end")
+        print("- - - - -")
     
     elif result == ac_relocate:
         
