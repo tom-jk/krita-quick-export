@@ -744,25 +744,24 @@ def _on_tree_custom_context_menu_requested_main(pos):
     if not result:
         return
     
-    if item_type != "folder":
-        path = path.parent
+    folder_path = path if item_type == "folder" else path.parent
     
     if result == ac_add_folder:
-        _on_add_folder_action_triggered(start_path = path, force_use_start_path = True)
+        _on_add_folder_action_triggered(start_path = folder_path, force_use_start_path = True)
         
     elif result == ac_add_project:
-        _on_add_project_action_triggered(start_path = path, force_use_start_path = True)
+        _on_add_project_action_triggered(start_path = folder_path, force_use_start_path = True)
         
     elif result == ac_add_all_projects_in_folder:
-        if not path.exists():
+        if not folder_path.exists():
             print(f"Folder not found at {path}")
             return
 
-        sorted_list = sorted(path.glob("*.kra"), key = lambda file: Path(file).stat().st_mtime)
+        sorted_list = sorted(folder_path.glob("*.kra"), key = lambda file: Path(file).stat().st_mtime)
         for file in sorted_list:
             file_base = base_stem_and_version_number_for_versioned_file(file)[0]
             if not file_base.endswith(".kra-autosave"):
-                add_base_to_tree(path / file_base)
+                add_base_to_tree(folder_path / file_base)
     
     elif result == ac_remove_unconfigured_in_folder:
         row_item = source_model.itemFromIndex(model.mapToSource(rows[0]))
@@ -774,11 +773,11 @@ def _on_tree_custom_context_menu_requested_main(pos):
             model.removeRow(child.row(), rows[0])
     
     elif result == ac_show_in_file_browser:
-        open_folder_in_file_browser(path)
+        open_folder_in_file_browser(folder_path)
     
     elif result == ac_relocate:
         
-        start_path = path
+        start_path = folder_path
         while not start_path.exists():
             start_path = start_path.parent
             if start_path == Path():
