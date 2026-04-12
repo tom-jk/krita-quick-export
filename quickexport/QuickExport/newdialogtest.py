@@ -29,6 +29,19 @@ store = {
     Path("path/to"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".jpg", "location":"parsib"}}
 }
 
+# https://stackoverflow.com/a/16204023
+def open_folder_in_file_browser(path):
+    if not (path.exists() and path.is_dir()):
+        print(f"Folder not found at {path}")
+        return
+    
+    if platform.system() == "Windows":
+        os.startfile(path)
+    elif platform.system() == "Darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
+
 def base_stem_and_version_number_for_versioned_file(file_path, unversioned_version_num=None):
     """
     for file with stem "filename0_000", return ("filename0", 0).
@@ -710,15 +723,21 @@ def _on_tree_custom_context_menu_requested_main(pos):
         return
     
     menu = QMenu(dialog)
-    ac_add_folder = ac_add_project = ac_relocate = ac_remove = None
+    ac_add_folder = ac_add_project = ac_relocate = ac_remove = ac_add_all_projects_in_folder = ac_remove_unconfigured_in_folder = ac_show_in_file_browser = None
     if len(rows) == 1:
         ac_add_folder = menu.addAction("Add folder...")
         ac_add_project = menu.addAction("Add project...")
+        if item_type == "folder":
+            menu.addSeparator()
+            ac_add_all_projects_in_folder = menu.addAction("Add all projects in folder")
+            ac_remove_unconfigured_in_folder = menu.addAction("Remove unconfigured projects")
+            menu.addSeparator()
+            ac_show_in_file_browser = menu.addAction("Show in file browser")
     menu.addSeparator()
     if item_type != "file":
         ac_relocate = menu.addAction(f"Relocate...")
         menu.addSeparator()
-        ac_remove = menu.addAction(f"Remove from tree")
+        ac_remove = menu.addAction(f"Remove")
     
     result = menu.exec(tree.viewport().mapToGlobal(pos))
     
@@ -734,6 +753,29 @@ def _on_tree_custom_context_menu_requested_main(pos):
     elif result == ac_add_project:
         _on_add_project_action_triggered(start_path = path, force_use_start_path = True)
         
+    elif result == ac_add_all_projects_in_folder:
+        if not path.exists():
+            print(f"Folder not found at {path}")
+            return
+
+        sorted_list = sorted(path.glob("*.kra"), key = lambda file: Path(file).stat().st_mtime)
+        for file in sorted_list:
+            file_base = base_stem_and_version_number_for_versioned_file(file)[0]
+            if not file_base.endswith(".kra-autosave"):
+                add_base_to_tree(path / file_base)
+    
+    elif result == ac_remove_unconfigured_in_folder:
+        row_item = source_model.itemFromIndex(model.mapToSource(rows[0]))
+        for child_idx in reversed(range(row_item.rowCount())):
+            child = row_item.child(child_idx)
+            child_path = child.data(PathRole)
+            if child_path in store:
+                continue
+            model.removeRow(child.row(), rows[0])
+    
+    elif result == ac_show_in_file_browser:
+        open_folder_in_file_browser(path)
+    
     elif result == ac_relocate:
         
         start_path = path
