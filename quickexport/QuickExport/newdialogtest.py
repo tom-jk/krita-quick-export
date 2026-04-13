@@ -716,10 +716,13 @@ def _on_tree_custom_context_menu_requested_main(pos):
     
     selection_folder_count = 0
     selection_project_count = 0
+    selection_contains_stored_paths = False
     selection_contains_children_of_other_selected = False
     print("selected rows:")
     for i, row_index in enumerate(rows):
         #row_source_index = model.mapToSource(row_index)
+        if row_index.data(PathRole) in store:
+            selection_contains_stored_paths = True
         if row_index.data(ItemTypeRole) == "folder":
             selection_folder_count += 1
         else:
@@ -743,7 +746,7 @@ def _on_tree_custom_context_menu_requested_main(pos):
     
     menu = QMenu(dialog)
     ac_add_folder = ac_add_project = ac_relocate = ac_remove = ac_add_all_projects_in_folder = ac_remove_unconfigured_in_folder = ac_show_in_file_browser = None
-    ac_copy_config = ac_paste_config = None
+    ac_copy_config = ac_paste_config = ac_prune = None
     if len(rows) == 1:
         ac_add_folder = menu.addAction("Add folder...")
         ac_add_project = menu.addAction("Add project...")
@@ -755,7 +758,7 @@ def _on_tree_custom_context_menu_requested_main(pos):
             ac_show_in_file_browser = menu.addAction("Show in file browser")
         menu.addSeparator()
     ac_copy_config = menu.addAction(app.icon("edit-copy"), "Copy")
-    ac_paste_config = menu.addAction(app.icon("edit-paste"), "Paste")
+    ac_paste_config = menu.addAction(app.icon("edit-paste"), "Paste...")
     if not (len(rows) == 1 and path in store):
         ac_copy_config.setDisabled(True)
     if not config_clipboard:
@@ -764,6 +767,8 @@ def _on_tree_custom_context_menu_requested_main(pos):
     if item_type != "file":
         ac_relocate = menu.addAction("Relocate...")
         menu.addSeparator()
+        if selection_contains_stored_paths:
+            ac_prune = menu.addAction("Prune export settings...")
         ac_remove = menu.addAction(app.icon("list-remove"), "Remove")
     
     result = menu.exec(tree.viewport().mapToGlobal(pos))
@@ -880,6 +885,48 @@ def _on_tree_custom_context_menu_requested_main(pos):
         
         relocate_rows_in_tree(target_folder_path, rows)
         
+    elif result == ac_prune:
+        prune_msgbox_details = []
+        settings_to_delete = []
+        for row_index in rows:
+            path = row_index.data(PathRole)
+            if not path in store:
+                continue
+            row_active_type = store[path]["basic_export_settings"]["type"]
+            row_es = store[path]["type_export_settings"]
+            if not row_es:
+                continue
+            row_unused_types = []
+            for ext in row_es:
+                if ext != row_active_type:
+                    settings_to_delete.append({"path":path, "ext":ext})
+                    row_unused_types.append(ext)
+            if not row_unused_types:
+                continue
+            prune_msgbox_details.append(f"{path}: {', '.join(row_unused_types)}")
+        if not prune_msgbox_details:
+            QMessageBox.information(dialog, "Prune export settings", "There are no unused export settings on the selected items to delete.")
+            return
+        prune_msgbox = QMessageBox(QMessageBox.Question,
+                                   "Prune export settings",
+                                   "For each selected item, export settings for file types other than the active export type will be deleted.",
+                                   QMessageBox.Ok | QMessageBox.Cancel,
+                                   dialog
+        )
+        prune_msgbox.setDetailedText("Settings to be deleted:\n" + "\n".join(prune_msgbox_details))
+        if prune_msgbox.exec() != QMessageBox.Ok:
+            return
+        
+        print("pruning export settings...")
+        
+        for setting_to_delete in settings_to_delete:
+            path = setting_to_delete["path"]
+            ext = setting_to_delete["ext"]
+            print(f" - deleting {ext} from {path}")
+            del store[path]["type_export_settings"][ext]
+        
+        print("done.")
+    
     elif result == ac_remove:
         print("- - - - -")
         print("ac_remove start")
