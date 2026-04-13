@@ -1,8 +1,10 @@
-from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QMessageBox, QFileDialog, QMenu, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QDialogButtonBox, QMessageBox, QFileDialog, QMenu, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QCheckBox, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
 from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect, QTimer
 import zipfile
 import re
+from copy import deepcopy
+import platform, os, subprocess
 from pathlib import Path
 from krita import Krita, InfoObject, FileDialog
 app = Krita.instance()
@@ -33,7 +35,21 @@ store = {
     Path("path/to"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".jpg", "location":"parsib"}}
 }
 
+for path in store:
+    store[path]["type_export_settings"] = {}
+
 config_clipboard = {}
+
+def add_default_store_for_path(path, item_type):
+    store[path] = {
+        "node_type": item_type,
+        "basic_export_settings": {
+            "file_name_src": "proj",
+            "type": ".png",
+            "location": "same"
+        },
+        "type_export_settings": {}
+    }
 
 # https://stackoverflow.com/a/16204023
 def open_folder_in_file_browser(path):
@@ -431,14 +447,7 @@ class TreeButton(QToolButton):
         
         if self.role == "del":
             if self.path not in store:
-                store[self.path] = {
-                    "node_type": self.item_type,
-                    "basic_export_settings": {
-                        "file_name_src": "proj",
-                        "type": ".png",
-                        "location": "same"
-                    }
-                }
+                add_default_store_for_path(self.path, self.item_type)
                 self.setIcon(app.icon("edit-delete"))
                 l = self.parent().layout()
                 for i in (1,2,4):
@@ -539,6 +548,8 @@ def add_buttons_for_row(path, item_type, item, item2):
     buttons_layout.addWidget(opn_button)
     buttons_layout.addWidget(exp_button)
     buttons_layout.addStretch()
+    
+    del_button.setObjectName("StoreAddDeleteButton")
     
     if item_type == "file":
         del_button.hide()
@@ -794,23 +805,58 @@ def _on_tree_custom_context_menu_requested_main(pos):
     elif result == ac_copy_config:
         config_clipboard = deepcopy(store[path])
         #print(store[path])
+        print(f"copied from {path}:")
         print(config_clipboard)
     
     elif result == ac_paste_config:
         print("- - - - -")
         print("ac_paste_config start")
         
+        paste_dialog = PasteDialog(dialog)
+        paste_settings = paste_dialog.run()
+        
+        if not paste_settings:
+            return
+        
         #for k,v in store.items():
         #    print("  ",k,":",v)
+        
+        cc = config_clipboard
         
         for row_index in rows:
             source_index = model.mapToSource(row_index)
             
             path = source_index.data(PathRole)
             
-            if path in store:
-                print(f"paste to {path}")
-                store[path] = deepcopy(config_clipboard)
+            if path not in store:
+                # add to store first.
+                source_index2 = source_index.siblingAtColumn(source_index.column()+1)
+                index2 = model.mapFromSource(source_index2)
+                btns = tree.indexWidget(index2)
+                del_btn = btns.findChild(TreeButton, "StoreAddDeleteButton")
+                del_btn.click()
+            
+            print(f"paste to {path}")
+            bes = store[path]["basic_export_settings"]
+            ccbes = cc["basic_export_settings"]
+            if paste_settings["name"]:
+                #print(" - paste name settings")
+                bes["file_name_src"] = ccbes["file_name_src"]
+                bes["file_name_cust"] = ccbes["file_name_cust"] if "file_name_cust" in ccbes else ""
+            if paste_settings["type"]:
+                #print(" - paste type setting")
+                bes["type"] = ccbes["type"]
+            if paste_settings["location"]:
+                #print(" - paste location settings")
+                bes["location"] = ccbes["location"]
+                bes["folder_name_src"] = ccbes["folder_name_src"] if "folder_name_src" in ccbes else "proj"
+                bes["location_cust"] = ccbes["location_cust"] if "location_cust" in ccbes else ""
+            if paste_settings["export_settings"]:
+                for ext in paste_settings["type_export_settings"]:
+                    if paste_settings["type_export_settings"][ext] and ext in cc["type_export_settings"]:
+                        #print(f" - paste {ext} export config")
+                        store[path]["type_export_settings"][ext] = deepcopy(cc["type_export_settings"][ext])
+            #store[path] = deepcopy(config_clipboard)
             
         _on_tree_selection_changed(None, None)
             
@@ -875,6 +921,103 @@ def _on_tree_custom_context_menu_requested_main(pos):
             print("  ",k,":",v)
         print("ac_remove end")
         print("- - - - -")
+
+class PasteDialog(QDialog):
+    last_used = {"name":False, "type":False, "location":False, "export_settings":True, "type_export_settings":{}}
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from PyQt5.QtWidgets import QGroupBox, QHBoxLayout
+
+        layout = QVBoxLayout(self)
+        
+        print(f"{self.last_used=}")
+        
+        self.cb_name = QCheckBox("Name")
+        self.cb_name.setCheckState(Qt.Checked if self.last_used["name"] else Qt.Unchecked)
+        layout.addWidget(self.cb_name)
+        
+        self.cb_type = QCheckBox("Type")
+        self.cb_type.setCheckState(Qt.Checked if self.last_used["type"] else Qt.Unchecked)
+        layout.addWidget(self.cb_type)
+        
+        self.cb_location = QCheckBox("Location")
+        self.cb_location.setCheckState(Qt.Checked if self.last_used["location"] else Qt.Unchecked)
+        layout.addWidget(self.cb_location)
+        
+        cb_export_layout = QHBoxLayout()
+        self.cb_export = QCheckBox("Export settings")
+        self.cb_export.setCheckState(Qt.Checked if self.last_used["export_settings"] else Qt.Unchecked)
+        cb_export_layout.addWidget(self.cb_export)
+        cb_export_layout.addStretch()
+        cb_export_none = QToolButton()
+        cb_export_none.setAutoRaise(True)
+        cb_export_none.setText("none")
+        cb_export_layout.addWidget(cb_export_none)
+        cb_export_all = QToolButton()
+        cb_export_all.setAutoRaise(True)
+        cb_export_all.setText("all")
+        cb_export_layout.addWidget(cb_export_all)
+        layout.addLayout(cb_export_layout)
+        
+        self.cb_type_frame = QGroupBox()
+        cb_type_layout = QVBoxLayout(self.cb_type_frame)
+        self.cb_ext = {}
+        global config_clipboard
+        clipboard_has_any_type_settings = False
+        for ext in (".png", ".jpg", ".jxl"):
+            if not ext in self.last_used["type_export_settings"]:
+                self.last_used["type_export_settings"][ext] = True
+            if ext in config_clipboard["type_export_settings"]:
+                clipboard_has_any_type_settings = True
+                self.cb_ext[ext] = QCheckBox(ext)
+                self.cb_ext[ext].setCheckState(Qt.Checked if self.last_used["type_export_settings"][ext] else Qt.Unchecked)
+                cb_type_layout.addWidget(self.cb_ext[ext])
+        layout.addWidget(self.cb_type_frame)
+        
+        if not clipboard_has_any_type_settings:
+            self.cb_type_frame.hide()
+            self.cb_export.setEnabled(False)
+            cb_export_none.setEnabled(False)
+            cb_export_all.setEnabled(False)
+        
+        self.cb_type_frame.setEnabled(self.cb_export.checkState() == Qt.Checked)
+        
+        self.cb_export.stateChanged.connect(self._on_export_settings_checkbox_state_changed)
+        
+        dialog_buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        layout.addWidget(dialog_buttons)
+        
+        dialog_buttons.accepted.connect(self.accept)
+        dialog_buttons.rejected.connect(self.reject)
+        
+        cb_export_none.clicked.connect(self._on_export_settings_none_button_clicked)
+        cb_export_all.clicked.connect(self._on_export_settings_all_button_clicked)
+    
+    def _on_export_settings_checkbox_state_changed(self, state):
+        self.cb_type_frame.setEnabled(state == Qt.Checked)
+    
+    def _on_export_settings_none_button_clicked(self):
+        for cb in self.cb_ext.values():
+            cb.setCheckState(Qt.Unchecked)
+    
+    def _on_export_settings_all_button_clicked(self):
+        for cb in self.cb_ext.values():
+            cb.setCheckState(Qt.Checked)
+    
+    def run(self):
+        if self.exec() == QDialog.Rejected:
+            return None
+        
+        self.last_used["name"] = self.cb_name.checkState() == Qt.Checked
+        self.last_used["type"] = self.cb_type.checkState() == Qt.Checked
+        self.last_used["location"] = self.cb_location.checkState() == Qt.Checked
+        self.last_used["export_settings"] = self.cb_export.checkState() == Qt.Checked
+        
+        for ext,cb in self.cb_ext.items():
+            self.last_used["type_export_settings"][ext] = cb.checkState() == Qt.Checked
+        
+        return self.last_used
 
 def relocate_rows_in_tree(target_folder_path, rows=None):
     print("- - - - -")
