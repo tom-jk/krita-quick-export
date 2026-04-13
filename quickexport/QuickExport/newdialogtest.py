@@ -55,6 +55,7 @@ def add_default_store_for_path(path, item_type):
 def open_folder_in_file_browser(path):
     if not (path.exists() and path.is_dir()):
         print(f"Folder not found at {path}")
+        QMessageBox.critical(dialog, "Krita", f"Folder {path} does not exist.")
         return
     
     if platform.system() == "Windows":
@@ -463,10 +464,18 @@ class TreeButton(QToolButton):
             _on_tree_selection_changed(None, None)
         
         elif self.role == "opn":
-            doc = app.openDocument(str(self.path))
-            
-            app.activeWindow().addView(doc)
-            doc.waitForDone()
+            if self.item_type == "folder":
+                open_folder_in_file_browser(self.path)
+            else:
+                path = self.path
+                if self.item_type == "base":
+                    if self.item.rowCount() > 0:
+                        item_of_latest_file = self.item.child(self.item.rowCount()-1)
+                        path = item_of_latest_file.data(PathRole)
+                
+                if (doc := app.openDocument(str(path))):
+                    app.activeWindow().addView(doc)
+                    doc.waitForDone()
         
         elif self.role == "cfg":
             plugin_dir = Path(app.getAppDataLocation()) / "pykrita" / "QuickExport"
@@ -533,7 +542,7 @@ def add_buttons_for_row(path, item_type, item, item2):
     row_height = del_button.sizeHint().height()
     cpy_button = TreeButton(role="cpy", path=path, item_type=item_type, icon=app.icon("edit-copy"))
     cfg_button = TreeButton(role="cfg", path=path, item_type=item_type, icon=app.icon("configure"))
-    opn_button = TreeButton(role="opn", path=path, item_type=item_type, icon=app.icon("document-open"))
+    opn_button = TreeButton(role="opn", path=path, item_type=item_type, icon=app.icon("document-open"), item=item, item2=item2)
     exp_button = TreeButton(role="exp", path=path, item_type=item_type, icon=app.icon("document-export"))
     sp = del_button.sizePolicy()
     sp.setRetainSizeWhenHidden(True)
