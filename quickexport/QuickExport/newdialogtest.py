@@ -451,13 +451,13 @@ class TreeButton(QToolButton):
                 add_default_store_for_path(self.path, self.item_type)
                 self.setIcon(app.icon("edit-delete"))
                 l = self.parent().layout()
-                for i in (1,2,4):
+                for i in (1,2):
                     l.itemAt(i).widget().show()
             else:
                 del store[self.path]
                 self.setIcon(app.icon("list-add"))
                 l = self.parent().layout()
-                for i in (1,2,4):
+                for i in (1,2):
                     l.itemAt(i).widget().hide()
             
             model.dataChanged.emit(self.item.index(), self.item2.index())
@@ -540,34 +540,29 @@ def add_buttons_for_row(path, item_type, item, item2):
     buttons_layout.setSpacing(0)
     del_button = TreeButton(role="del", path=path, item_type=item_type, icon=app.icon("edit-delete"), item=item, item2=item2)
     row_height = del_button.sizeHint().height()
-    cpy_button = TreeButton(role="cpy", path=path, item_type=item_type, icon=app.icon("edit-copy"))
     cfg_button = TreeButton(role="cfg", path=path, item_type=item_type, icon=app.icon("configure"))
-    opn_button = TreeButton(role="opn", path=path, item_type=item_type, icon=app.icon("document-open"), item=item, item2=item2)
     exp_button = TreeButton(role="exp", path=path, item_type=item_type, icon=app.icon("document-export"))
+    opn_button = TreeButton(role="opn", path=path, item_type=item_type, icon=app.icon("document-open"), item=item, item2=item2)
     sp = del_button.sizePolicy()
     sp.setRetainSizeWhenHidden(True)
     del_button.setSizePolicy(sp)
-    cpy_button.setSizePolicy(sp)
     cfg_button.setSizePolicy(sp)
-    opn_button.setSizePolicy(sp)
     exp_button.setSizePolicy(sp)
+    opn_button.setSizePolicy(sp)
     buttons_layout.addWidget(del_button)
-    buttons_layout.addWidget(cpy_button)
     buttons_layout.addWidget(cfg_button)
-    buttons_layout.addWidget(opn_button)
     buttons_layout.addWidget(exp_button)
+    buttons_layout.addWidget(opn_button)
     buttons_layout.addStretch()
     
     del_button.setObjectName("StoreAddDeleteButton")
     
     if item_type == "file":
         del_button.hide()
-        cpy_button.hide()
         cfg_button.hide()
     
     if path not in store or "TEMP" in store[path]:
         del_button.setIcon(app.icon("list-add"))
-        cpy_button.hide()
         cfg_button.hide()
         exp_button.hide()
     
