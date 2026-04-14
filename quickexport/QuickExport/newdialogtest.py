@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QDialogButtonBox, QMessageBox, QFileDialog, QMenu, QVBoxLayout, QHBoxLayout, QComboBox, QLineEdit, QCheckBox, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QDialogButtonBox, QMessageBox, QFileDialog, QMenu, QVBoxLayout, QHBoxLayout, QGroupBox, QComboBox, QLineEdit, QCheckBox, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
 from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect, QTimer
 import zipfile
@@ -207,11 +207,11 @@ tree = Tree()
 dialog_layout.addWidget(tree)
 
 
-basic_export_settings_container = QWidget()
+basic_export_settings_container = QGroupBox()
 basic_export_settings_container.setDisabled(True)
 basic_export_settings_container_layout = QVBoxLayout(basic_export_settings_container)
-basic_export_settings_container.setContentsMargins(0,0,0,0)
-basic_export_settings_container_layout.setContentsMargins(0,0,0,0)
+basic_export_settings_container.setContentsMargins(basic_export_settings_container.contentsMargins() / 2)
+basic_export_settings_container_layout.setContentsMargins(basic_export_settings_container_layout.contentsMargins() / 2)
 
 basic_export_settings_file_container = QWidget()
 basic_export_settings_file_container_layout = QHBoxLayout(basic_export_settings_file_container)
@@ -983,7 +983,6 @@ class PasteDialog(QDialog):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        from PyQt5.QtWidgets import QGroupBox, QHBoxLayout
 
         layout = QVBoxLayout(self)
         
