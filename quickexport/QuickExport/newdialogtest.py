@@ -353,6 +353,8 @@ basic_export_settings_folder_name_custom.textChanged.connect(update_basic_export
 
 def _on_basic_export_settings_folder_pick_custom_clicked():
     result = FileDialog.getExistingDirectory(dialog, "Locate folder", str(Path(app.activeDocument().fileName()).parent), "QE_CustomExportFolder")
+    if not result:
+        return
     basic_export_settings_folder_name_custom.setText(result)
     update_basic_export_settings_output_path_label()
 
