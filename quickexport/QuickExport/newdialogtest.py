@@ -182,7 +182,10 @@ class Tree(QTreeView):
         if event.source() != self:
             return
         
-        dropped_on_item = source_model.itemFromIndex(model.mapToSource(self.indexAt(event.pos())))
+        dropped_on_source_index = model.mapToSource(self.indexAt(event.pos()))
+        if dropped_on_source_index.column() != 0:
+            dropped_on_source_index = dropped_on_source_index.siblingAtColumn(0)
+        dropped_on_item = source_model.itemFromIndex(dropped_on_source_index)
         
         if not dropped_on_item:
             return
