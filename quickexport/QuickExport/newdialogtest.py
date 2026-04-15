@@ -25,15 +25,15 @@ from PyQt5.QtCore import QCoreApplication
 # TODO: merge folders and files into one list. are separate currently so files don't create no-settings folder items before
 #       the settings for the folder are read (they would be discarded as the folder item already existed).
 store = {
-    Path("path/with/settings"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("/path/with/settings"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("/home/user/Projects/Game/design/environments"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
-    Path("path/to/file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
-    Path("path/to/a_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
-    Path("path/to/another_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
-    Path("path/with/settings/a_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("/path/to/file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("/path/to/a_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("/path/to/another_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("/path/with/settings/a_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("/home/user/Projects/Game/design/environments/volcanoenv290326"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("/home/user/Projects/Game/design/environments/spanishtown0"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
-    Path("path/to"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".jpg", "location":"parsib"}}
+    Path("/path/to"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".jpg", "location":"parsib"}}
 }
 
 for path in store:
@@ -174,6 +174,58 @@ class ItemDelegate(QStyledItemDelegate):
             painter.setOpacity(0.5)
         super().paint(painter, option, index)
         painter.restore()
+    
+    def setModelData(self, editor, model, index):
+        print(f"setModelData {editor=} {model=} {index=}")
+        
+        source_index = model.mapToSource(index)
+        item = source_model.itemFromIndex(source_index)
+        
+        old_text = item.data(Qt.DisplayRole)
+        new_text = editor.text()
+        
+        if new_text == "":
+            return
+        
+        print(f"{old_text=} {new_text=}")
+        
+        if not index.data(PathRole):
+            return
+        
+        item_type = index.data(ItemTypeRole)
+        if old_text == new_text or (item_type == "folder" and Path(new_text) == index.data(PathRole)):
+            print("no change.")
+            return
+        
+        if item_type == "folder":
+            if str(Path(new_text).resolve()) != new_text:
+                print("tried to set folder path containing '.' or '..' parts, or which was not an absolute path, which isn't allowed.")
+                return
+        else:
+            if len(Path(new_text).parts) > 1:
+                print("tried to set project name to a path, which isn't allowed.")
+                return
+        
+        suppress_store_on_widget_edit = True
+        
+        if item_type == "folder":
+            change_store_path_for_item(item, Path(new_text))
+            add_buttons_for_row(item.data(PathRole), item.data(ItemTypeRole), item, source_model.itemFromIndex(source_index.siblingAtColumn(source_index.column()+1)))
+            
+            for row in range(item.rowCount()):
+                child_item = item.child(row)
+                child_source_index = child_item.index()
+                change_store_path_for_item(child_item, index.data(PathRole))
+                add_buttons_for_row(child_item.data(PathRole), child_item.data(ItemTypeRole), child_item, source_model.itemFromIndex(child_source_index.siblingAtColumn(child_source_index.column()+1)))
+                populate_base_item_with_file_items(child_item)
+        else:
+            change_store_path_for_item(item, index.data(PathRole).parent, editor.text())
+            add_buttons_for_row(item.data(PathRole), item.data(ItemTypeRole), item, source_model.itemFromIndex(source_index.siblingAtColumn(source_index.column()+1)))
+            populate_base_item_with_file_items(item)
+        
+        set_basic_export_settings_controls_for_path(index.data(PathRole))
+        
+        suppress_store_on_widget_edit = False
 
 item_delegate = ItemDelegate()
 
@@ -674,9 +726,9 @@ for path in d:
 #    file = Path(doc.fileName())
 #    item = add_file_to_tree(file)
 
-add_file_to_tree(Path("path/to/file_001.kra"))
-add_file_to_tree(Path("path/to/file_002.kra"))
-add_file_to_tree(Path("path/to/file_003.kra"))
+add_file_to_tree(Path("/path/to/file_001.kra"))
+add_file_to_tree(Path("/path/to/file_002.kra"))
+add_file_to_tree(Path("/path/to/file_003.kra"))
 
 def _on_tree_expanded(model_index):
     pass
