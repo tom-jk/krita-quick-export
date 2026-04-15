@@ -1153,21 +1153,52 @@ def reparent_base_row_in_tree(source_parent_item, source_child_index, target_par
     if source_parent_item == target_parent:
         return
     row_items = source_parent_item.takeRow(source_child_index)
-    change_store_path_for_item(row_items[0], target_folder_path)
+    change_store_path_for_item(row_items[0], target_folder_path, new_parent_item = target_parent)
     target_parent.appendRow(row_items)
     add_buttons_for_row(row_items[0].data(PathRole), row_items[0].data(ItemTypeRole), *row_items)
     populate_base_item_with_file_items(row_items[0])#, row_new_path)
 
-def change_store_path_for_item(item, target_folder_path, new_name=""):
+def change_store_path_for_item(item, target_folder_path, new_name="", new_parent_item=None):
+    print(f"change_store_path_for_item: {item=} {item.data(PathRole)=} {target_folder_path=} {new_name=} {new_parent_item=}")
     old_path = item.data(PathRole)
     item_type = item.data(ItemTypeRole)
     new_name = new_name or old_path.name
     new_path = target_folder_path / new_name if item_type != "folder" else target_folder_path
-    if new_path in store:
-        dupe_num = 1
-        while new_path.with_stem(new_path.stem + f" ({dupe_num})") in store:
-            dupe_num += 1
-        new_path = new_path.with_stem(new_path.stem + f" ({dupe_num})")
+    
+    if not new_parent_item:
+        if item_type == "folder":
+            print(f"set new_parent_item to model root")
+            new_parent_item = source_model.invisibleRootItem()
+            print(new_parent_item)
+        else:
+            if old_path.parent == target_folder_path:
+                new_parent_item = item.parent()
+            else:
+                root_item = source_model.invisibleRootItem()
+                for row in range(root_item.rowCount()):
+                    if root_item.child(row).data(PathRole) == target_folder_path:
+                        new_parent_item = root_item.child(row)
+                        break
+    
+    # keep checking all items under same parent until name doesn't collide.
+    dupe_num = 0
+    test_path = new_path
+    while True:
+        collision = False
+        for row in range(new_parent_item.rowCount()):
+            check_item = new_parent_item.child(row)
+            if check_item == item:
+                continue
+            if check_item.data(PathRole) == test_path:
+                dupe_num += 1
+                print(f"new path {test_path} collides with existing.")
+                test_path = new_path.with_stem(new_path.stem + f" ({dupe_num})")
+                collision = True
+                break
+        if not collision:
+            break
+    new_path = test_path
+    
     if old_path in store:
         store_temp_copy = store[old_path]
         del store[old_path]
