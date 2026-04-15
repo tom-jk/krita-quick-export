@@ -28,6 +28,7 @@ store = {
     Path("path/with/settings"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("/home/user/Projects/Game/design/environments"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("path/to/file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
+    Path("path/to/a_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("path/to/another_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("path/with/settings/a_file"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("/home/user/Projects/Game/design/environments/volcanoenv290326"): {"node_type":"base", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
@@ -1148,23 +1149,30 @@ def relocate_rows_in_tree(target_folder_path, rows=None):
     print("relocate_rows_in_tree: end")
     print("- - - - -")
 
-def reparent_base_row_in_tree(source_parent_item, source_child_index, target_parent, target_folder_path): 
+def reparent_base_row_in_tree(source_parent_item, source_child_index, target_parent, target_folder_path):
+    if source_parent_item == target_parent:
+        return
     row_items = source_parent_item.takeRow(source_child_index)
     change_store_path_for_item(row_items[0], target_folder_path)
     target_parent.appendRow(row_items)
     add_buttons_for_row(row_items[0].data(PathRole), row_items[0].data(ItemTypeRole), *row_items)
     populate_base_item_with_file_items(row_items[0])#, row_new_path)
 
-def change_store_path_for_item(item, target_folder_path):
+def change_store_path_for_item(item, target_folder_path, new_name=""):
     old_path = item.data(PathRole)
     item_type = item.data(ItemTypeRole)
-    new_path = target_folder_path / old_path.name if item_type != "folder" else target_folder_path
+    new_name = new_name or old_path.name
+    new_path = target_folder_path / new_name if item_type != "folder" else target_folder_path
+    if new_path in store:
+        dupe_num = 1
+        while new_path.with_stem(new_path.stem + f" ({dupe_num})") in store:
+            dupe_num += 1
+        new_path = new_path.with_stem(new_path.stem + f" ({dupe_num})")
     if old_path in store:
         store_temp_copy = store[old_path]
         del store[old_path]
         store[new_path] = store_temp_copy
-    if item_type == "folder":
-        item.setData(str(new_path), Qt.DisplayRole)
+    item.setData(str(new_path) if item_type == "folder" else new_path.name, Qt.DisplayRole)
     item.setData(new_path, PathRole)
 
 tree.setContextMenuPolicy(Qt.CustomContextMenu)
