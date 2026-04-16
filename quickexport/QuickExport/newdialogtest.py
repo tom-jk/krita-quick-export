@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QSizePolicy, QDialog, QDialogButtonBox, QMessageBox, QFileDialog, QMenu, QVBoxLayout, QHBoxLayout, QGroupBox, QComboBox, QLineEdit, QCheckBox, QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate, QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
-from PyQt5.QtCore import Qt, QSortFilterProxyModel, QRegExp, QRect, QTimer
+from PyQt5.QtCore import Qt, QModelIndex, QSortFilterProxyModel, QRegExp, QRect, QTimer
 import zipfile
 import re
 from copy import deepcopy
@@ -22,8 +22,6 @@ from PyQt5.QtCore import QCoreApplication
 #if myModulePath not in sys.path: sys.path.append(myModulePath)
 #import qemacrobuilder.py
 
-# TODO: merge folders and files into one list. are separate currently so files don't create no-settings folder items before
-#       the settings for the folder are read (they would be discarded as the folder item already existed).
 store = {
     Path("/path/with/settings"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
     Path("/home/user/Projects/Game/design/environments"): {"node_type":"folder", "basic_export_settings":{"file_name_src":"proj", "type":".png", "location":"same"}},
@@ -154,6 +152,38 @@ def _square_thumbnail(pixmap, size=8):
 
 dialog = QDialog()
 dialog_layout = QVBoxLayout(dialog)
+
+
+tree_filter_edit = QLineEdit()
+tree_filter_edit.setPlaceholderText("Filter tree...")
+tree_filter_edit.setClearButtonEnabled(True)
+tree_filter_edit.addAction(app.icon("tool_zoom"), QLineEdit.LeadingPosition)
+dialog_layout.addWidget(tree_filter_edit)
+
+def tree_iter(index, callback):
+    #print(f"tree_iter: {index.data(PathRole)}")
+    callback(model.mapToSource(index))
+    for row in range(model.rowCount(index)):
+        tree_iter(model.index(row, 0, index), callback)
+
+def _on_tree_filter_edit_text_changed(text):
+    print(text)
+    model.setFilterFixedString(text)
+    if text != "":
+        tree.expandAll()
+    
+    def callback_method(index):
+        item = source_model.itemFromIndex(index)
+        item2_source_index = index.siblingAtColumn(index.column()+1)
+        item2 = source_model.itemFromIndex(item2_source_index)
+        #print(f"{item2_source_index=}, row:{item2_source_index.row()}, col:{item2_source_index.column()}, model:{item2_source_index.model()}, {item2=}")
+        if item2:
+            add_buttons_for_row(item.data(PathRole), item.data(ItemTypeRole), item, item2)
+    
+    tree_iter(QModelIndex(), callback_method)
+
+tree_filter_edit.textChanged.connect(_on_tree_filter_edit_text_changed)
+
 
 row_height = -1
 
@@ -462,22 +492,37 @@ ItemTypeRole = Qt.UserRole + 1
 
 class MySortFilterProxyModel(QSortFilterProxyModel):
     def filterAcceptsRow(self, source_row, source_parent):
-        return True
-#        if not filter_kra_only:
-#            return True
-#        index0 = self.sourceModel().index(source_row, 0, source_parent)
-#        data0 = self.sourceModel().data(index0, Qt.UserRole)
-#        if data0 == None:
-#            print(f"{data0=}")
-#            return True
-#        print(f"{data0=} {data0.name=} {data0.is_dir()=} {data0.is_file()=}")
-#        return data0 != None and (data0.is_dir() or (data0.is_file() and data0.name.endswith((".kra",))))
+        index = source_model.index(source_row, 0, source_parent)
+        path = source_model.data(index, PathRole)
+        #print(f"{sp}{source_row=} {source_parent=} {source_parent.model()=} {path=}")
+        item_type = source_model.data(index, ItemTypeRole)
+        
+        if not self.filterRegExp().pattern():
+            return True
+        
+        if not path:
+            return False
+        
+        matched = self.filterRegExp().indexIn(str(path))
+        #print(f"{sp} filterAcceptsRow: pattern={self.filterRegExp().pattern()}, {matched=} (length {self.filterRegExp().matchedLength()})")
+    
+        if (type(matched) == int and matched > -1) or (type(matched) == bool and matched): # handles fixedstring or wildcard filtering.
+            return True
+    
+        if self.filterRegExp().matchedLength() > 0:
+            return True
+        
+        return False
 
 tree.setItemDelegate(item_delegate)
 tree.setUniformRowHeights(True)
 source_model = QStandardItemModel(0, 2)
 model = MySortFilterProxyModel()
 model.setSourceModel(source_model)
+model.setFilterRole(PathRole)
+model.setFilterKeyColumn(0)
+model.setFilterCaseSensitivity(Qt.CaseInsensitive)
+model.setRecursiveFilteringEnabled(True)
 tree.setModel(model)
 tree.header().setStretchLastSection(False)
 tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
