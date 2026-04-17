@@ -199,7 +199,6 @@ class ItemDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         #print(index.row(), index.column(), index.model(), model, source_model, model_root, model.mapToSource(index.parent()), PathRole, model.data(index, PathRole))
         painter.save()
-        #if not index.parent() == model_root.index(): # if not at folder level
         if index.data(PathRole) not in store:
             painter.setOpacity(0.5)
         super().paint(painter, option, index)
@@ -383,7 +382,6 @@ def update_basic_export_settings_output_path_label():
     folder_name_index = basic_export_settings_folder_name.currentIndex()
     folder_custom_name = basic_export_settings_folder_name_custom.text()
     
-    #folder_name = path.stem if folder_name_index == 0 and folder_index != 4 else folder_custom_name
     folder_name = base if folder_name_index == 0 and folder_index != 4 else folder_custom_name
     
     output_folder = folder if folder_index == 0 else folder / folder_name if folder_index == 1 else folder.parent if folder_index == 2 else folder.parent / folder_name if folder_index == 3 else folder_name
@@ -427,7 +425,6 @@ def _on_basic_export_settings_folder_location_current_index_changed(index):
 basic_export_settings_folder_location.currentIndexChanged.connect(_on_basic_export_settings_folder_location_current_index_changed)
 
 def _on_basic_export_settings_folder_name_current_index_changed(index):
-    #basic_export_settings_folder_name.setVisible(index in (1,3))
     basic_export_settings_folder_name_custom.setVisible(basic_export_settings_folder_location.currentIndex() in (1,3,4) and index == 1)
     update_basic_export_settings_output_path_label()
 
@@ -446,13 +443,6 @@ basic_export_settings_folder_pick_custom.clicked.connect(_on_basic_export_settin
 
 def set_basic_export_settings_controls_for_path(path):
     global suppress_store_on_widget_edit
-    
-    if False:#path not in store:
-        basic_export_settings_container.setDisabled(True)
-        suppress_store_on_widget_edit = True
-        update_basic_export_settings_output_path_label()
-        suppress_store_on_widget_edit = False
-        return
     
     if path in store:
         s = store[path]["basic_export_settings"]
@@ -528,7 +518,6 @@ tree.header().setStretchLastSection(False)
 tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
 tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
 tree.setAlternatingRowColors(True)
-#tree.setModel(source_model)
 
 model_root = source_model.invisibleRootItem()
 
@@ -648,14 +637,9 @@ def add_buttons_for_row(path, item_type, item, item2):
     opn_button = TreeButton(role="opn", path=path, item_type=item_type, icon=app.icon("document-open"), item=item, item2=item2)
     sp = del_button.sizePolicy()
     sp.setRetainSizeWhenHidden(True)
-    del_button.setSizePolicy(sp)
-    cfg_button.setSizePolicy(sp)
-    exp_button.setSizePolicy(sp)
-    opn_button.setSizePolicy(sp)
-    buttons_layout.addWidget(del_button)
-    buttons_layout.addWidget(cfg_button)
-    buttons_layout.addWidget(exp_button)
-    buttons_layout.addWidget(opn_button)
+    for btn in del_button, cfg_button, exp_button, opn_button:
+        btn.setSizePolicy(sp)
+        buttons_layout.addWidget(btn)
     buttons_layout.addStretch()
     
     del_button.setObjectName("StoreAddDeleteButton")
@@ -827,7 +811,6 @@ def _on_tree_custom_context_menu_requested_main(pos):
     selection_contains_children_of_other_selected = False
     print("selected rows:")
     for i, row_index in enumerate(rows):
-        #row_source_index = model.mapToSource(row_index)
         if row_index.data(PathRole) in store:
             selection_contains_stored_paths = True
         if row_index.data(ItemTypeRole) == "folder":
@@ -968,8 +951,7 @@ def _on_tree_custom_context_menu_requested_main(pos):
                     if paste_settings["type_export_settings"][ext] and ext in cc["type_export_settings"]:
                         #print(f" - paste {ext} export config")
                         store[path]["type_export_settings"][ext] = deepcopy(cc["type_export_settings"][ext])
-            #store[path] = deepcopy(config_clipboard)
-            
+        
         _on_tree_selection_changed(None, None)
             
         #for k,v in store.items():
@@ -1253,7 +1235,7 @@ def reparent_base_row_in_tree(source_parent_item, source_child_index, target_par
     change_store_path_for_item(row_items[0], target_folder_path, new_parent_item = target_parent)
     target_parent.appendRow(row_items)
     add_buttons_for_row(row_items[0].data(PathRole), row_items[0].data(ItemTypeRole), *row_items)
-    populate_base_item_with_file_items(row_items[0])#, row_new_path)
+    populate_base_item_with_file_items(row_items[0])
 
 def change_store_path_for_item(item, target_folder_path, new_name="", new_parent_item=None):
     print(f"change_store_path_for_item: {item=} {item.data(PathRole)=} {target_folder_path=} {new_name=} {new_parent_item=}")
