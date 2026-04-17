@@ -266,17 +266,17 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
     settings_version = readSetting("settings_version")
     
     if settings_version == "":
-        # <0.3.0 settings were saved as a single string with key 'settings'.
-        # 0.3.0+ save to different keys and leave 'settings' unchanged, so
+        # <0.0.3 settings were saved as a single string with key 'settings'.
+        # 0.0.3+ save to different keys and leave 'settings' unchanged, so
         # we don't have to backup these settings; they are their own backup.
         # TODO: add a button somewhere so user can overwrite it with "".
-        load_0_2_0_settings_from_config()
+        load_0_0_2_settings_from_config()
         for s in qe_settings:
             generate_save_string(s)
         save_settings_to_config()
         
-    elif settings_version == "0.3.0":
-        load_0_3_0_settings_from_config()
+    elif settings_version == "0.0.3":
+        load_0_0_3_settings_from_config()
         
     else:
         if suppress_version_warning:
@@ -286,7 +286,7 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
         msgBox.setText("Quick Export settings in unsupported format found.")
         msgBox.setInformativeText(
             "Settings were saved in a different format by a later version of QuickExport. They can not be read by this version.\n\n" \
-            "compatible versions: 0.3.0 and below\n" \
+            "compatible versions: 0.0.3 and below\n" \
             f"saved as version: {settings_version}\n\n" \
             "It may be that a backup was made before saving the later version settings - check in your kritarc file.\n\n" \
             "You may also try opening an issue on the Github to request a converter, but using the latest version of the plugin is recommended.\n\n" \
@@ -306,7 +306,7 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
         
     return True
 
-def load_0_3_0_settings_from_config():
+def load_0_0_3_settings_from_config():
     settings_index = 0
     
     while readSetting(f"file{settings_index}/path", "") != "":
@@ -391,7 +391,7 @@ def load_0_3_0_settings_from_config():
         qe_settings.append(settings)
         settings_index += 1
 
-def load_0_2_0_settings_from_config():
+def load_0_0_2_settings_from_config():
     """
     read in settings string from kritarc.
     example: "path=/a/b.kra,output=b,ext=.png,scale=[e=1,w=1024,h=768,f=Bic,r=72],png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
@@ -717,7 +717,7 @@ def save_settings_to_config():
         writeSetting(f"file{settings_index}/settings", "")
         settings_index += 1
     
-    writeSetting("settings_version", "0.3.0")
+    writeSetting("settings_version", "0.0.3")
 
 def tokenize_settings_string(s, tokens):
     i = 0
