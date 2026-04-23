@@ -177,28 +177,29 @@ class QuickExportExtension(Extension):
             doc = view.document()
             if doc:
                 if doc.fileName():
-                    self.qe_action.setEnabled(True)
                     doc_file_path = Path(doc.fileName())
-                    file_settings_path = find_settings_path_for_file(doc_file_path)
-                    if file_settings_path:
-                        # file has QE settings.
-                        file_settings = qe_settings[file_settings_path]
-                        show_export_name_in_menu = str2bool(readSetting("show_export_name_in_menu"))
-                        output_file_path = export_file_path(file_settings, doc_file_path)
-                        if show_export_name_in_menu:
-                            # ~ output_filename = file_settings["output_name"] + file_settings["ext"]
-                            self.qe_action.setText(f"Quick export to '{output_file_path.name}'")
-                        else:
-                            self.qe_action.setText("Quick export")
-                        self.qe_action.setToolTip(f"Quick export{shortcut_text}\n{str(output_file_path)}")
+                    if doc_file_path.suffix == ".kra":
+                        self.qe_action.setEnabled(True)
+                        file_settings_path = find_settings_path_for_file(doc_file_path)
+                        if file_settings_path:
+                            # file has QE settings.
+                            file_settings = qe_settings[file_settings_path]
+                            show_export_name_in_menu = str2bool(readSetting("show_export_name_in_menu"))
+                            output_file_path = export_file_path(file_settings, doc_file_path)
+                            if show_export_name_in_menu:
+                                self.qe_action.setText(f"Quick export to '{output_file_path.name}'")
+                            else:
+                                self.qe_action.setText("Quick export")
+                            self.qe_action.setToolTip(f"Quick export{shortcut_text}\n{str(output_file_path)}")
+                            return
+                        # file has been saved but has no settings.
+                        self.qe_action.setText("Quick export...")
+                        self.qe_action.setToolTip(f"Quick export{shortcut_text}")
                         return
-                    # file has been saved but has no settings.
-                    self.qe_action.setText("Quick export...")
-                    self.qe_action.setToolTip(f"Quick export{shortcut_text}")
-                    return
-        # no doc or unsaved doc.
-        self.qe_action.setText("Quick export")
-        self.qe_action.setToolTip(f"Quick export{shortcut_text}")
+        # no doc, unsaved doc or non-.kra doc.
+        reason = "No active document." if not doc else "Document has not been saved." if not doc.fileName() else "Document is not saved as a Krita project file (kra)."
+        self.qe_action.setText(f"Quick export")
+        self.qe_action.setToolTip(f"Quick export{shortcut_text}\n{reason}")
         default_export_unsaved = str2bool(readSetting("default_export_unsaved"))
         self.qe_action.setEnabled(default_export_unsaved)
     
@@ -222,7 +223,7 @@ class QuickExportExtension(Extension):
         file_settings_path = find_settings_path_for_file(path)
         
         if file_settings_path == None:
-            self.run_dialog(msg="Configure export settings for the image then try again, or just click 'Export now'.", doc=doc)
+            self.run_dialog(msg="Configure export settings for the image then try again.", doc=doc)
             return
         
         result = export_image(file_settings_path, doc)
@@ -240,11 +241,21 @@ class QuickExportExtension(Extension):
         self.run_dialog(doc=app.activeDocument())
     
     def run_dialog(self, msg="", doc=None):
+        dialog = QEDialog.instance
+        
+        # give focus if already running.
+        if dialog and dialog.isVisible():
+            dialog.activateWindow()
+            dialog.raise_()
+            return
+        
         # ensure settings up to date.
         if not load_settings_from_config():
             return
         
-        dialog = QEDialog.instance or QEDialog()
+        if not dialog:
+            dialog = QEDialog()
+        
         dialog.setup(msg=msg, doc=doc)
         dialog.show()
         

@@ -356,6 +356,7 @@ class QETree(QTreeView):
         self.header().setStretchLastSection(False)
         self.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.setHeaderHidden(True)
         self.setAlternatingRowColors(True)
 
         model_root = self.source_model.invisibleRootItem()
@@ -368,7 +369,10 @@ class QETree(QTreeView):
         
         for doc in app.documents():
             file = Path(doc.fileName())
+            print(file, file.suffix)
             if not file:
+                continue
+            if not file.suffix == ".kra":
                 continue
             base = base_stem_and_version_number_for_versioned_file(file)[0]
             path = file.parent / base
@@ -443,7 +447,7 @@ class QETree(QTreeView):
         opn_button = TreeButton(role="opn", path=path, item_type=item_type, icon=app.icon("document-open"), item=item, item2=item2)
         sp = del_button.sizePolicy()
         sp.setRetainSizeWhenHidden(True)
-        for btn in del_button, cfg_button, exp_button, opn_button:
+        for btn in del_button, cfg_button, opn_button:
             btn.setSizePolicy(sp)
             buttons_layout.addWidget(btn)
         buttons_layout.addStretch()
@@ -454,7 +458,7 @@ class QETree(QTreeView):
             del_button.hide()
             cfg_button.hide()
         
-        if path not in qe_settings or "TEMP" in qe_settings[path]:
+        if path not in qe_settings:
             del_button.setIcon(app.icon("list-add"))
             cfg_button.hide()
             exp_button.hide()

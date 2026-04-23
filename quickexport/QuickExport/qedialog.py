@@ -31,9 +31,13 @@ class QEDialog(QDialog):
         
         self.__class__.instance = self
 
-        #self.setWindowModality(Qt.ApplicationModal)
-
         self.first_setup()
+        self.installEventFilter(self)
+
+    def eventFilter(self, object, event):
+        if event.type() == QEvent.WindowDeactivate:
+            extension().update_quick_export_display()
+        return False
 
     def setup(self, msg="", doc=None):
         
@@ -59,6 +63,10 @@ class QEDialog(QDialog):
         # TODO: disallow sorting by thumbnail and action button columns.
         #self.tree.setSortingEnabled(True)
         #self.tree.sortByColumn(QECols.OPEN_FILE_COLUMN, Qt.AscendingOrder)
+        
+        if self.filter_edit.text():
+            self.tree._on_filter_edit_text_changed(self.filter_edit.text())
+        
         self.tree_container_layout.addWidget(self.tree)
         self.tree_is_ready = True
         
