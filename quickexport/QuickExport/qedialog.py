@@ -15,11 +15,13 @@ import krita
 from .utils import *
 from .qewidgets import QEMenu, SnapSlider, SpinBoxSlider, QEComboBox, CheckToolButton, QSplitter
 from .qefilterwidgets import FilterLineEdit, FolderFilterButton
-from .qetree import QECols, QETree
+from .qetree import QETree#QECols, QETree
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
 from .filenameedit import FileNameEdit
 
 app = Krita.instance()
+
+suppress_store_on_widget_edit = False
 
 class QEDialog(QDialog):
     instance = None
@@ -43,11 +45,24 @@ class QEDialog(QDialog):
         self.tree_is_ready = False
         self.tree = QETree(self)
         self.tree.setup()
+        self.tree.source_model.dataChanged.connect(self._on_tree_source_model_data_changed)
+        self.tree.selectionModel().selectionChanged.connect(self._on_tree_selection_changed)
+        self.tree.requestConfigWidgetsRefreshForPath.connect(self._on_tree_request_config_widgets_refresh_for_path)
+        self.tree.requestAddFolderAtPath.connect(self._on_tree_request_add_folder_at_path)
+        self.tree.requestAddProjectAtPath.connect(self._on_tree_request_add_project_at_path)
+        self.filter_edit.textChanged.connect(self.tree._on_filter_edit_text_changed)
+        
+        self.basic_export_settings_container.setDisabled(True)
+        self.basic_export_settings_output_path.setText("export path preview")
+        self.basic_export_settings_output_path.setDisabled(True)
+        
         # TODO: disallow sorting by thumbnail and action button columns.
-        self.tree.setSortingEnabled(True)
+        #self.tree.setSortingEnabled(True)
         #self.tree.sortByColumn(QECols.OPEN_FILE_COLUMN, Qt.AscendingOrder)
-        self.list_container_layout.addWidget(self.tree)
+        self.tree_container_layout.addWidget(self.tree)
         self.tree_is_ready = True
+        
+        update_qe_settings_last_load()
         
         self.update_save_button()
         
@@ -55,18 +70,17 @@ class QEDialog(QDialog):
         
         #self.tree.setup_filter_completer()
         
-        for s in qe_settings:
-            self.folder_filter_button.add_folder_to_tree(s["path"].parent)
+        if False:
+            for path in qe_settings.keys():
+                self.folder_filter_button.add_folder_to_tree(path)
         
         #if self.tree.focused_item:
         #    self.tree.scrollToItem(self.tree.focused_item, QAbstractItemView.PositionAtCenter)
         
-        #self.set_advanced_mode(self.advanced_mode_button.checkState() == Qt.Checked)
-        
         self.update_show_extensions_in_list_for_all_types()
         
         # refresh options button icon, make sure isn't stuck on outdated theme.
-        #self.options_button.setIcon(app.icon('view-choose'))
+        self.options_button.setIcon(app.icon('view-choose'))
         
         # status bar.
         self.sbar_ready_label.setText(" Ready." if msg == "" else " "+msg) # extra space to align with showmessage.
@@ -81,120 +95,252 @@ class QEDialog(QDialog):
     def first_setup(self):
         layout = QVBoxLayout(self)
         
-        top_level_splitter = QSplitter()
-        top_level_splitter.setHandleWidth(8)
-
-        list_container = QWidget()
-        self.list_container_layout = QVBoxLayout(list_container)
-        self.list_container_layout.setContentsMargins(0,0,round(11/2),0)
-        # ~ list_wgt = QTreeWidget()
-        # ~ header = QTreeWidgetItem(list_wgt)
-        # ~ header.setText(0, "Path/to/folder/one")
-        # ~ item = QTreeWidgetItem(header)
-        # ~ item.setText(0, "Hello")
-        # ~ item = QTreeWidgetItem(header)
-        # ~ item.setText(0, "World")
-        # ~ header = QTreeWidgetItem(list_wgt)
-        # ~ header.setText(0, "Path/to/folder/two")
-        # ~ item = QTreeWidgetItem(header)
-        # ~ item.setText(0, "Hello")
-        # ~ item = QTreeWidgetItem(header)
-        # ~ item.setText(0, "World")
-        # ~ list_wgt.expandAll()
-        # ~ list_layout.addWidget(list_wgt)
-
-        body = QWidget()
-        body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(11-round(11/2),0,0,0)
-
-        body_top_layout = QHBoxLayout()
-
-        picture = QLabel()
-        picture.setPixmap(app.icon('document-edit').pixmap(64,64))
-
-        paths_layout = QVBoxLayout()
-
-        source_layout = QHBoxLayout()
-
-        source_edit = QLineEdit("Source path")
-        source_layout.addWidget(QToolButton())
-        source_layout.addWidget(source_edit)
-        source_layout.addWidget(QToolButton())
-
-        output_layout = QHBoxLayout()
-
-        output_edit = QLineEdit("Output path")
-        output_layout.addWidget(QToolButton())
-        output_layout.addWidget(output_edit)
-        output_layout.addWidget(QToolButton())
-
-        paths_layout.addLayout(source_layout)
-        paths_layout.addLayout(output_layout)
-
-        body_top_layout.addWidget(picture)
-        body_top_layout.addLayout(paths_layout)
-        body_layout.addLayout(body_top_layout)
-
-        body_splitter = QSplitter()
-        body_splitter.setContentsMargins(0,0,0,0)
-
-        macro_tree = QTreeWidget()
-        item = QTreeWidgetItem(macro_tree)
-        item.setText(0, "Macro1")
-        item = QTreeWidgetItem(macro_tree)
-        item.setText(0, "Macro2")
-
-        settings_box = QWidget()
-        settings_box_layout = QVBoxLayout(settings_box)
-
-        settings_box_layout.addWidget(QCheckBox("Store Alpha"))
-        settings_box_layout.addWidget(QCheckBox("Save as indexed if possible"))
-        settings_box_layout.addWidget(QCheckBox("Interlacing"))
-        settings_box_layout.addWidget(QCheckBox("Embed sRGB Profile"))
-        settings_box_layout.addWidget(QCheckBox("Force sRGB"))
-        settings_box_layout.addWidget(QCheckBox("Store Metadata"))
-        settings_box_layout.addWidget(QCheckBox("Store Author"))
-        settings_box_layout.addWidget(QCheckBox("Setting 8"))
-        settings_box_layout.addWidget(QCheckBox("Setting 9"))
-        settings_box_layout.addStretch()
-
-        body_splitter.addWidget(macro_tree)
-        body_splitter.addWidget(settings_box)
-
-        body_layout.addWidget(body_splitter)
-
-        top_level_splitter.addWidget(list_container)
-        top_level_splitter.addWidget(body)
-
-        layout.addWidget(top_level_splitter, 1)
-        
         view_buttons = QWidget()
         view_buttons_layout = QHBoxLayout()
         
-        self.filter_edit = FilterLineEdit()
+        self.add_button = QToolButton()
+        self.add_button.setIcon(app.icon("list-add"))
+        self.add_button.setPopupMode(QToolButton.InstantPopup)
+
+        add_button_menu = QMenu()
+        add_folder_action = add_button_menu.addAction("Add folder...")
+        add_project_action = add_button_menu.addAction("Add project...")
+        self.add_button.setMenu(add_button_menu)
+
+        add_folder_action.triggered.connect(self._on_add_folder_action_triggered)
+        add_project_action.triggered.connect(self._on_add_project_action_triggered)
+
+        view_buttons_layout.addWidget(self.add_button)
         
-        self.folder_filter_button = FolderFilterButton()
-        self.folder_filter_button.setAutoDefault(False)
-        self.folder_filter_button.filterChanged.connect(self._on_folder_filter_button_filter_changed)
-        
+        self.filter_edit = QLineEdit()
+        self.filter_edit.setPlaceholderText("Filter tree...")
+        self.filter_edit.setClearButtonEnabled(True)
+        self.filter_edit.addAction(app.icon("tool_zoom"), QLineEdit.LeadingPosition)
         view_buttons_layout.addWidget(self.filter_edit)
-        view_buttons_layout.addWidget(self.folder_filter_button)
+        
+        if False:
+            self.folder_filter_button = FolderFilterButton()
+            self.folder_filter_button.setAutoDefault(False)
+            self.folder_filter_button.filterChanged.connect(self._on_folder_filter_button_filter_changed)
+            
+            view_buttons_layout.addWidget(self.folder_filter_button)
         
         view_buttons_layout.setContentsMargins(0,0,0,0)
         view_buttons.setLayout(view_buttons_layout)
         layout.addWidget(view_buttons)
 
+        self.tree_container_layout = QVBoxLayout()
+        layout.addLayout(self.tree_container_layout)
+
+        visible_extensions = readSetting("visible_types").split(" ")
+        
+        if len(visible_extensions) == 0 or not any(test in supported_extensions() for test in visible_extensions):
+            # bad config, reset to default.
+            writeSetting("visible_types", setting_defaults["visible_types"])
+            visible_extensions = readSetting("visible_types").split(" ")
+
+        self.basic_export_settings_container = QGroupBox()
+        self.basic_export_settings_container.setDisabled(True)
+        basic_export_settings_container_layout = QVBoxLayout(self.basic_export_settings_container)
+        self.basic_export_settings_container.setContentsMargins(self.basic_export_settings_container.contentsMargins() / 2)
+        basic_export_settings_container_layout.setContentsMargins(basic_export_settings_container_layout.contentsMargins() / 2)
+
+        basic_export_settings_file_container = QWidget()
+        basic_export_settings_file_container_layout = QHBoxLayout(basic_export_settings_file_container)
+        basic_export_settings_file_container.setContentsMargins(0,0,0,0)
+        basic_export_settings_file_container_layout.setContentsMargins(0,0,0,0)
+
+        self.basic_export_settings_file_name = QComboBox()
+        self.basic_export_settings_file_name.addItems(["Project name", "File name", "Custom name"])
+        basic_export_settings_file_container_layout.addWidget(self.basic_export_settings_file_name)
+        self.basic_export_settings_file_name_custom = QLineEdit("Hello")
+        sp = self.basic_export_settings_file_name_custom.sizePolicy()
+        sp.setRetainSizeWhenHidden(True)
+        self.basic_export_settings_file_name_custom.setSizePolicy(sp)
+        self.basic_export_settings_file_name_custom.hide()
+        basic_export_settings_file_container_layout.addWidget(self.basic_export_settings_file_name_custom)
+        
+        self.basic_export_settings_file_type = QComboBox()
+        self.basic_export_settings_file_type.addItems(supported_extensions())
+        for ext in supported_extensions():
+            self.update_show_extensions_in_list_for_type(ext, ext in visible_extensions)
+        self.basic_export_settings_file_type.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+        basic_export_settings_file_container_layout.addWidget(self.basic_export_settings_file_type)
+
+        basic_export_settings_folder_container = QWidget()
+        basic_export_settings_folder_container_layout = QHBoxLayout(basic_export_settings_folder_container)
+        basic_export_settings_folder_container_layout.setAlignment(Qt.AlignLeft)
+        basic_export_settings_folder_container.setContentsMargins(0,0,0,0)
+        basic_export_settings_folder_container_layout.setContentsMargins(0,0,0,0)
+
+        self.basic_export_settings_folder_location = QComboBox()
+        self.basic_export_settings_folder_location.addItems(["In same folder", "In subfolder", "In parent of folder", "In sibling of folder", "In another folder"])
+        self.basic_export_settings_folder_location.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+        basic_export_settings_folder_container_layout.addWidget(self.basic_export_settings_folder_location)
+        self.basic_export_settings_folder_name = QComboBox()
+        self.basic_export_settings_folder_name.addItems(["with project name", "with custom name"])
+        self.basic_export_settings_folder_name.hide()
+        basic_export_settings_folder_container_layout.addWidget(self.basic_export_settings_folder_name)
+        self.basic_export_settings_folder_name_custom = QLineEdit("Folder Name Custom")
+        self.basic_export_settings_folder_name_custom.hide()
+        basic_export_settings_folder_container_layout.addWidget(self.basic_export_settings_folder_name_custom)
+        self.basic_export_settings_location_custom = QLineEdit("Location Custom")
+        self.basic_export_settings_location_custom.hide()
+        basic_export_settings_folder_container_layout.addWidget(self.basic_export_settings_location_custom)
+        self.basic_export_settings_folder_pick_custom = QToolButton()
+        self.basic_export_settings_folder_pick_custom.setIcon(app.icon("folder"))
+        self.basic_export_settings_folder_pick_custom.hide()
+        basic_export_settings_folder_container_layout.addWidget(self.basic_export_settings_folder_pick_custom)
+
+        self.basic_export_settings_output_path = QLabel("export path preview")
+        self.basic_export_settings_output_path.setDisabled(True)
+        self.basic_export_settings_output_path.setWordWrap(True)
+        self.basic_export_settings_output_path.setAlignment(Qt.AlignHCenter)
+
+        self.basic_export_settings_file_name.currentIndexChanged.connect(self._on_basic_export_settings_file_name_current_index_changed)
+        self.basic_export_settings_file_name_custom.textChanged.connect(self.update_basic_export_settings_output_path_label)
+        self.basic_export_settings_file_type.currentIndexChanged.connect(self.update_basic_export_settings_output_path_label)
+        self.basic_export_settings_folder_location.currentIndexChanged.connect(self._on_basic_export_settings_folder_location_current_index_changed)
+        self.basic_export_settings_folder_name.currentIndexChanged.connect(self._on_basic_export_settings_folder_name_current_index_changed)
+        self.basic_export_settings_folder_name_custom.textChanged.connect(self.update_basic_export_settings_output_path_label)
+        self.basic_export_settings_location_custom.textChanged.connect(self.update_basic_export_settings_output_path_label)
+        self.basic_export_settings_folder_pick_custom.clicked.connect(self._on_basic_export_settings_folder_pick_custom_clicked)
+
+        basic_export_settings_container_layout.addWidget(basic_export_settings_file_container)
+        basic_export_settings_container_layout.addWidget(basic_export_settings_folder_container)
+        layout.addWidget(self.basic_export_settings_container)
+        layout.addWidget(self.basic_export_settings_output_path)
+        
+        self.save_buttons_container = QWidget()
+        self.save_buttons_container_layout = QHBoxLayout(self.save_buttons_container)
+        self.save_buttons_container_layout.setSpacing(0)
+        self.save_buttons_container.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        self.save_buttons_container.setContentsMargins(0,0,0,0)
+        self.save_buttons_container_layout.setContentsMargins(0,0,0,0)
+        
+        self.save_buttons_container_opacity = QGraphicsOpacityEffect(self.save_buttons_container)
+        self.save_buttons_container.setGraphicsEffect(self.save_buttons_container_opacity)
+        self.save_buttons_container_opacity.setOpacity(0.5)
+        self.save_buttons_container.setDisabled(True)
+        
+        # revert button.
+        self.revert_button = QToolButton()
+        self.revert_button.setToolTip("Revert settings to last save.")
+        self.revert_button.setAutoRaise(True)
+        self.revert_button.setIcon(app.icon("edit-undo"))
+        self.revert_button.clicked.connect(self._on_revert_button_clicked)
+        self.save_buttons_container_layout.addWidget(self.revert_button)
+
         # save button.
-        self.save_button = QPushButton("Save Settings*")
-        self.save_button.setFlat(True)
-        self.save_button.setMinimumWidth(self.save_button.sizeHint().width())
-        self.save_button.setText("Save Settings")
-        self.save_button.setDisabled(True)
+        self.save_button = QToolButton()
+        self.save_button.setToolTip("Save settings now.")
+        self.save_button.setAutoRaise(True)
+        self.save_button.setIcon(app.icon("document-save"))
         self.save_button.clicked.connect(self._on_save_button_clicked)
+        self.save_buttons_container_layout.addWidget(self.save_button)
         
         # status bar area.
         status_widget = QWidget()
         status_layout = QHBoxLayout()
+        
+        # qe options menu.
+        self.options_button = QToolButton()
+        self.options_button.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.options_button.setAutoRaise(True)
+        self.options_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
+        self.options_button.setPopupMode(QToolButton.InstantPopup)
+        status_layout.addWidget(self.options_button)
+        
+        options_menu = QEMenu()
+
+        custom_icons_menu = QEMenu()
+
+        use_custom_icons_action = custom_icons_menu.addAction("Use custom icons")
+        use_custom_icons_action.setCheckable(True)
+        use_custom_icons_action.setChecked(str2qtcheckstate(readSetting("use_custom_icons")))
+        use_custom_icons_action.toggled.connect(self._on_use_custom_icons_action_toggled)
+
+        custom_icons_menu.addSeparator()
+
+        custom_icons_theme_action_group = QActionGroup(custom_icons_menu)
+        custom_icons_theme_action_group.triggered.connect(lambda action, grp=custom_icons_theme_action_group: self._on_custom_icons_theme_action_group_triggered(action, grp))
+
+        icons_follow_theme_action = custom_icons_menu.addAction("Try to follow theme")
+        icons_follow_theme_action.setToolTip("If using one of the themes bundled with Krita, the correct icons will be used.\n" \
+                                             "If not, guesses which icons to use based on keywords in the theme name ('dark', 'black', etc.)\n" \
+                                             "If there are no such keywords, assumes light theme. You can force a theme if the guess is wrong.")
+        icons_follow_theme_action.setActionGroup(custom_icons_theme_action_group)
+        icons_follow_theme_action.setCheckable(True)
+        icons_follow_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme"), "follow"))
+
+        icons_light_theme_action = custom_icons_menu.addAction("Use light theme icons")
+        icons_light_theme_action.setActionGroup(custom_icons_theme_action_group)
+        icons_light_theme_action.setCheckable(True)
+        icons_light_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme"), "light"))
+
+        icons_dark_theme_action = custom_icons_menu.addAction("Use dark theme icons")
+        icons_dark_theme_action.setActionGroup(custom_icons_theme_action_group)
+        icons_dark_theme_action.setCheckable(True)
+        icons_dark_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme"), "dark"))
+
+        custom_icons_action = options_menu.addAction("Custom icons")
+        custom_icons_action.setMenu(custom_icons_menu)
+
+        options_menu.addSeparator()
+        
+        show_export_name_in_menu_action = options_menu.addAction("Show export name in File menu")
+        show_export_name_in_menu_action.setToolTip("When possible, show in the File menu as 'Quick Export to 'myImageName.png'.\n" \
+                                                   "Otherwise show as 'Quick Export' only.")
+        show_export_name_in_menu_action.setCheckable(True)
+        show_export_name_in_menu_action.setChecked(str2qtcheckstate(readSetting("show_export_name_in_menu")))
+        show_export_name_in_menu_action.toggled.connect(self._on_show_export_name_in_menu_action_toggled)
+        
+        default_export_unsaved_action = options_menu.addAction("Default export for unsaved images")
+        default_export_unsaved_action.setToolTip("Run the normal Krita exporter when you press Quick Export for not-yet-saved images.\n" \
+                                                 "Otherwise don't export, just show a reminder to save the file.")
+        default_export_unsaved_action.setCheckable(True)
+        default_export_unsaved_action.setChecked(str2qtcheckstate(readSetting("default_export_unsaved")))
+        default_export_unsaved_action.toggled.connect(self._on_default_export_unsaved_action_toggled)
+        
+        options_menu.addSeparator()
+        
+        # auto save settings on close button.
+        autosave_on_close_action = options_menu.addAction("Autosave on dialog close")
+        autosave_on_close_action.setToolTip("Automatically save changes to settings without asking when you close the dialog.\n" \
+                                            "If disabled, unsaved settings will be lost when you close the dialog.")
+        autosave_on_close_action.setCheckable(True)
+        autosave_on_close_action.setChecked(str2qtcheckstate(readSetting("auto_save_on_close")))
+        autosave_on_close_action.toggled.connect(self._on_auto_save_on_close_action_toggled)
+        
+        show_thumbnails_for_unopened_images_action = options_menu.addAction("Load thumbnails")
+        show_thumbnails_for_unopened_images_action.setToolTip("Changing this setting will not affect existing thumbnails.")
+        show_thumbnails_for_unopened_images_action.setCheckable(True)
+        show_thumbnails_for_unopened_images_action.setChecked(str2qtcheckstate(readSetting("show_thumbnails_for_unopened")))
+        show_thumbnails_for_unopened_images_action.toggled.connect(lambda checked: writeSetting("show_thumbnails_for_unopened", bool2str(checked)))
+        
+        self.show_extensions_in_list_menu = QEMenu()
+        
+        for ext in supported_extensions():
+            action = self.show_extensions_in_list_menu.addAction(ext)
+            action.setCheckable(True)
+            action.setChecked(ext in visible_extensions)
+        
+        self.show_extensions_in_list_menu.triggered.connect(self._on_show_extensions_in_list_menu_triggered)
+        show_extensions_in_list_action = options_menu.addAction("Visible file types")
+        show_extensions_in_list_action.setMenu(self.show_extensions_in_list_menu)
+        self.post_update_show_extensions_in_list()
+                
+        options_menu.addSeparator()
+        
+        if False:
+            wide_column_resize_grabber_action = options_menu.addAction("Wider grabber for resizing columns")
+            wide_column_resize_grabber_action.setToolTip("The regions in the header where you can click and drag to resize columns will be twice as wide.\n" \
+                                                         "Try this option if you frequently sort or move columns by accident.")
+            wide_column_resize_grabber_action.setCheckable(True)
+            wide_column_resize_grabber_action.setChecked(str2qtcheckstate(readSetting("wide_column_resize_grabber")))
+            wide_column_resize_grabber_action.toggled.connect(self._on_wide_column_resize_grabber_action_toggled)
+        
+        self.options_button.setMenu(options_menu)
         
         # status bar.
         # TODO: allow custom prompt messages on startup to be reset once eg. an image has been exported?
@@ -209,14 +355,19 @@ class QEDialog(QDialog):
         self.statistics_label.setGraphicsEffect(self.statistics_label_opacity)
         self.sbar.addPermanentWidget(self.statistics_label)
         
-        self.sbar.addPermanentWidget(self.save_button)
-        #status_layout.addWidget(self.save_button)
+        self.sbar.addPermanentWidget(self.save_buttons_container)
         
         status_layout.addWidget(self.sbar)
         
         status_layout.setContentsMargins(0,0,0,0)
+        status_widget.setContentsMargins(0,0,0,0)
         status_widget.setLayout(status_layout)
         layout.addWidget(status_widget)
+        
+        cm = layout.contentsMargins()
+        layout.setContentsMargins(2,2,2,2)
+        
+        layout.setSpacing(2)
 
         # setup dialog window.
         self.setLayout(layout)
@@ -494,7 +645,7 @@ class QEDialog(QDialog):
         if str2bool(readSetting("auto_save_on_close")):
             # save without asking.
             ret = QMessageBox.Save
-        elif self.save_button.isEnabled():
+        elif self.save_buttons_container.isEnabled():
             # ask user.
             msgBox = QMessageBox(self)
             msgBox.setText("There are unsaved changes to export settings.")
@@ -512,15 +663,16 @@ class QEDialog(QDialog):
         writeSetting("dialogWidth", str(self.size().width()))
         writeSetting("dialogHeight", str(self.size().height()))
         
-        self.tree.thumbnail_worker.close()
+        if False:
+            self.tree.thumbnail_worker.close()
+            
+            if len(self.tree.items) > 0:
+                # only write columns state if they've been fit to any items.
+                state = self.tree.header().saveState()
+                state_str = str(state.toBase64()).lstrip("b'").rstrip("'")
+                writeSetting("columns_state", state_str)
         
-        if len(self.tree.items) > 0:
-            # only write columns state if they've been fit to any items.
-            state = self.tree.header().saveState()
-            state_str = str(state.toBase64()).lstrip("b'").rstrip("'")
-            writeSetting("columns_state", state_str)
-        
-        self.list_container_layout.removeWidget(self.tree)
+        self.tree_container_layout.removeWidget(self.tree)
         WidgetBin.addWidget(self.tree)
         QETree.instance = None
         self.tree = None
@@ -535,13 +687,13 @@ class QEDialog(QDialog):
 
     def update_save_button(self):
         if is_any_qe_setting_modified():
-            if not self.save_button.isEnabled():
-                self.save_button.setText("Save Settings*")
-                self.save_button.setDisabled(False)
+            if not self.save_buttons_container.isEnabled():
+                self.save_buttons_container.setDisabled(False)
+                self.save_buttons_container_opacity.setOpacity(1.0)
         else:
-            if self.save_button.isEnabled():
-                self.save_button.setText("Save Settings")
-                self.save_button.setDisabled(True)
+            if self.save_buttons_container.isEnabled():
+                self.save_buttons_container.setDisabled(True)
+                self.save_buttons_container_opacity.setOpacity(0.5)
 
     def _on_show_unstored_button_clicked(self, checked):
         writeSetting("show_unstored", bool2str(checked))
@@ -555,90 +707,10 @@ class QEDialog(QDialog):
         writeSetting("show_non_kra", bool2str(checked))
         self.tree.refilter()
     
-    def _on_settings_display_mode_combobox_current_index_changed(self, index):
-        mode = self.settings_display_mode_combobox.itemData(index)
-        writeSetting("settings_display_mode", mode)
-        self.settings_minimize_unfocused_button.setVisible(mode == "focused")
-        self.tree.set_settings_display_mode(mode)
-    
-    def _on_settings_minimize_unfocused_button_clicked(self, checked):
-        writeSetting("minimize_unfocused", bool2str(checked))
-        self.tree.set_settings_display_mode()
-    
     def _on_folder_filter_button_filter_changed(self):
         self.tree.refilter()
-    
-    def _on_fade_button_clicked(self, checked):
-        checked = not str2bool(readSetting("show_fade_sliders"))
-        writeSetting("show_fade_sliders", bool2str(checked))
-        self.update_fade_sliders_visibility(checked)
-    
-    def update_fade_sliders_visibility(self, visible):
-        if visible:
-            self.fade_button.setText("Fade:")
-            self.alt_row_contrast_slider.show()
-            self.unhovered_fade_slider.show()
-            self.stored_highlight_slider.show()
-        else:
-            self.fade_button.setText("Fade...")
-            self.alt_row_contrast_slider.hide()
-            self.unhovered_fade_slider.hide()
-            self.stored_highlight_slider.hide()
-    
-    def _on_alt_row_contrast_slider_value_changed(self):
-        writeSetting("alt_row_contrast", str(self.alt_row_contrast_slider.value()))
-        self.tree.updateAlternatingRowContrast()
-        self.tree.redraw()
-    
-    def _on_unhovered_fade_slider_value_changed(self):
-        writeSetting("unhovered_fade", str(self.unhovered_fade_slider.value()))
-        root = self.tree.invisibleRootItem()
-        for item in (root.child(i) for i in range(root.childCount())):
-            self.tree.itemWidget(item, QECols.SETTINGS_COLUMN).setOpacity(hover=False)
-        self.tree.redraw()
-    
-    def _on_stored_highlight_slider_value_changed(self):
-        writeSetting("highlight_alpha", str(self.stored_highlight_slider.value()))
-        self.tree.set_stored_highlight_alpha(round(self.stored_highlight_slider.value() * 0.64))
-        self.tree.redraw()
 
-    def _on_advanced_mode_button_clicked(self, checked):
-        writeSetting("advanced_mode", bool2str(checked))
-        self.set_advanced_mode(checked)
-
-    def set_advanced_mode(self, enabled):
-        if enabled:
-            self.tree.showColumn(QECols.STORE_SETTINGS_COLUMN)
-            self.show_unstored_button.show()
-            self.show_unstored_button.setCheckState(str2qtcheckstate(readSetting("show_unstored")))
-            self.auto_store_label.show()
-            self.auto_store_on_modify_button.show()
-            self.auto_store_on_modify_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_modify")))
-            self.auto_store_on_export_button.show()
-            self.auto_store_on_export_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_export")))
-            self.auto_save_on_close_button.show()
-            self.auto_save_on_close_button.setCheckState(str2qtcheckstate(readSetting("auto_save_on_close")))
-            self.save_button.show()
-        else:
-            self.tree.hideColumn(QECols.STORE_SETTINGS_COLUMN)
-            self.show_unstored_button.hide()
-            self.show_unstored_button.setCheckState(Qt.Checked)
-            self.auto_store_label.hide()
-            self.auto_store_on_modify_button.hide()
-            self.auto_store_on_modify_button.setCheckState(Qt.Checked)
-            self.auto_store_on_export_button.hide()
-            self.auto_store_on_export_button.setCheckState(Qt.Checked)
-            self.auto_save_on_close_button.hide()
-            self.auto_save_on_close_button.setCheckState(Qt.Checked)
-            self.save_button.hide()
-
-    def _on_auto_store_on_modify_button_clicked(self, checked):
-        writeSetting("auto_store_on_modify", bool2str(checked))
-
-    def _on_auto_store_on_export_button_clicked(self, checked):
-        writeSetting("auto_store_on_export", bool2str(checked))
-
-    def _on_auto_save_on_close_button_clicked(self, checked):
+    def _on_auto_save_on_close_action_toggled(self, checked):
         writeSetting("auto_save_on_close", bool2str(checked))
 
     def _on_use_custom_icons_action_toggled(self, checked):
@@ -689,24 +761,236 @@ class QEDialog(QDialog):
         writeSetting("visible_types", " ".join(visible_types))
 
     def update_show_extensions_in_list_for_type(self, ext, show):
-        for combobox in self.tree.extension_comboboxes:
-            model = combobox.model()
-            for item_idx in range(combobox.count()):
-                t = combobox.itemText(item_idx)
-                if t != ext:
-                    continue
-                combobox.view().setRowHidden(item_idx, not show)
-                item = model.item(item_idx)
-                flags = item.flags()
-                item.setFlags((flags & ~Qt.ItemIsEnabled) if not show else (flags | Qt.ItemIsEnabled))
+        combobox = self.basic_export_settings_file_type    
+        model = combobox.model()
+        for item_idx in range(combobox.count()):
+            t = combobox.itemText(item_idx)
+            #print(f"{item_idx=}, {t=}, {ext=}, {show=}")
+            if t != ext:
+                continue
+            combobox.view().setRowHidden(item_idx, not show)
+            item = model.item(item_idx)
+            flags = item.flags()
+            item.setFlags((flags & ~Qt.ItemIsEnabled) if not show else (flags | Qt.ItemIsEnabled))
 
     def _on_wide_column_resize_grabber_action_toggled(self, checked):
         writeSetting("wide_column_resize_grabber", bool2str(checked))
         self.tree.header().setStyle(self.tree.wide_header_style if checked else self.tree.style())
 
+    def _on_revert_button_clicked(self, checked):
+        self.tree_container_layout.removeWidget(self.tree)
+        WidgetBin.addWidget(self.tree)
+        QETree.instance = None
+        self.tree = None
+        
+        load_settings_from_config(suppress_version_warning=True)
+        
+        extension().update_quick_export_display()
+        
+        # TODO: verify highlighted_doc still exists before passing it.
+        self.setup(msg="Settings reverted.")#, doc=self.highlighted_doc)
+
     def _on_save_button_clicked(self, checked):
         save_settings_to_config()
-        self.save_button.setText("Save Settings")
-        self.save_button.setIcon(QIcon())
-        self.save_button.setDisabled(True)
+        self.save_buttons_container.setDisabled(True)
+        self.save_buttons_container_opacity.setOpacity(0.5)
         self.sbar.showMessage("Settings saved.", 2500)
+
+    def _on_add_folder_action_triggered(self, start_path = None, force_use_start_path = False):
+        start_path = start_path or Path(app.activeDocument().fileName()).parent if app.activeDocument() else Path.home()
+        print("add folder at start_path =", start_path)
+        result = FileDialog.getExistingDirectory(self, "Locate folder", str(start_path), "QE_AddFolderToTree" if not force_use_start_path else None)
+        if not result:
+            return
+        item = self.tree.add_folder_to_tree(Path(result))
+
+    def _on_add_project_action_triggered(self, start_path = None, force_use_start_path = False):
+        start_path = start_path or Path(app.activeDocument().fileName()).parent if app.activeDocument() else Path.home()
+        print("add project at start_path =", start_path)
+
+        file = FileDialog.getOpenFileName(self, "locate file", str(start_path), "Krita document (*.kra)", None, "QE_AddProjectToTree" if not force_use_start_path else None)
+        print(f"{file=}")
+        if not file:
+            return
+        file = Path(file)
+        base = base_stem_and_version_number_for_versioned_file(file)[0]
+        path = file.parent / base
+        item = self.tree.add_base_to_tree(path)
+
+    def _on_tree_source_model_data_changed(self, topLeft, bottomRight, roles):
+        # TODO: restrict save string update to affected items.
+        for path in qe_settings.keys():
+            generate_save_string(path)
+        self.update_save_button()
+
+    def _on_tree_selection_changed(self, selected, deselected):
+        #print(len(selected), "selected", selected)
+        #print(len(deselected), "deselected", deselected)
+        
+        rows = self.tree.selectionModel().selectedRows()
+        
+        model = self.tree.model
+        
+        if len(rows) == 1:
+            self.basic_export_settings_container.setDisabled(False)
+            
+            index = rows[0]
+            index = model.mapToSource(index)
+            #print("_on_tree_selection_changed:", index.row(), index.column(), index.parent(), index.model(), index.data(PathRole))
+            self.set_basic_export_settings_controls_for_path(index.data(PathRole))
+        else:
+            self.basic_export_settings_container.setDisabled(True)
+            self.basic_export_settings_output_path.setText("export path preview")
+            self.basic_export_settings_output_path.setDisabled(True)
+            
+            if len(rows) == 0 and self.tree.selectionModel().currentIndex().isValid():
+                global suppress_store_on_widget_edit
+                suppress_store_on_widget_edit = True
+                self.update_basic_export_settings_output_path_label()
+                suppress_store_on_widget_edit = False
+
+    def update_basic_export_settings_output_path_label(self):
+        sel_rows = self.tree.selectionModel().selectedRows()
+        
+        if len(sel_rows) == 0:
+            if self.tree.selectionModel().currentIndex().isValid():
+                sel_rows = [self.tree.selectionModel().currentIndex()]
+        
+        if len(sel_rows) != 1:
+            return
+        
+        model = self.tree.model
+        
+        index = sel_rows[0]
+        index = model.mapToSource(index)
+        
+        path = index.data(PathRole)
+        item_type = index.data(ItemTypeRole)
+        
+        file_name_source_index = self.basic_export_settings_file_name.currentIndex()
+        file_name_custom = self.basic_export_settings_file_name_custom.text()
+        output_extension = self.basic_export_settings_file_type.currentText()
+        location_index = self.basic_export_settings_folder_location.currentIndex()
+        location_name_source_index = self.basic_export_settings_folder_name.currentIndex()
+        location_name_custom = self.basic_export_settings_folder_name_custom.text()
+        location_custom = Path(self.basic_export_settings_location_custom.text())
+        
+        settings = None
+        
+        global suppress_store_on_widget_edit
+        if not suppress_store_on_widget_edit:
+            if path in qe_settings:
+                settings = qe_settings[path]
+                
+                s_basic = settings["basic"]
+                s_basic["file_name_source"] = file_name_source_index
+                s_basic["file_name_custom"] = file_name_custom
+                s_basic["ext"] = output_extension
+                s_basic["location"] = location_index
+                s_basic["location_name_source"] = location_name_source_index
+                s_basic["location_name_custom"] = location_name_custom
+                s_basic["location_custom"] = location_custom
+                
+                generate_save_string(path)
+                self.update_save_button()
+        else:
+            #print("suppressed store on widget edit")
+            pass
+        
+        if not settings:
+            settings_path = find_settings_path_for_file(path)
+            if not settings_path:
+                return
+            settings = qe_settings[settings_path]
+        
+        output_path = export_file_path(settings, path, item_type=item_type)
+        
+        self.basic_export_settings_output_path.setText(str(output_path))
+        self.basic_export_settings_output_path.setDisabled(False)
+
+        #print("--update_basic_export_settings_output_path_label--")
+        #for x,y in enumerate(qe_settings):
+            #print(x, y, qe_settings[y])
+        #print("--")
+
+    def _on_basic_export_settings_file_name_current_index_changed(self, index):
+        self.basic_export_settings_file_name_custom.setVisible(index == QEFileNameSource.CUSTOM)
+        self.update_basic_export_settings_output_path_label()
+
+    def _on_basic_export_settings_folder_location_current_index_changed(self, index):
+        show_name = index in (QELocation.IN_SUBFOLDER, QELocation.IN_SIBLING_OF_FOLDER)
+        self.basic_export_settings_folder_name.setVisible(show_name)
+        self.basic_export_settings_folder_name_custom.setVisible(show_name and self.basic_export_settings_folder_name.currentIndex() == QEFolderNameSource.CUSTOM)
+        self.basic_export_settings_location_custom.setVisible(index == QELocation.CUSTOM)
+        self.basic_export_settings_folder_pick_custom.setVisible(index == QELocation.CUSTOM)
+        self.update_basic_export_settings_output_path_label()
+
+    def _on_basic_export_settings_folder_name_current_index_changed(self, index):
+        self.basic_export_settings_folder_name_custom.setVisible(self.basic_export_settings_folder_location.currentIndex() in (QELocation.IN_SUBFOLDER, QELocation.IN_SIBLING_OF_FOLDER) and index == QEFolderNameSource.CUSTOM)
+        self.basic_export_settings_location_custom.setVisible(self.basic_export_settings_folder_location.currentIndex() == QELocation.CUSTOM)
+        self.update_basic_export_settings_output_path_label()
+
+    def _on_basic_export_settings_folder_pick_custom_clicked(self):
+        start_path = Path()
+        
+        if self.basic_export_settings_location_custom.text():
+            start_path = Path(self.basic_export_settings_location_custom.text())
+        
+        if not start_path.exists():
+            sel_rows = self.tree.selectionModel().selectedRows()
+            index = self.tree.model.mapToSource(sel_rows[0])
+            
+            path = index.data(PathRole)
+            item_type = index.data(ItemTypeRole)
+            start_path = path if item_type == QEItemType.FOLDER else path.parent
+        
+        if not start_path.exists():
+            start_path = Path.home()
+        
+        # TODO: remove dialog name to force start folder?
+        result = FileDialog.getExistingDirectory(self, "Locate folder", str(start_path), "QE_CustomExportFolder")
+        if not result:
+            return
+        self.basic_export_settings_location_custom.setText(result)
+        self.update_basic_export_settings_output_path_label()
+
+    def set_basic_export_settings_controls_for_path(self, path):
+        global suppress_store_on_widget_edit
+        
+        if not path in qe_settings:
+            self.basic_export_settings_container.setDisabled(True)
+            path = find_settings_path_for_file(path)
+            if not path:
+                self.basic_export_settings_output_path.setText("export path preview")
+                self.basic_export_settings_output_path.setDisabled(True)
+                return
+        
+        s_basic = qe_settings[path]["basic"]
+        
+        suppress_store_on_widget_edit = True
+        
+        self.basic_export_settings_file_name.setCurrentIndex(s_basic["file_name_source"])
+        self.basic_export_settings_file_name_custom.setText(s_basic["file_name_custom"])
+        self.basic_export_settings_file_type.setCurrentText(s_basic["ext"])
+        self.basic_export_settings_folder_location.setCurrentIndex(s_basic["location"])
+        self.basic_export_settings_folder_name.setCurrentIndex(s_basic["location_name_source"])
+        self.basic_export_settings_folder_name_custom.setText(s_basic["location_name_custom"])
+        self.basic_export_settings_location_custom.setText(str(s_basic["location_custom"]))
+        
+        #print("--set_basic_export_settings_controls_for_path--")
+        #for x,y in enumerate(qe_settings):
+            #print(x, y, qe_settings[y])
+        #print("--")
+        
+        self.update_basic_export_settings_output_path_label()
+        
+        suppress_store_on_widget_edit = False
+    
+    def _on_tree_request_config_widgets_refresh_for_path(self, path):
+        self.set_basic_export_settings_controls_for_path(path)
+    
+    def _on_tree_request_add_folder_at_path(self, path):
+        self._on_add_folder_action_triggered(start_path = path, force_use_start_path = True)
+    
+    def _on_tree_request_add_project_at_path(self, path):
+        self._on_add_project_action_triggered(start_path = path, force_use_start_path = True)

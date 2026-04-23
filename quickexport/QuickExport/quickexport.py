@@ -5,6 +5,7 @@ from pathlib import Path
 from krita import *
 
 from .utils import *
+#from .dialog import QEDialog
 from .qedialog import QEDialog
 
 app = Krita.instance()
@@ -43,33 +44,7 @@ class QuickExportExtension(Extension):
                     "hide":         app.icon("novisible"),
                     "show":         app.icon("visible")
                 },
-                "show_non_kra":     icon("show-non-kra"),
-                "show_unopened":    icon("show-unopened"),
-                "show_unstored":    icon("show-unstored"),
-                "versions": {
-                    "single":       icon("single-file"),
-                    "all":          icon("versions"),
-                    "all_forward":  icon("versions-forward")
-                },
-                "alpha":            app.icon("transparency-unlocked"),
-                "indexed":          icon("indexed"),
-                "progressive":      icon("progressive"),
-                "hdr":              icon("hdr"),
-                "embed_profile":    icon("embed-profile"),
-                "force_profile":    icon("force-profile"),
-                "force_8bit":       icon("force-8bit"),
-                "metadata_options": icon("metadata-options"),
-                "metadata":         icon("metadata"),
-                "author":           icon("author"),
-                "scale":            icon("scale"),
-                "subsampling": {
-                    "1x1":          icon("subsampling-1x1"),
-                    "1x2":          icon("subsampling-1x2"),
-                    "2x1":          icon("subsampling-2x1"),
-                    "2x2":          icon("subsampling-2x2")
-                },
-                "jpeg_baseline":    icon("jpeg-baseline"),
-                "optimise":         icon("optimise")
+                "scale":            icon("scale")
             }
         
         self.set_default_icons()
@@ -89,33 +64,7 @@ class QuickExportExtension(Extension):
                 "hide":             app.icon("novisible"),
                 "show":             app.icon("visible")
             },
-            "show_non_kra":         app.icon("folder-pictures"),
-            "show_unopened":        app.icon("groupLayer"),
-            "show_unstored":        app.icon("hatchingbrush"),
-            "versions": {
-                "single":           app.icon("colorizeMask"),
-                "all":              app.icon("object-ungroup-calligra"),
-                "all_forward":      app.icon("object-group-calligra")
-            },
-            "alpha":                app.icon("transparency-unlocked"),
-            "indexed":              app.icon("wheel-sectors"),
-            "progressive":          app.icon("krita_tool_grid"),
-            "hdr":                  app.icon("wheel-light"),
-            "embed_profile":        app.icon("curve-preset-s"),
-            "force_profile":        app.icon("locked"),
-            "force_8bit":           app.icon("merge-layer-below"),
-            "metadata_options":     app.icon("tag"),
-            "metadata":             app.icon("view-list-details"),
-            "author":               app.icon("im-user"),
-            "scale":                app.icon("transform_icons_liquify_resize"),
-            "subsampling": {
-                "1x1":              app.icon("tool_similar_selection"),
-                "1x2":              app.icon("tool_similar_selection"),
-                "2x1":              app.icon("tool_similar_selection"),
-                "2x2":              app.icon("tool_similar_selection")
-            },
-            "jpeg_baseline":        app.icon("krita_tool_rectangle"),
-            "optimise":             app.icon("tool_crop")
+            "scale":                app.icon("transform_icons_liquify_resize")
         }
     
     def get_icon(self,  *args):
@@ -229,16 +178,19 @@ class QuickExportExtension(Extension):
             if doc:
                 if doc.fileName():
                     self.qe_action.setEnabled(True)
-                    file_settings = find_settings_for_file(Path(doc.fileName()))
-                    if file_settings:
+                    doc_file_path = Path(doc.fileName())
+                    file_settings_path = find_settings_path_for_file(doc_file_path)
+                    if file_settings_path:
                         # file has QE settings.
+                        file_settings = qe_settings[file_settings_path]
                         show_export_name_in_menu = str2bool(readSetting("show_export_name_in_menu"))
+                        output_file_path = export_file_path(file_settings, doc_file_path)
                         if show_export_name_in_menu:
-                            output_filename = file_settings["output_name"] + file_settings["ext"]
-                            self.qe_action.setText(f"Quick export to '{output_filename}'")
+                            # ~ output_filename = file_settings["output_name"] + file_settings["ext"]
+                            self.qe_action.setText(f"Quick export to '{output_file_path.name}'")
                         else:
                             self.qe_action.setText("Quick export")
-                        self.qe_action.setToolTip(f"Quick export{shortcut_text}\n{str(export_file_path(file_settings))}")
+                        self.qe_action.setToolTip(f"Quick export{shortcut_text}\n{str(output_file_path)}")
                         return
                     # file has been saved but has no settings.
                     self.qe_action.setText("Quick export...")
@@ -267,20 +219,20 @@ class QuickExportExtension(Extension):
                 return
         
         path = Path(doc.fileName())
-        file_settings = find_settings_for_file(path)
+        file_settings_path = find_settings_path_for_file(path)
         
-        if file_settings == None:
+        if file_settings_path == None:
             self.run_dialog(msg="Configure export settings for the image then try again, or just click 'Export now'.", doc=doc)
             return
         
-        result = export_image(file_settings, doc)
+        result = export_image(file_settings_path, doc)
         
         if not result:
             failed_msg = export_failed_msg()
             print(f"QE: Export failed! {failed_msg}")
             app.activeWindow().activeView().showFloatingMessage(f"Export failed! {failed_msg}", app.icon('warning'), 5000, 0)
         else:
-            export_path = export_file_path(file_settings)
+            export_path = export_file_path(qe_settings[file_settings_path], path)
             print(f"QE: Exported to '{str(export_path)}'")
             app.activeWindow().activeView().showFloatingMessage(f"Exported to '{str(export_path)}'", app.icon('document-export'), 5000, 1)
     
@@ -295,6 +247,8 @@ class QuickExportExtension(Extension):
         dialog = QEDialog.instance or QEDialog()
         dialog.setup(msg=msg, doc=doc)
         dialog.show()
+        
+        #from .qemacrobuilder import QEMacroBuilder
 
 # And add the extension to Krita's list of extensions:
 app.addExtension(QuickExportExtension(app))

@@ -5,10 +5,42 @@ from timeit import default_timer
 from pathlib import Path
 from os.path import relpath
 from functools import reduce
+from enum import IntEnum, auto
+import platform, os, subprocess
 import re
 import math
+import json
+from copy import deepcopy
 from krita import *
 app = Krita.instance()
+
+PathRole = Qt.UserRole
+ItemTypeRole = Qt.UserRole + 1
+
+class QEItemType(IntEnum):
+    INVALID = -1
+    PROJECT = auto()
+    FOLDER = auto()
+    FILE = auto()
+
+class QEFileNameSource(IntEnum):
+    PROJECT = 0
+    FILE = auto()
+    CUSTOM = auto()
+
+class QEFolderNameSource(IntEnum):
+    PROJECT = 0
+    CUSTOM = auto()
+
+class QELocation(IntEnum):
+    IN_SAME_FOLDER = 0
+    IN_SUBFOLDER = auto()
+    IN_PARENT_OF_FOLDER = auto()
+    IN_SIBLING_OF_FOLDER = auto()
+    CUSTOM = auto()
+    
+
+config_clipboard = {"default":{}}
 
 class WidgetBin(QObject):
     instance = None
@@ -57,17 +89,25 @@ class WidgetBin(QObject):
 
 widget_bin = WidgetBin()
 
-windows_forbidden_filename_chars = "^<>:;?\*|/"
+windows_forbidden_filename_chars = r"^<>:;?\*|/"
 
-qe_settings = []
+qe_settings_last_load = {}
+qe_settings = {}
+
+def update_qe_settings_last_load():
+    global qe_settings_last_load
+    global qe_settings
+    qe_settings_last_load = deepcopy(qe_settings)
+
+def settings_last_load():
+    return qe_settings_last_load
 
 qe_extension = None
 
-setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_kra":"false", "alt_row_contrast":"100", "unhovered_fade":"75", "highlight_alpha":"100",
-                    "advanced_mode":"false", "auto_store_on_modify":"true", "auto_store_on_export":"true", "auto_save_on_close":"true", "use_custom_icons":"true",
+setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_kra":"false", "auto_save_on_close":"true", "use_custom_icons":"true",
                     "custom_icons_theme":"follow", "show_export_name_in_menu":"true", "default_export_unsaved":"false", "show_thumbnails_for_unopened":"true",
-                    "visible_types":".jpg .jpeg .png", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"", "wide_column_resize_grabber":"false",
-                    "show_fade_sliders":"true", "settings_display_mode":"focused", "minimize_unfocused":"true", "settings":"", "settings_version":""}
+                    "visible_types":".avif .exr .gif .ico .jpg .jpeg .jxl .png .tif .webp", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"", "wide_column_resize_grabber":"false",
+                    "settings_version":""}
 
 filter_strategy_store_strings     = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BSpline":"BS", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
 filter_strategy_rev_store_strings = {v:k for k,v in filter_strategy_store_strings.items()}
@@ -178,88 +218,45 @@ def serialize_stored_output_string(base, is_abs, abs_dir, name):
         # relative to base path.
         return "./" + relpath(abs_dir.joinpath(name), base)
 
-qe_supported_extensions = (".gif", ".jpg", ".jpeg", ".pbm", ".pgm", ".png", ".ppm", ".tga", ".bmp", ".ico", ".xbm", ".xpm")
+# TODO: exr and openexr both have .exr extensions.
+qe_supported_extensions = (".avif", ".bmp", ".csv", ".exr", ".gbr", ".gif", ".gih", ".hdr", ".heic", ".ico", ".jpg", ".jpeg", ".jxl", ".krz", ".kpp", ".ora",
+                           ".pbm", ".pgm", ".png", ".ppm", ".psd", ".qml", ".r16", ".r32", ".r8", ".scml", ".tga", ".tif", ".webp", ".xbm", ".xpm")
 
 def supported_extensions():
     return qe_supported_extensions
 
-def default_settings(document=None, doc_index=1024, store=False, path=None, versions=None, output_name="", ext=".png", set_scale=False, scale_filter="Auto"):
-    bvs = None
-    mvn = None
-    if path:
-        bvs, mvn = base_stem_and_version_number_for_versioned_file(path)
-        if not versions:
-            versions = "all" if bvs == path.stem else "all_forward"
-    set_scale = set_scale and document
+def default_settings(path, *, node_type=QEItemType.INVALID, document=None, doc_index=1024, store=False, output_name="", ext=".png"):
     settings = {
-        "document":document,
-        "doc_index":doc_index,
-        "store":store,
-        "config_file_index":-1,
-        # values read from config.
-        "config_stored_path_string":"",
-        "config_stored_output_string":"",
-        "config_stored_macros_string":"",
-        "config_stored_settings_string":"",
-        # potentially modified values to write to config on save.
         "config_path_string":"",
-        "config_output_string":"",
         "config_macros_string":"",
-        "config_settings_string":"",
-        # if read and write strings differ (ie. settings modified).
-        "config_modified_path":False,
-        "config_modified_output":False,
-        "config_modified_macros":False,
-        "config_modified_settings":False,
-        "config_modified":False,
+        "config_basic_string":"",
         "path":path,
-        "versions": versions,
-        "base_version_string": bvs,
-        "matched_version_number": mvn,
-        "output_is_abs": False,
-        "output_abs_dir": path.parent if isinstance(path, Path) else None,
-        "output_name":output_name,
-        "ext":ext,
-        "scale":False,
-        "scale_width":document.width() if set_scale else -1,
-        "scale_height":document.height() if set_scale else -1,
-        "scale_filter":scale_filter,
-        "scale_res":document.xRes() if set_scale else -1,
-        "png_alpha":False,
-        "png_fillcolour":QColor('white'),
-        "png_compression":9,
-        "png_indexed":True,
-        "png_interlaced":False,
-        "png_hdr":False,
-        "png_embed_srgb":False,
-        "png_force_srgb":False,
-        "png_metadata":False,
-        "png_author":False,
-        "png_force_8bit":False,
-        "jpeg_progressive":False,
-        "jpeg_icc_profile":False,
-        "jpeg_fillcolour":QColor('white'),
-        "jpeg_quality":80,
-        "jpeg_force_baseline":True,
-        "jpeg_optimise":False,
-        "jpeg_smooth":0,
-        "jpeg_subsampling":"2x2",
-        "jpeg_exif":True,
-        "jpeg_iptc":True,
-        "jpeg_xmp":True,
-        "jpeg_tool_information":False,
-        "jpeg_anonymiser":False,
-        "jpeg_metadata":False,
-        "jpeg_author":False
+        "node_type":node_type,
+        "export":{},
+        "basic":{
+            "file_name_source":QEFileNameSource.PROJECT,
+            "file_name_custom":"",
+            "ext":ext,
+            "location":QELocation.IN_SAME_FOLDER,
+            "location_name_source":QEFolderNameSource.PROJECT,
+            "location_name_custom":"",
+            "location_custom":Path(),
+            "scale":False,
+            "scale_width":-1,
+            "scale_height":-1,
+            "scale_filter":"Auto",
+            "scale_res":-1
+        }
     }
+    generate_save_string(path, settings)
     return settings
 
 def is_any_qe_setting_modified():
-    for s in qe_settings:
-        if s["config_modified"]:
-            return True
-    return False
+    # TODO: quite fragile, affected by order of items in dictionary.
+    #       but safe-ish; errs on side of false-positive.
+    return qe_settings != qe_settings_last_load
 
+# TODO: needs work upgrading old versions up to latest.
 def load_settings_from_config(soft_warning_for_unsupported_version=False, suppress_version_warning=False):
     qe_settings.clear()
     
@@ -276,8 +273,12 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
         save_settings_to_config()
         
     elif settings_version == "0.0.3":
+        # no backup here, 0.0.3 never used in release.
         load_0_0_3_settings_from_config()
-        
+    
+    elif settings_version == "0.0.4":
+        load_0_0_4_settings_from_config()
+    
     else:
         if suppress_version_warning:
             return True
@@ -286,7 +287,7 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
         msgBox.setText("Quick Export settings in unsupported format found.")
         msgBox.setInformativeText(
             "Settings were saved in a different format by a later version of QuickExport. They can not be read by this version.\n\n" \
-            "compatible versions: 0.0.3 and below\n" \
+            "compatible versions: 0.0.4 and below\n" \
             f"saved as version: {settings_version}\n\n" \
             "It may be that a backup was made before saving the later version settings - check in your kritarc file.\n\n" \
             "You may also try opening an issue on the Github to request a converter, but using the latest version of the plugin is recommended.\n\n" \
@@ -303,8 +304,79 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
         
         if ret in (QMessageBox.Ok, QMessageBox.Cancel):
             return False
-        
+    
+    update_qe_settings_last_load()
+    
     return True
+
+def load_0_0_4_settings_from_config():
+    """
+    read in settings from kritarc. example:
+    file0/macros=
+    file0/path=/home/user/mypic
+    file0/png={"alpha":false,"compression":3,"downsample":false  ..  "transparencyFillcolor":"<!DOCTYPE color>\n<color channeldepth=\"U8\">\n <RGB space=\"sRGB-elle-V2-srgbtrc.icc\" r=\"1\" g=\"1\" b=\"1\"/>\n</color>\n"}
+    file0/basic=p,p,,png,s,p,,,0,-1,-1,A,-1,
+    """
+
+    settings_index = 0
+    
+    while readSetting(f"file{settings_index}/path", "") != "":
+
+        config_path_string = readSetting(f"file{settings_index}/path", "")
+        path = Path(config_path_string)
+
+        settings = default_settings(path, store=True)
+        
+        settings["config_path_string"]   = config_path_string
+        settings["config_macros_string"] = readSetting(f"file{settings_index}/macros", "")
+        settings["config_basic_string"]  = readSetting(f"file{settings_index}/basic", "")
+        
+        settings["path"] = path
+        
+        def read_settings_string(string):
+            start_idx = 0
+            end_idx = 0
+            final_idx = len(string)
+            while True:
+                end_idx += 1
+                if end_idx == final_idx:
+                    yield string[start_idx:end_idx]
+                    break
+                if string[end_idx] == "," and string[end_idx-1] != "/":
+                    yield string[start_idx:end_idx]
+                    start_idx = end_idx+1
+        
+        s_basic = settings["basic"]
+        ss = read_settings_string(settings["config_basic_string"])
+        # TODO: remember to escape custom names/paths.
+        settings["node_type"]             = ('p','f').index(next(ss))
+        s_basic["file_name_source"]       = ('p','f','c').index(next(ss))
+        s_basic["file_name_custom"]       = next(ss)
+        s_basic["ext"]                    = "." + next(ss)
+        s_basic["location"]               = ('s','d','u','ud','c').index(next(ss))
+        s_basic["location_name_source"]   = ('p','c').index(next(ss))
+        s_basic["location_name_custom"]   = next(ss)
+        s_basic["location_custom"]        = Path(next(ss))
+        s_basic["scale"]                  = flag2bool(next(ss))
+        s_basic["scale_width"]            = int(next(ss))
+        s_basic["scale_height"]           = int(next(ss))
+        sf = next(ss)
+        s_basic["scale_filter"]           = filter_strategy_rev_store_strings.get(sf, sf)
+        sr = next(ss)
+        s_basic["scale_res"]              = float(sr) if sr != "-1" else -1
+        
+        for ext in supported_extensions():
+            ext_key = ext[1:]
+            ext_ss = readSetting(f"file{settings_index}/{ext_key}", "")
+            
+            if not ext_ss:
+                continue
+            
+            settings[f"config_export_{ext_key}_string"] = ext_ss
+            settings["export"][ext_key] = json.loads(ext_ss)
+        
+        qe_settings[path] = settings
+        settings_index += 1
 
 def load_0_0_3_settings_from_config():
     settings_index = 0
@@ -403,7 +475,7 @@ def load_0_0_2_settings_from_config():
     becomes: "path=/pa/,th/to//,a/file.kra,output=file/,,ext=.png ... "
     """
     
-    settings_string = readSetting("settings")
+    settings_string = readSetting("settings", "")
     #print(f"{settings_string=}")
     
     if settings_string == "":
@@ -514,216 +586,126 @@ def load_0_0_2_settings_from_config():
         qe_settings.append(settings)
         #print()
 
-def find_settings_for_file(file_path):
+def find_settings_path_for_file(file_path):
     """
-    for given path "/path/to/file.kra", find best (most specific) matching export settings.
+    for given path to a file "/path/to/file.kra", find path of best (most specific) matching export settings.
     
-    match quality goes: base name (all), base name (all forward), base name with progressively closer lower versions (all forward), exact file name.
+    if export settings exist for the base /path/to/file, prioritise that.
+    if export settings exist for the parent /path/to, fallback to that.
+    otherwise, no settings exist for the file.
     
-    example: "/path/to/file0_005.kra"
-    x. "path/to/file.kra"      - any version settings   - is not a match.
-    1. "path/to/file0.kra"     - versions = all         - is a match.
-    2. "path/to/file0.kra"     - versions = all_forward - is a match. (two entries for the same path shouldn't exist but if they do, this is considered a better match than 1.)
-    3. "path/to/file0_003.kra" - versions = all_forward - is a better match than 2.
-    4. "path/to/file0_004.kra" - versions = all-forward - is a better match than 3.
-    5* "path/to/file0_005.kra" - any versions settings  - is the best possible match.
-    x. "path/to/file0_006.kra" - any version settings   - is not a match.
+    return: settings path if found, else None.
     """
     
     def print(*args):
         pass
     
-    print(f" **** find_settings_for_file {file_path} ****")
+    if not file_path:
+        return None
     
-    # TODO: cache some of these things.
-    
+    folder_path = file_path.parent
     base_version_string, match_version_number = base_stem_and_version_number_for_versioned_file(file_path, unversioned_version_num=0)
-    stem = file_path.stem
-    suffix = file_path.suffix
-    best_s = None
-    best_version_number = 0
-    for s in qe_settings:
-        if not s["store"]:
-            # only match stored settings.
-            print(f" - {s['path']} is not a stored setting.")
-            continue
-        
-        if s["path"] == file_path:
-            # exact match.
-            print(f" - {s['path']} is exact match.")
-            print("   done.")
-            return s
-        
-        if s["versions"] == "single":
-            # these settings are for a single file, and it's not this one.
-            print(f" - {s['path']} does not match (single file only).")
-            continue
-        
-        s_parent = s["path"].parent
-        if file_path.parent != s_parent:
-            # wrong directory, can't be match.
-            print(f" - {s['path']} does not match (wrong directory).")
-            continue
-        
-        s_suff = s["path"].suffix
-        s_bvs, s_mvn = base_stem_and_version_number_for_versioned_file(s["path"])
-        
-        if base_version_string != s_bvs:
-            # not versions of the same image.
-            print(f" - {s['path']} does not match (not a version of this image).")
-            continue
-        
-        if s["versions"] == "all" and s_mvn != None:
-            # is version of image, but set only to apply to subversions of itself. eg. for "filename0_004":
-            # "filename0_002" (all_forward) matches ("filename0_003", "filename0_004", "filename0_005", etc), but
-            # "filename0_002" (all) does not match ("filename0_002_001", "filename0_002_002", "filename0_002_003", etc).
-            # ...unless s_mvn == None, eg. is unversioned, in which case all and all_forward version modes behave the same.
-            print(f" - {s['path']} does not match (is its own base file, so excluded from set of versions of this image).")
-            continue
-        
-        # treat unversioned as version 0.
-        s_mvn = s_mvn or 0
-        
-        if suffix != s_suff:
-            # accepts only same extension.
-            print(f" - {s['path']} does not match (different extension).")
-            continue
-        
-        if match_version_number < s_mvn:
-            # these settings are for a later version.
-            print(f" - {s['path']} does not match (settings for later versions only).")
-            continue
-        
-        if best_version_number > s_mvn:
-            # it's a match, but we already have a better match.
-            print(f" - {s['path']} does match, but a better match has already been found.")
-            continue
-        
-        print(f" - {s['path']} matches, new best.")
-        best_s = s
-        best_version_number = s_mvn
-        
-        # can't do this, may yet find exact match if continue looking.
-        # if s_mvn == match_version_number - 1:
-            # # won't find a closer match.
-            # print(f" - {s['path']} is as close a match as you can get.")
-            # print("   done.")
-            # return s
+    base_path = folder_path / Path(base_version_string)
     
-    if best_s:
-        print(f"best settings found were for {best_s['path']}.")
-    else:
-        print("no matching settings were found.")
-    print("done.")
-    return best_s
+    print(f"find_settings_path_for_file {file_path}: looking for {base_path=}")
+    if base_path in qe_settings:
+        print(f"find_settings_path_for_file {file_path}: got settings for project.")
+        return base_path
+    
+    print(f"find_settings_path_for_file {file_path}: looking for {folder_path=}")
+    if folder_path in qe_settings:
+        print(f"find_settings_path_for_file {file_path}: got settings for containing folder.")
+        return folder_path
+    
+    print(f"find_settings_for_file {file_path}: no settings found.")
+    return None
 
-def generate_save_string(s):    
-    if not s["store"]:
+def generate_save_string(settings_path, s=None):
+    """
+    settings_path accepts a Path object.
+    s accepts a settings dictionary.
+    If s is None, settings_path is used as key to qe_settings.
+    """
+    if not s:
+        s = qe_settings[settings_path]
         
-        s["config_path_string"] = ""
-        s["config_output_string"] = ""
-        s["config_macros_string"] = ""
-        s["config_settings_string"] = ""
-        
-    else:
-        
-        scale_filter = filter_strategy_store_strings[s['scale_filter']] if s['scale_filter'] in filter_strategy_store_strings else s['scale_filter']
-        scale_res = f"{s['scale_res']:.4f}".rstrip('0').rstrip('.') if s["scale_res"] != -1 else "-1"
-        
-        versions_string = {'single':'s', 'all':'a', 'all_forward':'f'}[s['versions']]
-        
-        s["config_path_string"] = str(s['path'])
-        s["config_output_string"] = serialize_stored_output_string(s['path'].parent, s['output_is_abs'], s['output_abs_dir'], s['output_name']) + s['ext']
-        s["config_macros_string"] = ""
-        s["config_settings_string"] = (
-            f"{versions_string},"
-            f"{bool2flag(s['scale'])},{s['scale_width']},{s['scale_height']},{scale_filter},{scale_res},"
-            f"{s['png_fillcolour'].name(QColor.HexRgb)},"
-            f"{s['png_compression']},"
-            f"{bool2flag(s['png_alpha'], s['png_indexed'], s['png_interlaced'], s['png_hdr'], s['png_embed_srgb'], s['png_force_srgb'], s['png_metadata'], s['png_author'], s['png_force_8bit'])},"
-            f"{s['jpeg_fillcolour'].name(QColor.HexRgb)},"
-            f"{s['jpeg_quality']},"
-            f"{s['jpeg_smooth']},"
-            f"{s['jpeg_subsampling']},"
-            f"{bool2flag(s['jpeg_progressive'], s['jpeg_icc_profile'], s['jpeg_force_baseline'], s['jpeg_optimise'], s['jpeg_exif'], s['jpeg_iptc'], s['jpeg_xmp'], s['jpeg_tool_information'], s['jpeg_anonymiser'], s['jpeg_metadata'], s['jpeg_author'])}"
-        )
+    s_basic = s["basic"]
+    scale_filter = filter_strategy_store_strings[s_basic['scale_filter']] if s_basic['scale_filter'] in filter_strategy_store_strings else s_basic['scale_filter']
+    scale_res = f"{s_basic['scale_res']:.4f}".rstrip('0').rstrip('.') if s_basic["scale_res"] != -1 else "-1"
     
-    s["config_modified_path"]     = s["config_stored_path_string"]     != s["config_path_string"]
-    s["config_modified_output"]   = s["config_stored_output_string"]   != s["config_output_string"]
-    s["config_modified_macros"]   = s["config_stored_macros_string"]   != s["config_macros_string"]
-    s["config_modified_settings"] = s["config_stored_settings_string"] != s["config_settings_string"]
-    s["config_modified"] = s["config_modified_path"] or s["config_modified_output"] or s["config_modified_macros"] or s["config_modified_settings"]
-    
-    if False:
-        print(f"generated save string for {s['path']}")
-        print(f"       {s['config_stored_path_string']=}")
-        print(f"              {s['config_path_string']=}")
-        print(f"            {s['config_modified_path']=}")
-        print(f"     {s['config_stored_output_string']=}")
-        print(f"            {s['config_output_string']=}")
-        print(f"          {s['config_modified_output']=}")
-        print(f"     {s['config_stored_macros_string']=}")
-        print(f"            {s['config_macros_string']=}")
-        print(f"          {s['config_modified_macros']=}")
-        print(f"   {s['config_stored_settings_string']=}")
-        print(f"          {s['config_settings_string']=}")
-        print(f"        {s['config_modified_settings']=}")
-        print(f"                 {s['config_modified']=}")
+    s["config_path_string"] = str(settings_path)
+    s["config_macros_string"] = ""
+    s["config_basic_string"] = (
+        f"{('p','f')[s['node_type']]},"
+        f"{('p','f','c')[s_basic['file_name_source']]},"
+        f"{s_basic['file_name_custom']},"
+        f"{s_basic['ext'][1:]},"
+        f"{('s','d','u','ud','c')[s_basic['location']]},"
+        f"{('p','c')[s_basic['location_name_source']]},"
+        f"{s_basic['location_name_custom']},"
+        f"{s_basic['location_custom']},"
+        f"{bool2flag(s_basic['scale'])},{s_basic['scale_width']},{s_basic['scale_height']},{scale_filter},{scale_res}"
+    )
+
+    for ext in supported_extensions():
+        ext_key = ext[1:]
+        
+        if ext_key not in s["export"]:
+            continue
+        
+        s[f"config_export_{ext_key}_string"] = json.dumps(s["export"][ext_key], separators=(",",":"))
 
 def save_settings_to_config():
     print("save_settings_to_config")
     
     settings_index = 0
     
-    for s in qe_settings:
-        if not s["store"]:
-            continue
+    for path,s in qe_settings.items():
+        generate_save_string(path)
         
-        write_path, write_output, write_macros, write_settings = True, True, True, True
-        path_string     = s["config_path_string"]     or s["config_stored_path_string"]
-        output_string   = s["config_output_string"]   or s["config_stored_output_string"]
-        macros_string   = s["config_macros_string"]   or s["config_stored_macros_string"]
-        settings_string = s["config_settings_string"] or s["config_stored_settings_string"]
+        path_string   = s["config_path_string"]
+        macros_string = s["config_macros_string"]
+        basic_string  = s["config_basic_string"]
         
-        if s["config_file_index"] == settings_index:
-            write_path, write_output, write_macros, write_settings = s["config_modified_path"], s["config_modified_output"], s["config_modified_macros"], s["config_modified_settings"]
+        writeSetting(f"file{settings_index}/path", path_string)
+        writeSetting(f"file{settings_index}/macros", macros_string)
+        writeSetting(f"file{settings_index}/basic", basic_string)
         
-        if write_path:
-            writeSetting(f"file{settings_index}/path", path_string)
-            s["config_stored_path_string"] = s["config_path_string"]
-            s["config_modified_path"] = False
-        if write_output:
-            writeSetting(f"file{settings_index}/output", output_string)
-            s["config_stored_output_string"] = s["config_output_string"]
-            s["config_modified_output"] = False
-        if write_macros:
-            writeSetting(f"file{settings_index}/macros", macros_string)
-            s["config_stored_macros_string"] = s["config_macros_string"]
-            s["config_modified_macros"] = False
-        if write_settings:
-            writeSetting(f"file{settings_index}/settings", settings_string)
-            s["config_stored_settings_string"] = s["config_settings_string"]
-            s["config_modified_settings"] = False
-        
-        s["config_modified"] = False
+        for ext in supported_extensions():
+            ext_key = ext[1:]
+            
+            if ext_key in s["export"]:
+                export_string = s[f"config_export_{ext_key}_string"] # ~ or s[f"config_stored_export_{ext_key}_string"]
+            else:
+                # erase export config for extension if exists.
+                if not readSetting(f"file{settings_index}/{ext_key}", ""):
+                    continue
+                export_string = ""
+            
+            writeSetting(f"file{settings_index}/{ext_key}", export_string)
         
         settings_index += 1
     
     # clear up old config remnants.
     while readSetting(f"file{settings_index}/path", "") != "":
         writeSetting(f"file{settings_index}/path", "")
-        writeSetting(f"file{settings_index}/output", "")
-        writeSetting(f"file{settings_index}/macros", "")
-        writeSetting(f"file{settings_index}/settings", "")
+        #writeSetting(f"file{settings_index}/macros", "")
+        writeSetting(f"file{settings_index}/basic", "")
+        for ext in supported_extensions():
+            ext_key = ext[1:]
+            if readSetting(f"file{settings_index}/{ext_key}", ""):
+                writeSetting(f"file{settings_index}/{ext_key}", "")
         settings_index += 1
     
-    writeSetting("settings_version", "0.0.3")
+    writeSetting("settings_version", "0.0.4")
+    
+    update_qe_settings_last_load()
 
 def tokenize_settings_string(s, tokens):
     i = 0
     while True:
         subs = s[i:]
-        mo = re.search("=|,|;|\[|\]", subs)
+        mo = re.search(r"=|,|;|\[|\]", subs)
         #print(mo)
         if not mo:
             break
@@ -764,8 +746,39 @@ def auto_filter_strategy(original_width, original_height, desired_width, desired
 
     return "NearestNeighbor"
 
-def export_file_path(settings):
-    return settings["output_abs_dir"].joinpath(settings["output_name"]+settings["ext"])
+def export_file_path(settings, source_path, item_type=QEItemType.FILE):
+    """
+    settings: dictionary of settings to use.
+    source_path: the file being exported.
+    item_type: a QEItemType. how to interpret source_path.
+    returns path to export to (for base and folder types, sample path for display only).
+    """
+    
+    if item_type in (QEItemType.PROJECT, QEItemType.FILE):
+        folder = source_path.parent
+        base = base_stem_and_version_number_for_versioned_file(source_path)[0]
+        #print(base)
+        file_name = source_path.stem if item_type == QEItemType.FILE else "<FileName>"
+    else:
+        folder = source_path
+        base = "<ProjectName>"
+        file_name = "<FileName>"
+    
+    s_basic = settings["basic"]
+    file_name_source_index = s_basic["file_name_source"]
+    file_name_custom = s_basic["file_name_custom"]
+    output_extension = s_basic["ext"]
+    location_index = s_basic["location"]
+    location_name_source_index = s_basic["location_name_source"]
+    location_name_custom = s_basic["location_name_custom"]
+    location_custom = s_basic["location_custom"]
+    
+    output_stem = (base, file_name, file_name_custom)[file_name_source_index]
+    folder_name = base if location_name_source_index == QEFolderNameSource.PROJECT else location_name_custom
+    output_folder = (folder, folder / folder_name, folder.parent, folder.parent / folder_name, location_custom)[location_index]
+    
+    return output_folder / (output_stem + output_extension)
+    
 
 export_failed_msg_ = ""
 
@@ -776,50 +789,45 @@ def set_export_failed_msg(msg):
     global export_failed_msg_
     export_failed_msg_ = msg
 
-def export_image(settings, document=None):
+def export_image(settings_path, document=None):
     exportParameters = InfoObject()
     
-    ext = settings["ext"]
+    settings = qe_settings[settings_path]
+    s_basic = settings["basic"]
+    s_export = settings["export"]
     
-    if ext == ".png":
-        exportParameters.setProperty("alpha",                 settings["png_alpha"])
-        exportParameters.setProperty("compression",           int(settings["png_compression"]))
-        exportParameters.setProperty("forceSRGB",             settings["png_force_srgb"])
-        exportParameters.setProperty("indexed",               settings["png_indexed"])
-        exportParameters.setProperty("interlaced",            settings["png_interlaced"])
-        exportParameters.setProperty("saveSRGBProfile",       settings["png_embed_srgb"])
-        exportParameters.setProperty("transparencyFillcolor", settings["png_fillcolour"])
-        exportParameters.setProperty("downsample",            settings["png_force_8bit"])       # not documented.
-        exportParameters.setProperty("storeMetaData",         settings["png_metadata"])         # not documented.
-        exportParameters.setProperty("storeAuthor",           settings["png_author"])           # not documented.
-    elif ext in (".jpg", ".jpeg"):
-        exportParameters.setProperty("baseline",              settings["jpeg_force_baseline"])
-        exportParameters.setProperty("exif",                  settings["jpeg_exif"])
-        exportParameters.setProperty("filters",               ",".join(filter(lambda item: bool(item), ["ToolInfo" * settings['jpeg_tool_information'], "Anonymizer" * settings["jpeg_anonymiser"]])))
-        #exportParameters.setProperty("forceSRGB",            settings["??"])                   # probably safe to ignore for now.
-        exportParameters.setProperty("iptc",                  settings["jpeg_iptc"])
-        #exportParameters.setProperty("is_sRGB",              settings["??"])                   # probably safe to ignore for now.
-        exportParameters.setProperty("optimize",              settings["jpeg_optimise"])
-        exportParameters.setProperty("progressive",           settings["jpeg_progressive"])
-        exportParameters.setProperty("quality",               int(settings["jpeg_quality"]))
-        exportParameters.setProperty("saveProfile",           settings["jpeg_icc_profile"])
-        exportParameters.setProperty("smoothing",             int(settings["jpeg_smooth"]))
-        exportParameters.setProperty("subsampling",           ("2x2","2x1","1x2","1x1").index(settings["jpeg_subsampling"]))
-        exportParameters.setProperty("transparencyFillcolor", settings["jpeg_fillcolour"])
-        exportParameters.setProperty("xmp",                   settings["jpeg_xmp"])
-        exportParameters.setProperty("storeMetaData",         settings["jpeg_metadata"])        # not documented.
-        exportParameters.setProperty("storeAuthor",           settings["jpeg_author"])          # not documented.
+    ext = s_basic["ext"]
+    ext_key = ext[1:]
     
-    export_path = export_file_path(settings)
+    if ext_key in s_export:
+        for k,v in s_export[ext_key].items():
+            exportParameters.setProperty(k, v)
+    else:
+        set_export_failed_msg(f"No configuration for {ext} file type.")
+        return False
+    
+    for p in exportParameters.properties():
+        print(p)
     
     if not document:
         document = settings["document"]
     
-    scale_width = settings["scale_width"] if settings["scale_width"] != -1 else document.width()
-    scale_height = settings["scale_height"] if settings["scale_height"] != -1 else document.height()
-    scale_filter = settings["scale_filter"]
+    export_path = export_file_path(settings, Path(document.fileName()))
     
-    do_resize = settings["scale"] and (scale_width != document.width() or scale_height != document.height())
+    if not export_path.is_absolute():
+        set_export_failed_msg(f"The configured export path is invalid.")
+        return False
+    
+    if not export_path.parent.exists():
+        # TODO: if an ancestor folder exists, provide option for automatically creating intermediary folders.
+        set_export_failed_msg(f"The export folder '{export_path.parent}' doesn't exist.")
+        return False
+    
+    scale_width = s_basic["scale_width"] if s_basic["scale_width"] != -1 else document.width()
+    scale_height = s_basic["scale_height"] if s_basic["scale_height"] != -1 else document.height()
+    scale_filter = s_basic["scale_filter"]
+    
+    do_resize = s_basic["scale"] and (scale_width != document.width() or scale_height != document.height())
     
     if do_resize:
         if scale_filter == "Auto":
@@ -921,6 +929,20 @@ def base_stem_and_version_number_for_versioned_file(file_path, unversioned_versi
         match_version_num = int(match.group()[1:])
     return base_version_stem, match_version_num
 
+# https://stackoverflow.com/a/16204023
+def open_folder_in_file_browser(path):
+    if not (path.exists() and path.is_dir()):
+        print(f"Folder not found at {path}")
+        QMessageBox.critical(dialog, "Krita", f"Folder {path} does not exist.")
+        return
+    
+    if platform.system() == "Windows":
+        os.startfile(path)
+    elif platform.system() == "Darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
+
 def rotate_point_around_point(px, py, ox, oy, angle):
     """
     rotate the point (px,py) clockwise around the point (ox,oy) by angle.
@@ -960,3 +982,47 @@ def find_layers(root_node, name, name_is_regex, respect_locks, colour_labels, ba
         print(f" - {node.name()}")
 
     return nodes
+
+# from https://www.geeksforgeeks.org/python/pyqt5-how-to-get-cropped-square-image-from-rectangular-image/
+def square_thumbnail(pixmap, size=8):
+    image = QImage(pixmap)#.fromData(imgdata, imgtype)
+
+    image.convertToFormat(QImage.Format_ARGB32)
+
+    imgsize = min(image.width(), image.height())
+    rect = QRect(
+        (image.width() - imgsize) // 2,
+        (image.height() - imgsize) // 2,
+        imgsize,
+        imgsize,
+    )
+    image = image.copy(rect)
+
+    out_img = QImage(imgsize, imgsize, QImage.Format_ARGB32)
+    out_img.fill(Qt.transparent)
+
+    # Create a texture brush and paint a circle
+    # with the original image onto
+    # the output image:
+    brush = QBrush(image)
+
+    # Paint the output image
+    painter = QPainter(out_img)
+    painter.setBrush(brush)
+    painter.setPen(Qt.NoPen)
+
+    # drawing square
+    painter.drawRect(0, 0, imgsize, imgsize)
+
+    painter.end()
+
+    # Convert the image to a pixmap and rescale it.
+    pr = QWindow().devicePixelRatio()
+    pm = QPixmap.fromImage(out_img)
+    pm.setDevicePixelRatio(pr)
+    size = int(size * pr)
+    pm = pm.scaled(size, size, Qt.KeepAspectRatio, 
+                               Qt.SmoothTransformation)
+
+    # return back the pixmap data
+    return pm
