@@ -285,13 +285,9 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
         for s in qe_settings:
             generate_save_string(s)
         save_settings_to_config()
-        
-    elif settings_version == "0.0.3":
-        # no backup here, 0.0.3 never used in release.
-        load_0_0_3_settings_from_config()
     
-    elif settings_version == "0.0.4":
-        load_0_0_4_settings_from_config()
+    elif settings_version == "0.0.3":
+        load_0_0_3_settings_from_config()
     
     else:
         if suppress_version_warning:
@@ -301,7 +297,7 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
         msgBox.setText("Quick Export settings in unsupported format found.")
         msgBox.setInformativeText(
             "Settings were saved in a different format by a later version of QuickExport. They can not be read by this version.\n\n" \
-            "compatible versions: 0.0.4 and below\n" \
+            "compatible versions: 0.0.3 and below\n" \
             f"saved as version: {settings_version}\n\n" \
             "It may be that a backup was made before saving the later version settings - check in your kritarc file.\n\n" \
             "You may also try opening an issue on the Github to request a converter, but using the latest version of the plugin is recommended.\n\n" \
@@ -323,7 +319,7 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
     
     return True
 
-def load_0_0_4_settings_from_config():
+def load_0_0_3_settings_from_config():
     """
     read in settings from kritarc. example:
     file0/macros=
@@ -390,91 +386,6 @@ def load_0_0_4_settings_from_config():
             settings["export"][ext_key] = json.loads(ext_ss)
         
         qe_settings[path] = settings
-        settings_index += 1
-
-def load_0_0_3_settings_from_config():
-    settings_index = 0
-    
-    while readSetting(f"file{settings_index}/path", "") != "":
-
-        settings = default_settings(store=True)
-        
-        settings["config_file_index"] = settings_index
-        settings["config_stored_path_string"]     = readSetting(f"file{settings_index}/path", "")
-        settings["config_stored_output_string"]   = readSetting(f"file{settings_index}/output", "")
-        settings["config_stored_macros_string"]   = readSetting(f"file{settings_index}/macros", "")
-        settings["config_stored_settings_string"] = readSetting(f"file{settings_index}/settings", "")
-        
-        settings["path"] = Path(settings["config_stored_path_string"])
-        path_string = str(settings["path"])
-        
-        for i, d in enumerate(app.documents()):
-            #print("comparing", d.fileName(), path_string, d.fileName()==path_string)
-            if d.fileName() == path_string:
-                settings["document"] = d
-                settings["doc_index"] = i
-                break
-        
-        output_string = settings["config_stored_output_string"]
-        ext_at = output_string.rfind(".")
-        output = deserialize_stored_output_string(settings["path"].parent, output_string[:ext_at])
-        settings["output_is_abs"] = output[0]
-        settings["output_abs_dir"] = output[1]
-        settings["output_name"] = output[2]
-        settings["ext"] = output_string[ext_at:]
-        
-        def read_settings_string(string):
-            start_idx = 0
-            end_idx = 0
-            final_idx = len(string)
-            while True:
-                end_idx += 1
-                if end_idx == final_idx:
-                    yield string[start_idx:end_idx]
-                    break
-                if string[end_idx] == "," and string[end_idx-1] != "/":
-                    yield string[start_idx:end_idx]
-                    start_idx = end_idx+1
-        
-        ss = read_settings_string(settings["config_stored_settings_string"])
-        settings["versions"]              = {"s":"single", "a":"all", "f":"all_forward"}[next(ss)]
-        settings["scale"]                 = flag2bool(next(ss))
-        settings["scale_width"]           = int(next(ss))
-        settings["scale_height"]          = int(next(ss))
-        sf = next(ss)
-        settings["scale_filter"]          = filter_strategy_rev_store_strings.get(sf, sf)
-        sr = next(ss)
-        settings["scale_res"]             = float(sr) if sr != "-1" else -1
-        settings["png_fillcolour"]        = QColor(next(ss))
-        settings["png_compression"]       = int(next(ss))
-        png_flags = next(ss)
-        settings["png_alpha"]             = flag2bool(png_flags[0])
-        settings["png_indexed"]           = flag2bool(png_flags[1])
-        settings["png_interlaced"]        = flag2bool(png_flags[2])
-        settings["png_hdr"]               = flag2bool(png_flags[3])
-        settings["png_embed_srgb"]        = flag2bool(png_flags[4])
-        settings["png_force_srgb"]        = flag2bool(png_flags[5])
-        settings["png_metadata"]          = flag2bool(png_flags[6])
-        settings["png_author"]            = flag2bool(png_flags[7])
-        settings["png_force_8bit"]        = flag2bool(png_flags[8])
-        settings["jpeg_fillcolour"]       = QColor(next(ss))
-        settings["jpeg_quality"]          = int(next(ss))
-        settings["jpeg_smooth"]           = int(next(ss))
-        settings["jpeg_subsampling"]      = next(ss)
-        jpeg_flags = next(ss)
-        settings["jpeg_progressive"]      = flag2bool(jpeg_flags[0])
-        settings["jpeg_icc_profile"]      = flag2bool(jpeg_flags[1])
-        settings["jpeg_force_baseline"]   = flag2bool(jpeg_flags[2])
-        settings["jpeg_optimise"]         = flag2bool(jpeg_flags[3])
-        settings["jpeg_exif"]             = flag2bool(jpeg_flags[4])
-        settings["jpeg_iptc"]             = flag2bool(jpeg_flags[5])
-        settings["jpeg_xmp"]              = flag2bool(jpeg_flags[6])
-        settings["jpeg_tool_information"] = flag2bool(jpeg_flags[7])
-        settings["jpeg_anonymiser"]       = flag2bool(jpeg_flags[8])
-        settings["jpeg_metadata"]         = flag2bool(jpeg_flags[9])
-        settings["jpeg_author"]           = flag2bool(jpeg_flags[10])
-        
-        qe_settings.append(settings)
         settings_index += 1
 
 def load_0_0_2_settings_from_config():
@@ -711,7 +622,7 @@ def save_settings_to_config():
                 writeSetting(f"file{settings_index}/{ext_key}", "")
         settings_index += 1
     
-    writeSetting("settings_version", "0.0.4")
+    writeSetting("settings_version", "0.0.3")
     
     update_qe_settings_last_load()
 
