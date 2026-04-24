@@ -312,6 +312,34 @@ class QEDialog(QDialog):
         
         options_menu.addSeparator()
         
+        create_export_folders_menu = QEMenu()
+
+        create_export_folders_action_group = QActionGroup(create_export_folders_menu)
+        create_export_folders_action_group.triggered.connect(lambda action, grp=create_export_folders_action_group: self._on_create_export_folders_action_group_triggered(action, grp))
+
+        create_export_folders_never_action = create_export_folders_menu.addAction("Never")
+        create_export_folders_never_action.setToolTip("When trying to export to a folder that doesn't exist, the export will fail.")
+        create_export_folders_never_action.setActionGroup(create_export_folders_action_group)
+        create_export_folders_never_action.setCheckable(True)
+        create_export_folders_never_action.setChecked(str2qtcheckstate(readSetting("create_missing_folders_at_export"), "never"))
+
+        create_export_folders_ask_action = create_export_folders_menu.addAction("Ask")
+        create_export_folders_ask_action.setToolTip("When trying to export to a folder that doesn't exist, you will be asked if you want to create the missing folder(s).")
+        create_export_folders_ask_action.setActionGroup(create_export_folders_action_group)
+        create_export_folders_ask_action.setCheckable(True)
+        create_export_folders_ask_action.setChecked(str2qtcheckstate(readSetting("create_missing_folders_at_export"), "ask"))
+
+        create_export_folders_always_action = create_export_folders_menu.addAction("Always")
+        create_export_folders_always_action.setToolTip("When trying to export to a folder that doesn't exist, the missing folder(s) will first be created, then the export will continue.")
+        create_export_folders_always_action.setActionGroup(create_export_folders_action_group)
+        create_export_folders_always_action.setCheckable(True)
+        create_export_folders_always_action.setChecked(str2qtcheckstate(readSetting("create_missing_folders_at_export"), "always"))
+
+        create_export_folders_action = options_menu.addAction("Create missing folders at export")
+        create_export_folders_action.setMenu(create_export_folders_menu)
+        
+        options_menu.addSeparator()
+        
         # auto save settings on close button.
         autosave_on_close_action = options_menu.addAction("Autosave on dialog close")
         autosave_on_close_action.setToolTip("Automatically save changes to settings without asking when you close the dialog.\n" \
@@ -728,6 +756,9 @@ class QEDialog(QDialog):
     def _on_custom_icons_theme_action_group_triggered(self, action, group):
         writeSetting("custom_icons_theme", ["follow","light","dark"][group.actions().index(action)])
         extension().update_action_icons()
+    
+    def _on_create_export_folders_action_group_triggered(self, action, group):
+        writeSetting("create_missing_folders_at_export", ("never","ask","always")[group.actions().index(action)])
     
     def _on_show_export_name_in_menu_action_toggled(self, checked):
         writeSetting("show_export_name_in_menu", bool2str(checked))

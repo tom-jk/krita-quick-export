@@ -1,3 +1,4 @@
+from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import QObject
 import sip
@@ -107,7 +108,7 @@ qe_extension = None
 setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_kra":"false", "auto_save_on_close":"true", "use_custom_icons":"true",
                     "custom_icons_theme":"follow", "show_export_name_in_menu":"true", "default_export_unsaved":"false", "show_thumbnails_for_unopened":"true",
                     "visible_types":".avif .exr .gif .ico .jpg .jpeg .jxl .png .tif .webp", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"", "wide_column_resize_grabber":"false",
-                    "settings_version":""}
+                    "create_missing_folders_at_export":"ask", "settings_version":""}
 
 filter_strategy_store_strings     = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BSpline":"BS", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
 filter_strategy_rev_store_strings = {v:k for k,v in filter_strategy_store_strings.items()}
@@ -254,6 +255,10 @@ def default_settings(path, *, node_type=QEItemType.INVALID, document=None, doc_i
 def is_any_qe_setting_modified():
     # TODO: quite fragile, affected by order of items in dictionary.
     #       but safe-ish; errs on side of false-positive.
+    #       Update: actually seems to be caused by colour strings (eg.
+    #       for transparency colour) rearranging elements randomly.
+    #       fixing this goes a bit against the "hands-off" approach to
+    #       type-specific export configs, so not sure what's best to do.
     return qe_settings != qe_settings_last_load
 
 # TODO: needs work upgrading old versions up to latest.
@@ -818,10 +823,50 @@ def export_image(settings_path, document=None):
         set_export_failed_msg(f"The configured export path is invalid.")
         return False
     
-    if not export_path.parent.exists():
-        # TODO: if an ancestor folder exists, provide option for automatically creating intermediary folders.
-        set_export_failed_msg(f"The export folder '{export_path.parent}' doesn't exist.")
+    if export_path.parent.is_file():
+        set_export_failed_msg(f"There is already a file at {export_path.parent}.")
         return False
+    
+    if not export_path.parent.exists():
+        create_missing_folders_at_export = readSetting("create_missing_folders_at_export")
+        if create_missing_folders_at_export == "never":
+            set_export_failed_msg(f"The export folder '{export_path.parent}' doesn't exist.")
+            return False
+        
+        # if an ancestor folder exists, automatically create intermediary folders.
+        ancestor_path = export_path.parent
+        folders_to_make = []
+        while not ancestor_path.exists():
+            if ancestor_path == ancestor_path.parent:
+                break
+            folders_to_make.append(ancestor_path)
+            ancestor_path = ancestor_path.parent
+        if not ancestor_path.exists():
+            set_export_failed_msg(f"The export folder '{export_path.parent}' doesn't exist.")
+            return False
+        
+        folders_to_make.reverse()
+        plural = len(folders_to_make) > 1
+        
+        if create_missing_folders_at_export == "ask":
+            if QMessageBox.question(app.activeWindow().qwindow(), "Create missing folders?",
+                                    f"You are exporting to a folder that does not exist. The following folder{'s' if plural else ''} must be created first:\n\n"
+                                    f"{'\n'.join((str(f) if i==0 else ' ... '+str(f.name) for i,f in enumerate(folders_to_make)))}\n\n"
+                                    f"Do you want to create {'them' if plural else 'it'} now?") != QMessageBox.Yes:
+                set_export_failed_msg(f"The export folder '{export_path.parent}' doesn't exist.")
+                return False
+        
+        print("Creating missing folders...")
+        try:
+            export_path.parent.mkdir(parents=True)
+        except PermissionError:
+            set_export_failed_msg(f"The export folder '{export_path.parent}' could not be created: Permission denied.")
+            return False
+        except FileExistsError:
+            pass # so long as it exists...
+        except Exception as e:
+            set_export_failed_msg(f"The export folder '{export_path.parent}' could not be created: f{e}")
+            return False
     
     scale_width = s_basic["scale_width"] if s_basic["scale_width"] != -1 else document.width()
     scale_height = s_basic["scale_height"] if s_basic["scale_height"] != -1 else document.height()
