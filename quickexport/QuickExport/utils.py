@@ -219,12 +219,21 @@ def serialize_stored_output_string(base, is_abs, abs_dir, name):
         # relative to base path.
         return "./" + relpath(abs_dir.joinpath(name), base)
 
-# TODO: exr and openexr both have .exr extensions.
 qe_supported_extensions = (".avif", ".bmp", ".csv", ".exr", ".gbr", ".gif", ".gih", ".hdr", ".heic", ".ico", ".jpg", ".jpeg", ".jxl", ".krz", ".kpp", ".ora",
                            ".pbm", ".pgm", ".png", ".ppm", ".psd", ".qml", ".r16", ".r32", ".r8", ".scml", ".tga", ".tif", ".webp", ".xbm", ".xpm")
 
+qe_configless_extensions = (".bmp", ".csv", ".gif", ".ico", ".krz", ".ora", ".pbm", ".pgm", ".ppm", ".psd", ".qml", ".scml", ".tga", ".xbm", ".xpm")
+
+qe_config_aliases = {"jpg":"jpeg"}
+
 def supported_extensions():
     return qe_supported_extensions
+
+def configless_extensions():
+    return qe_configless_extensions
+
+def config_aliases():
+    return qe_config_aliases
 
 def default_settings(path, *, node_type=QEItemType.INVALID, document=None, doc_index=1024, store=False, output_name="", ext=".png"):
     settings = {
@@ -804,12 +813,16 @@ def export_image(settings_path, document=None):
     ext = s_basic["ext"]
     ext_key = ext[1:]
     
-    if ext_key in s_export:
-        for k,v in s_export[ext_key].items():
-            exportParameters.setProperty(k, v)
-    else:
-        set_export_failed_msg(f"No configuration for {ext} file type.")
-        return False
+    if ext_key in config_aliases():
+        ext_key = config_aliases()[ext_key]
+    
+    if not ext in configless_extensions():
+        if ext_key in s_export:
+            for k,v in s_export[ext_key].items():
+                exportParameters.setProperty(k, v)
+        else:
+            set_export_failed_msg(f"No configuration for {ext} file type.")
+            return False
     
     for p in exportParameters.properties():
         print(p)

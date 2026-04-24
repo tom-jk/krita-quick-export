@@ -213,17 +213,26 @@ class TreeButton(QToolButton):
                     doc.waitForDone()
         
         elif self.role == "cfg":
+            extension = qe_settings[self.path]["basic"]["ext"]
+            
+            if extension in configless_extensions():
+                self.tree.requestShowMessage.emit(f"Exports to {extension} don't require a config.", 2000)
+                return
+            
+            ext_key = extension[1:]
+            
+            if ext_key in config_aliases():
+                ext_key = config_aliases()[ext_key]
+            
             plugin_dir = Path(app.getAppDataLocation()) / "pykrita" / "QuickExport"
 
             doc = app.createDocument(2,2,"QuickExportDummyDoc","RGBA","U8","",72.0)
             
-            extension = qe_settings[self.path]["basic"]["ext"]
             dummy_file_name = "ExportDummy" + extension
             
             info = InfoObject()
             
             s_export = qe_settings[self.path]["export"]
-            ext_key = extension[1:]
             if ext_key in s_export:
                 for k,v in s_export[ext_key].items():
                     info.setProperty(k, v)
@@ -339,6 +348,7 @@ class QETree(QTreeView):
     requestConfigWidgetsRefreshForPath = pyqtSignal(Path)
     requestAddFolderAtPath = pyqtSignal(Path)
     requestAddProjectAtPath = pyqtSignal(Path)
+    requestShowMessage = pyqtSignal(str, int)
     
     def setup(self):
         item_delegate = ItemDelegate()
@@ -442,7 +452,7 @@ class QETree(QTreeView):
         buttons_layout.setSpacing(0)
         del_button = TreeButton(role="del", path=path, item_type=item_type, icon=app.icon("edit-delete"), item=item, item2=item2, tree=self)
         row_height = del_button.sizeHint().height()
-        cfg_button = TreeButton(role="cfg", path=path, item_type=item_type, icon=app.icon("configure"), item=item, item2=item2)
+        cfg_button = TreeButton(role="cfg", path=path, item_type=item_type, icon=app.icon("configure"), item=item, item2=item2, tree=self)
         exp_button = TreeButton(role="exp", path=path, item_type=item_type, icon=app.icon("document-export"))
         opn_button = TreeButton(role="opn", path=path, item_type=item_type, icon=app.icon("document-open"), item=item, item2=item2)
         sp = del_button.sizePolicy()

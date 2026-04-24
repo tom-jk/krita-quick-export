@@ -54,6 +54,7 @@ class QEDialog(QDialog):
         self.tree.requestConfigWidgetsRefreshForPath.connect(self._on_tree_request_config_widgets_refresh_for_path)
         self.tree.requestAddFolderAtPath.connect(self._on_tree_request_add_folder_at_path)
         self.tree.requestAddProjectAtPath.connect(self._on_tree_request_add_project_at_path)
+        self.tree.requestShowMessage.connect(self._on_tree_request_show_message)
         self.filter_edit.textChanged.connect(self.tree._on_filter_edit_text_changed)
         
         self.basic_export_settings_container.setDisabled(True)
@@ -1033,3 +1034,6 @@ class QEDialog(QDialog):
     
     def _on_tree_request_add_project_at_path(self, path):
         self._on_add_project_action_triggered(start_path = path, force_use_start_path = True)
+    
+    def _on_tree_request_show_message(self, message, timeout):
+        self.sbar.showMessage(message, timeout)
