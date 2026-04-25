@@ -907,35 +907,12 @@ class QEDialog(QDialog):
         path = index.data(PathRole)
         item_type = index.data(ItemTypeRole)
         
-        file_name_source_index = self.basic_export_settings_file_name.currentIndex()
-        file_name_custom = self.basic_export_settings_file_name_custom.text()
-        output_extension = self.basic_export_settings_file_type.currentText()
-        location_index = self.basic_export_settings_folder_location.currentIndex()
-        location_name_source_index = self.basic_export_settings_folder_name.currentIndex()
-        location_name_custom = self.basic_export_settings_folder_name_custom.text()
-        location_custom = Path(self.basic_export_settings_location_custom.text())
-        
         settings = None
         
-        global suppress_store_on_widget_edit
-        if not suppress_store_on_widget_edit:
-            if path in qe_settings:
-                settings = qe_settings[path]
-                
-                s_basic = settings["basic"]
-                s_basic["file_name_source"] = file_name_source_index
-                s_basic["file_name_custom"] = file_name_custom
-                s_basic["ext"] = output_extension
-                s_basic["location"] = location_index
-                s_basic["location_name_source"] = location_name_source_index
-                s_basic["location_name_custom"] = location_name_custom
-                s_basic["location_custom"] = location_custom
-                
-                generate_save_string(path)
-                self.update_save_button()
-        else:
-            #print("suppressed store on widget edit")
-            pass
+        if path in qe_settings:
+            settings = qe_settings[path]
+            
+            self.update_export_settings_from_widgets(path, settings)
         
         if not settings:
             settings_path = find_settings_path_for_file(path)
@@ -952,6 +929,32 @@ class QEDialog(QDialog):
         #for x,y in enumerate(qe_settings):
             #print(x, y, qe_settings[y])
         #print("--")
+
+    def update_export_settings_from_widgets(self, path, settings):
+        global suppress_store_on_widget_edit
+        if suppress_store_on_widget_edit:
+            #print("suppressed store on widget edit")
+            return
+        
+        file_name_source_index = self.basic_export_settings_file_name.currentIndex()
+        file_name_custom = self.basic_export_settings_file_name_custom.text()
+        output_extension = self.basic_export_settings_file_type.currentText()
+        location_index = self.basic_export_settings_folder_location.currentIndex()
+        location_name_source_index = self.basic_export_settings_folder_name.currentIndex()
+        location_name_custom = self.basic_export_settings_folder_name_custom.text()
+        location_custom = Path(self.basic_export_settings_location_custom.text())
+        
+        s_basic = settings["basic"]
+        s_basic["file_name_source"] = file_name_source_index
+        s_basic["file_name_custom"] = file_name_custom
+        s_basic["ext"] = output_extension
+        s_basic["location"] = location_index
+        s_basic["location_name_source"] = location_name_source_index
+        s_basic["location_name_custom"] = location_name_custom
+        s_basic["location_custom"] = location_custom
+        
+        generate_save_string(path)
+        self.update_save_button()
 
     def _on_basic_export_settings_file_name_current_index_changed(self, index):
         self.basic_export_settings_file_name_custom.setVisible(index == QEFileNameSource.CUSTOM)
