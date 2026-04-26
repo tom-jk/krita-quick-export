@@ -382,12 +382,19 @@ def load_0_0_3_settings_from_config():
                 start_idx = 0
                 end_idx = 0
                 final_idx = len(string)
+                subs = ""
                 while True:
                     end_idx += 1
                     if end_idx == final_idx:
                         yield string[start_idx:end_idx]
                         break
-                    if string[end_idx] == "," and string[end_idx-1] != "/":
+                    subs += string[end_idx]
+                    if subs.endswith("//"):
+                        subs = ""
+                    elif subs.endswith("/,"):
+                        subs == ""
+                    elif subs.endswith(","):
+                        subs = ""
                         yield string[start_idx:end_idx]
                         start_idx = end_idx+1
             
@@ -396,12 +403,12 @@ def load_0_0_3_settings_from_config():
             # TODO: remember to escape custom names/paths.
             settings["node_type"]             = ('p','f').index(next(ss))
             s_basic["file_name_source"]       = ('p','f','c').index(next(ss))
-            s_basic["file_name_custom"]       = next(ss)
+            s_basic["file_name_custom"]       = unescape_settings_string(next(ss))
             s_basic["ext"]                    = "." + next(ss)
             s_basic["location"]               = ('s','d','u','ud','c').index(next(ss))
             s_basic["location_name_source"]   = ('p','c').index(next(ss))
-            s_basic["location_name_custom"]   = next(ss)
-            s_basic["location_custom"]        = Path(next(ss))
+            s_basic["location_name_custom"]   = unescape_settings_string(next(ss))
+            s_basic["location_custom"]        = Path(unescape_settings_string(next(ss)))
             s_basic["scale"]                  = flag2bool(next(ss))
             s_basic["scale_side"]             = int(next(ss))
             sm = int(next(ss))
@@ -622,14 +629,16 @@ def generate_save_string(settings_path, s=None):
     s["config_basic_string"] = (
         f"{('p','f')[s['node_type']]},"
         f"{('p','f','c')[s_basic['file_name_source']]},"
-        f"{s_basic['file_name_custom']},"
+        f"{escape_settings_string(s_basic['file_name_custom'])},"
         f"{s_basic['ext'][1:]},"
         f"{('s','d','u','ud','c')[s_basic['location']]},"
         f"{('p','c')[s_basic['location_name_source']]},"
-        f"{s_basic['location_name_custom']},"
-        f"{s_basic['location_custom']},"
+        f"{escape_settings_string(s_basic['location_name_custom'])},"
+        f"{escape_settings_string(str(s_basic['location_custom']))},"
         f"{bool2flag(s_basic['scale'])},{int(s_basic['scale_side'])},{int(s_basic['scale_width_mode'])},{scale_width},{int(s_basic['scale_height_mode'])},{scale_height},{bool2flag(s_basic['scale_keep_aspect'])},{s_basic["scale_filter"]},{scale_res}"
     )
+    
+    print(f"{s['config_basic_string']=}")
 
     for ext in supported_extensions():
         ext_key = ext[1:]
@@ -652,7 +661,7 @@ def save_settings_to_config():
         basic_string  = s["config_basic_string"]
         
         writeSetting(f"file{settings_index}/path", path_string)
-        writeSetting(f"file{settings_index}/macros", macros_string)
+        #writeSetting(f"file{settings_index}/macros", macros_string)
         writeSetting(f"file{settings_index}/basic", basic_string)
         
         for ext in supported_extensions():
@@ -710,7 +719,10 @@ def unescape_tokenized_settings_string(tokens):
         token_id += 1
 
 def escape_settings_string(s):
-    return s.replace(",", "/,")
+    return s.replace("/", "//").replace(",", "/,")
+
+def unescape_settings_string(s):
+    return s.replace("//", "/").replace("/,", ",")
 
 def auto_filter_strategy(original_width, original_height, desired_width, desired_height):
     """Python copy of krita/libs/image/kis_filter_strategy.cc method KisFilterStrategyRegistry::autoFilterStrategy."""
