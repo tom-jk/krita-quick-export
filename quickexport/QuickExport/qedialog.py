@@ -201,6 +201,91 @@ class QEDialog(QDialog):
         self.basic_export_settings_folder_pick_custom.hide()
         basic_export_settings_folder_container_layout.addWidget(self.basic_export_settings_folder_pick_custom)
 
+        basic_export_settings_scale_container = QWidget()
+        basic_export_settings_scale_container_layout = QHBoxLayout(basic_export_settings_scale_container)
+        basic_export_settings_scale_container_layout.setAlignment(Qt.AlignLeft)
+        basic_export_settings_scale_container_layout.setSpacing(0)
+        basic_export_settings_scale_container.setContentsMargins(0,0,0,0)
+        basic_export_settings_scale_container_layout.setContentsMargins(0,0,0,0)
+
+        self.basic_export_settings_scale_enabled = QCheckBox("Scale")
+        basic_export_settings_scale_container_layout.addWidget(self.basic_export_settings_scale_enabled)
+
+        self.basic_export_settings_scale_subcontainer = QWidget()
+        basic_export_settings_scale_subcontainer_layout = QHBoxLayout(self.basic_export_settings_scale_subcontainer)
+        basic_export_settings_scale_subcontainer_layout.setAlignment(Qt.AlignLeft)
+        self.basic_export_settings_scale_subcontainer.setContentsMargins(0,0,0,0)
+        basic_export_settings_scale_subcontainer_layout.setContentsMargins(0,0,0,0)
+
+        sp = self.basic_export_settings_scale_subcontainer.sizePolicy()
+        sp.setRetainSizeWhenHidden(True)
+        self.basic_export_settings_scale_subcontainer.setSizePolicy(sp)
+
+        self.basic_export_settings_scale_side = QComboBox()
+        self.basic_export_settings_scale_side.setToolTip("Set the side(s) of the image to be scaled.\n\n"
+                                                         "Short and long automatically pick the shortest/longest side of the image.\n"
+                                                         "(If the image is square, both sides will be scaled equally.)")
+        self.basic_export_settings_scale_side.addItems(["width", "height", "short", "long", "both"])
+        basic_export_settings_scale_subcontainer_layout.addWidget(self.basic_export_settings_scale_side)
+
+        basic_export_settings_scale_subcontainer_layout.addWidget(QLabel("to"))
+
+        self.basic_export_settings_scale_w_subcontainer = QWidget()
+        basic_export_settings_scale_w_subcontainer_layout = QHBoxLayout(self.basic_export_settings_scale_w_subcontainer)
+        basic_export_settings_scale_w_subcontainer_layout.setSpacing(0)
+        self.basic_export_settings_scale_w_subcontainer.setContentsMargins(0,0,0,0)
+        basic_export_settings_scale_w_subcontainer_layout.setContentsMargins(0,0,0,0)
+
+        self.basic_export_settings_scale_w_size = DoubleParseSpinBox().widget()
+        self.basic_export_settings_scale_w_size.setRange(1, 65536)
+        self.basic_export_settings_scale_w_size.setDecimals(0)
+        self.basic_export_settings_scale_w_size.setButtonSymbols(QSpinBox.NoButtons)
+        basic_export_settings_scale_w_subcontainer_layout.addWidget(self.basic_export_settings_scale_w_size)
+
+        self.basic_export_settings_scale_w_mode = QComboBox()
+        self.basic_export_settings_scale_w_mode.addItems(("px","%"))
+        basic_export_settings_scale_w_subcontainer_layout.addWidget(self.basic_export_settings_scale_w_mode)
+
+        basic_export_settings_scale_subcontainer_layout.addWidget(self.basic_export_settings_scale_w_subcontainer)
+
+        self.basic_export_settings_scale_x_label = QLabel("\u00D7")
+        self.basic_export_settings_scale_x_label.hide()
+        basic_export_settings_scale_subcontainer_layout.addWidget(self.basic_export_settings_scale_x_label)
+
+        self.basic_export_settings_scale_h_subcontainer = QWidget()
+        basic_export_settings_scale_h_subcontainer_layout = QHBoxLayout(self.basic_export_settings_scale_h_subcontainer)
+        basic_export_settings_scale_h_subcontainer_layout.setSpacing(0)
+        self.basic_export_settings_scale_h_subcontainer.setContentsMargins(0,0,0,0)
+        basic_export_settings_scale_h_subcontainer_layout.setContentsMargins(0,0,0,0)
+
+        self.basic_export_settings_scale_h_size = DoubleParseSpinBox().widget()
+        self.basic_export_settings_scale_h_size.setRange(1, 65536)
+        self.basic_export_settings_scale_h_size.setDecimals(0)
+        self.basic_export_settings_scale_h_size.setButtonSymbols(QSpinBox.NoButtons)
+        basic_export_settings_scale_h_subcontainer_layout.addWidget(self.basic_export_settings_scale_h_size)
+
+        self.basic_export_settings_scale_h_mode = QComboBox()
+        self.basic_export_settings_scale_h_mode.addItems(("px","%"))
+        basic_export_settings_scale_h_subcontainer_layout.addWidget(self.basic_export_settings_scale_h_mode)
+
+        self.basic_export_settings_scale_h_subcontainer.hide()
+        basic_export_settings_scale_subcontainer_layout.addWidget(self.basic_export_settings_scale_h_subcontainer)
+
+        self.basic_export_settings_scale_keep_proportions = QCheckBox("Keep proportions")
+        self.basic_export_settings_scale_keep_proportions.setToolTip("When enabled, automatically scale the other side of the image to preserve aspect ratio.\n"
+                                                                     "When disabled, the other side will not be scaled.")
+        self.basic_export_settings_scale_keep_proportions.setChecked(True)
+        basic_export_settings_scale_subcontainer_layout.addWidget(self.basic_export_settings_scale_keep_proportions)
+        
+        self.basic_export_settings_scale_filter = QComboBox()
+        self.basic_export_settings_scale_filter.setToolTip("Filtering strategy to use when scaling.")
+        self.basic_export_settings_scale_filter.addItems(filter_strategy_display_strings)
+        basic_export_settings_scale_subcontainer_layout.addWidget(self.basic_export_settings_scale_filter)
+
+        basic_export_settings_scale_container_layout.addWidget(self.basic_export_settings_scale_subcontainer)
+        
+        self.basic_export_settings_scale_subcontainer.hide()
+
         self.basic_export_settings_output_path = QLabel("export path preview")
         self.basic_export_settings_output_path.setDisabled(True)
         self.basic_export_settings_output_path.setWordWrap(True)
@@ -214,9 +299,18 @@ class QEDialog(QDialog):
         self.basic_export_settings_folder_name_custom.textChanged.connect(self.update_basic_export_settings_output_path_label)
         self.basic_export_settings_location_custom.textChanged.connect(self.update_basic_export_settings_output_path_label)
         self.basic_export_settings_folder_pick_custom.clicked.connect(self._on_basic_export_settings_folder_pick_custom_clicked)
+        self.basic_export_settings_scale_enabled.toggled.connect(self._on_basic_export_settings_scale_enabled_toggled)
+        self.basic_export_settings_scale_side.currentIndexChanged.connect(self._on_basic_export_settings_scale_side_current_index_changed)
+        self.basic_export_settings_scale_w_size.valueChanged.connect(self.update_export_settings_from_widgets_no_args)
+        self.basic_export_settings_scale_w_mode.currentIndexChanged.connect(self._on_basic_export_settings_scale_w_mode_current_index_changed)
+        self.basic_export_settings_scale_h_size.valueChanged.connect(self.update_export_settings_from_widgets_no_args)
+        self.basic_export_settings_scale_h_mode.currentIndexChanged.connect(self._on_basic_export_settings_scale_h_mode_current_index_changed)
+        self.basic_export_settings_scale_keep_proportions.toggled.connect(self.update_export_settings_from_widgets_no_args)
+        self.basic_export_settings_scale_filter.currentIndexChanged.connect(self.update_export_settings_from_widgets_no_args)
 
         basic_export_settings_container_layout.addWidget(basic_export_settings_file_container)
         basic_export_settings_container_layout.addWidget(basic_export_settings_folder_container)
+        basic_export_settings_container_layout.addWidget(basic_export_settings_scale_container)
         layout.addWidget(self.basic_export_settings_container)
         layout.addWidget(self.basic_export_settings_output_path)
         
@@ -828,7 +922,8 @@ class QEDialog(QDialog):
         extension().update_quick_export_display()
         
         # TODO: verify highlighted_doc still exists before passing it.
-        self.setup(msg="Settings reverted.")#, doc=self.highlighted_doc)
+        self.setup()
+        self.sbar.showMessage("Settings reverted.", 2500)
 
     def _on_save_button_clicked(self, checked):
         save_settings_to_config()
@@ -930,11 +1025,33 @@ class QEDialog(QDialog):
             #print(x, y, qe_settings[y])
         #print("--")
 
-    def update_export_settings_from_widgets(self, path, settings):
+    def update_export_settings_from_widgets_no_args(self):
+        # can be connected to by signals to call update_export_settings_from_widgets
+        # without passing parameters like checked, index, text etc. on to it
+        # (which would end up as path and settings args, which is bad).
+        self.update_export_settings_from_widgets()
+
+    def update_export_settings_from_widgets(self, path=None, settings=None):
+        #print(f"update_export_settings_from_widgets: {path=} {settings=}")
         global suppress_store_on_widget_edit
         if suppress_store_on_widget_edit:
             #print("suppressed store on widget edit")
             return
+        
+        if not (path and settings):
+            print("no path and setting")
+            if not path:
+                index = self.tree.selectionModel().currentIndex()
+                if not index.isValid():
+                    print("invalid index")
+                    return
+                model = self.tree.model
+                index = model.mapToSource(index)
+                path = index.data(PathRole)
+            if path not in qe_settings:
+                print(f"{path=} not in settings")
+                return
+            settings = qe_settings[path]
         
         file_name_source_index = self.basic_export_settings_file_name.currentIndex()
         file_name_custom = self.basic_export_settings_file_name_custom.text()
@@ -943,6 +1060,14 @@ class QEDialog(QDialog):
         location_name_source_index = self.basic_export_settings_folder_name.currentIndex()
         location_name_custom = self.basic_export_settings_folder_name_custom.text()
         location_custom = Path(self.basic_export_settings_location_custom.text())
+        scale_enabled = self.basic_export_settings_scale_enabled.isChecked()
+        scale_side = self.basic_export_settings_scale_side.currentIndex()
+        scale_w_size = self.basic_export_settings_scale_w_size.value()
+        scale_w_mode = self.basic_export_settings_scale_w_mode.currentIndex()
+        scale_h_size = self.basic_export_settings_scale_h_size.value()
+        scale_h_mode = self.basic_export_settings_scale_h_mode.currentIndex()
+        scale_keep_aspect = self.basic_export_settings_scale_keep_proportions.isChecked()
+        scale_filter = self.basic_export_settings_scale_filter.currentIndex()
         
         s_basic = settings["basic"]
         s_basic["file_name_source"] = file_name_source_index
@@ -952,6 +1077,17 @@ class QEDialog(QDialog):
         s_basic["location_name_source"] = location_name_source_index
         s_basic["location_name_custom"] = location_name_custom
         s_basic["location_custom"] = location_custom
+        s_basic["scale"] = scale_enabled
+        s_basic["scale_side"] = scale_side
+        s_basic["scale_width"] = scale_w_size
+        s_basic["scale_width_mode"] = scale_w_mode
+        s_basic["scale_height"] = scale_h_size
+        s_basic["scale_height_mode"] = scale_h_mode
+        s_basic["scale_keep_aspect"] = scale_keep_aspect
+        s_basic["scale_filter"] = scale_filter
+        
+        print(path)
+        print(s_basic)
         
         generate_save_string(path)
         self.update_save_button()
@@ -1019,6 +1155,14 @@ class QEDialog(QDialog):
         self.basic_export_settings_folder_name.setCurrentIndex(s_basic["location_name_source"])
         self.basic_export_settings_folder_name_custom.setText(s_basic["location_name_custom"])
         self.basic_export_settings_location_custom.setText(str(s_basic["location_custom"]))
+        self.basic_export_settings_scale_enabled.setChecked(s_basic["scale"])
+        self.basic_export_settings_scale_side.setCurrentIndex(s_basic["scale_side"])
+        self.basic_export_settings_scale_w_size.setValue(s_basic["scale_width"])
+        self.basic_export_settings_scale_w_mode.setCurrentIndex(s_basic["scale_width_mode"])
+        self.basic_export_settings_scale_h_size.setValue(s_basic["scale_height"])
+        self.basic_export_settings_scale_h_mode.setCurrentIndex(s_basic["scale_height_mode"])
+        self.basic_export_settings_scale_keep_proportions.setChecked(s_basic["scale_keep_aspect"])
+        self.basic_export_settings_scale_filter.setCurrentIndex(s_basic["scale_filter"])
         
         #print("--set_basic_export_settings_controls_for_path--")
         #for x,y in enumerate(qe_settings):
@@ -1028,6 +1172,37 @@ class QEDialog(QDialog):
         self.update_basic_export_settings_output_path_label()
         
         suppress_store_on_widget_edit = False
+    
+    def _on_basic_export_settings_scale_enabled_toggled(self, checked):
+        self.basic_export_settings_scale_subcontainer.setVisible(checked)
+        self.update_export_settings_from_widgets()
+
+    def _on_basic_export_settings_scale_side_current_index_changed(self, index):
+        self.basic_export_settings_scale_subcontainer.layout().setEnabled(False)
+        self.basic_export_settings_scale_w_subcontainer.setVisible(index in (0,2,3,4))
+        self.basic_export_settings_scale_h_subcontainer.setVisible(index in (1,4))
+        self.basic_export_settings_scale_x_label.setVisible(index == 4)
+        self.basic_export_settings_scale_keep_proportions.setVisible(index in (0,1,2,3))
+        self.basic_export_settings_scale_subcontainer.layout().setEnabled(True)
+        self.update_export_settings_from_widgets()
+
+    def _on_basic_export_settings_scale_w_mode_current_index_changed(self, index):
+        if index == 0:
+            self.basic_export_settings_scale_w_size.setDecimals(0)
+            self.basic_export_settings_scale_w_size.setRange(1, 65536)
+        else:
+            self.basic_export_settings_scale_w_size.setDecimals(3)
+            self.basic_export_settings_scale_w_size.setRange(0.001, 1000)
+        self.update_export_settings_from_widgets()
+
+    def _on_basic_export_settings_scale_h_mode_current_index_changed(self, index):
+        if index == 0:
+            self.basic_export_settings_scale_h_size.setDecimals(0)
+            self.basic_export_settings_scale_h_size.setRange(1, 65536)
+        else:
+            self.basic_export_settings_scale_h_size.setDecimals(3)
+            self.basic_export_settings_scale_h_size.setRange(0.001, 1000)
+        self.update_export_settings_from_widgets()
     
     def _on_tree_request_config_widgets_refresh_for_path(self, path):
         self.set_basic_export_settings_controls_for_path(path)

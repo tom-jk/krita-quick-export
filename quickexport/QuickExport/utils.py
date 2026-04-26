@@ -39,6 +39,31 @@ class QELocation(IntEnum):
     IN_PARENT_OF_FOLDER = auto()
     IN_SIBLING_OF_FOLDER = auto()
     CUSTOM = auto()
+
+class QEImageEdge(IntEnum):
+    NONE = -1
+    WIDTH = auto()
+    HEIGHT = auto()
+    SHORTEST = auto()
+    LONGEST = auto()
+    BOTH = auto()
+
+class QEUnits(IntEnum):
+    NONE = -1
+    PIXELS = auto()
+    PERCENT = auto()
+
+class QEScaleStrategy(IntEnum):
+    NONE = -1
+    AUTO = auto()
+    BELL = auto()
+    BICUBIC = auto()
+    BILINEAR = auto()
+    BSPLINE = auto()
+    HERMITE = auto()
+    LANCZOS3 = auto()
+    MITCHELL = auto()
+    NEAREST = auto()
     
 
 config_clipboard = {"default":{}}
@@ -107,10 +132,12 @@ qe_extension = None
 
 setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_kra":"false", "auto_save_on_close":"true", "use_custom_icons":"true",
                     "custom_icons_theme":"follow", "show_export_name_in_menu":"true", "default_export_unsaved":"false", "show_thumbnails_for_unopened":"true",
-                    "visible_types":".avif .exr .gif .ico .jpg .jpeg .jxl .png .tif .webp", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"", "wide_column_resize_grabber":"false",
-                    "create_missing_folders_at_export":"ask", "settings_version":""}
+                    "visible_types":".avif .exr .gif .ico .jpg .jpeg .jxl .png .tif .webp", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"",
+                    "wide_column_resize_grabber":"false", "create_missing_folders_at_export":"ask", "settings_version":""}
 
+filter_strategy_display_strings = ["Auto", "Bell", "Bicubic", "Bilinear", "BSpline", "Hermite", "Lanczos3", "Mitchell", "Nearest"]
 filter_strategy_store_strings     = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BSpline":"BS", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
+filter_strategy_aliases           = {"Nearest Neighbor":"NearestNeighbor", "Nearest":"NearestNeighbor"}
 filter_strategy_rev_store_strings = {v:k for k,v in filter_strategy_store_strings.items()}
 
 colour_label_colours = (
@@ -252,9 +279,13 @@ def default_settings(path, *, node_type=QEItemType.INVALID, document=None, doc_i
             "location_name_custom":"",
             "location_custom":Path(),
             "scale":False,
-            "scale_width":-1,
-            "scale_height":-1,
-            "scale_filter":"Auto",
+            "scale_side":QEImageEdge.HEIGHT,
+            "scale_width":100.0,
+            "scale_width_mode":QEUnits.PERCENT,
+            "scale_height":100.0,
+            "scale_height_mode":QEUnits.PERCENT,
+            "scale_keep_aspect":True,
+            "scale_filter":QEScaleStrategy.AUTO,
             "scale_res":-1
         }
     }
@@ -325,7 +356,7 @@ def load_0_0_3_settings_from_config():
     file0/macros=
     file0/path=/home/user/mypic
     file0/png={"alpha":false,"compression":3,"downsample":false  ..  "transparencyFillcolor":"<!DOCTYPE color>\n<color channeldepth=\"U8\">\n <RGB space=\"sRGB-elle-V2-srgbtrc.icc\" r=\"1\" g=\"1\" b=\"1\"/>\n</color>\n"}
-    file0/basic=p,p,,png,s,p,,,0,-1,-1,A,-1,
+    file0/basic=p,p,,png,s,p,,.,1,1.0,1.0,0,-1
     """
 
     settings_index = 0
@@ -368,10 +399,15 @@ def load_0_0_3_settings_from_config():
         s_basic["location_name_custom"]   = next(ss)
         s_basic["location_custom"]        = Path(next(ss))
         s_basic["scale"]                  = flag2bool(next(ss))
-        s_basic["scale_width"]            = int(next(ss))
-        s_basic["scale_height"]           = int(next(ss))
-        sf = next(ss)
-        s_basic["scale_filter"]           = filter_strategy_rev_store_strings.get(sf, sf)
+        s_basic["scale_side"]             = int(next(ss))
+        sm = int(next(ss))
+        s_basic["scale_width_mode"]       = sm
+        s_basic["scale_width"]            = int(next(ss)) if sm == QEUnits.PIXELS else float(next(ss))
+        sm = int(next(ss))
+        s_basic["scale_height_mode"]      = sm
+        s_basic["scale_height"]           = int(next(ss)) if sm == QEUnits.PIXELS else float(next(ss))
+        s_basic["scale_keep_aspect"]      = flag2bool(next(ss))
+        s_basic["scale_filter"]           = int(next(ss))
         sr = next(ss)
         s_basic["scale_res"]              = float(sr) if sr != "-1" else -1
         
@@ -555,7 +591,8 @@ def generate_save_string(settings_path, s=None):
         s = qe_settings[settings_path]
         
     s_basic = s["basic"]
-    scale_filter = filter_strategy_store_strings[s_basic['scale_filter']] if s_basic['scale_filter'] in filter_strategy_store_strings else s_basic['scale_filter']
+    scale_width = int(s_basic['scale_width']) if s_basic['scale_width_mode'] == QEUnits.PIXELS else s_basic['scale_width']
+    scale_height = int(s_basic['scale_height']) if s_basic['scale_height_mode'] == QEUnits.PIXELS else s_basic['scale_height']
     scale_res = f"{s_basic['scale_res']:.4f}".rstrip('0').rstrip('.') if s_basic["scale_res"] != -1 else "-1"
     
     s["config_path_string"] = str(settings_path)
@@ -569,7 +606,7 @@ def generate_save_string(settings_path, s=None):
         f"{('p','c')[s_basic['location_name_source']]},"
         f"{s_basic['location_name_custom']},"
         f"{s_basic['location_custom']},"
-        f"{bool2flag(s_basic['scale'])},{s_basic['scale_width']},{s_basic['scale_height']},{scale_filter},{scale_res}"
+        f"{bool2flag(s_basic['scale'])},{int(s_basic['scale_side'])},{int(s_basic['scale_width_mode'])},{scale_width},{int(s_basic['scale_height_mode'])},{scale_height},{bool2flag(s_basic['scale_keep_aspect'])},{s_basic["scale_filter"]},{scale_res}"
     )
 
     for ext in supported_extensions():
@@ -792,11 +829,39 @@ def export_image(settings_path, document=None):
             set_export_failed_msg(f"The export folder '{export_path.parent}' could not be created: f{e}")
             return False
     
-    scale_width = s_basic["scale_width"] if s_basic["scale_width"] != -1 else document.width()
-    scale_height = s_basic["scale_height"] if s_basic["scale_height"] != -1 else document.height()
-    scale_filter = s_basic["scale_filter"]
+    do_resize = False
     
-    do_resize = s_basic["scale"] and (scale_width != document.width() or scale_height != document.height())
+    if s_basic["scale"]:
+        scale_side = s_basic["scale_side"]
+        scale_keep_aspect = s_basic["scale_keep_aspect"]
+        
+        doc_width = document.width()
+        doc_height = document.height()
+        
+        scale_width = doc_width
+        scale_height = doc_height
+        
+        if scale_side in (QEImageEdge.WIDTH,  QEImageEdge.BOTH) or (scale_side == QEImageEdge.SHORTEST and doc_width <= doc_height) or (scale_side == QEImageEdge.LONGEST and doc_width >= doc_height):
+            scale_width  = max(1, int(s_basic["scale_width"]) if s_basic["scale_width_mode"]  == QEUnits.PIXELS else round(doc_width  * s_basic["scale_width"] * 0.01))
+        if scale_side in (QEImageEdge.HEIGHT, QEImageEdge.BOTH) or (scale_side == QEImageEdge.SHORTEST and doc_width >= doc_height) or (scale_side == QEImageEdge.LONGEST and doc_width <= doc_height):
+            # short/long side modes store scale value in primary (ie. width) setting.
+            scale_source = "scale_width" if scale_side in (QEImageEdge.SHORTEST, QEImageEdge.LONGEST) else "scale_height"
+            scale_height = max(1, int(s_basic[scale_source])  if s_basic["scale_height_mode"] == QEUnits.PIXELS else round(doc_height * s_basic[scale_source]  * 0.01))
+        
+        if scale_side != QEImageEdge.BOTH and scale_keep_aspect and not (scale_side in (QEImageEdge.SHORTEST, QEImageEdge.LONGEST) and doc_width == doc_height):
+            if scale_width != doc_width:
+                scale_height = max(1, round(scale_height * (scale_width / doc_width)))
+            elif scale_height != doc_height:
+                scale_width = max(1, round(scale_width * (scale_height / doc_height)))
+        
+        # example: 0 -> 'Auto', 8 -> 'Nearest'.
+        scale_filter = filter_strategy_display_strings[s_basic["scale_filter"]]
+        if scale_filter in filter_strategy_aliases:
+            # example: 'Nearest' -> 'NearestNeighbor'.
+            scale_filter = filter_strategy_aliases[scale_filter]
+        
+        do_resize = s_basic["scale"] and (scale_width != document.width() or scale_height != document.height())
+        #print(f"export: do resize: {do_resize}")
     
     if do_resize:
         if scale_filter == "Auto":
@@ -806,17 +871,19 @@ def export_image(settings_path, document=None):
             set_export_failed_msg(f"Chosen filter strategy '{scale_filter}' not recognised.")
             return False
         
+        # TODO: (low priority): resolution probably not handled correctly.
         scale_xres = document.xRes()
         scale_yres = document.yRes()
-        if settings["scale_res"] != -1:
+        if s_basic["scale_res"] != -1:
             aspect = scale_height / scale_width
-            scale_xres = settings["scale_res"]
-            scale_yres = settings["scale_res"] * aspect
+            scale_xres = s_basic["scale_res"]
+            scale_yres = s_basic["scale_res"] * aspect
         
         doc_copy = document.clone()
 
         doc_copy.flatten()
-        doc_copy.scaleImage(scale_width, scale_height, int(scale_xres), int(scale_yres), scale_filter) # TODO: are these x/yres values correct?
+        print(f"export: scale: {doc_width} x {doc_height}  ->  {scale_width} x {scale_height}")
+        doc_copy.scaleImage(scale_width, scale_height, int(scale_xres), int(scale_yres), scale_filter)
 
         doc_copy.setBatchmode(True)
         doc_copy.waitForDone()
