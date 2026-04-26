@@ -3,6 +3,7 @@ from PyQt5.QtGui import QColor
 from PyQt5.QtCore import QObject
 import sip
 from timeit import default_timer
+from traceback import format_tb
 from pathlib import Path
 from os.path import relpath
 from functools import reduce
@@ -318,7 +319,7 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
         save_settings_to_config()
     
     elif settings_version == "0.0.3":
-        load_0_0_3_settings_from_config()
+        return load_0_0_3_settings_from_config()
     
     else:
         if suppress_version_warning:
@@ -358,71 +359,92 @@ def load_0_0_3_settings_from_config():
     file0/png={"alpha":false,"compression":3,"downsample":false  ..  "transparencyFillcolor":"<!DOCTYPE color>\n<color channeldepth=\"U8\">\n <RGB space=\"sRGB-elle-V2-srgbtrc.icc\" r=\"1\" g=\"1\" b=\"1\"/>\n</color>\n"}
     file0/basic=p,p,,png,s,p,,.,1,1.0,1.0,0,-1
     """
-
+    global qe_settings
+    qe_settings_backup = deepcopy(qe_settings)
+    
     settings_index = 0
     
-    while readSetting(f"file{settings_index}/path", "") != "":
+    try:
+        while readSetting(f"file{settings_index}/path", "") != "":
 
-        config_path_string = readSetting(f"file{settings_index}/path", "")
-        path = Path(config_path_string)
+            config_path_string = readSetting(f"file{settings_index}/path", "")
+            path = Path(config_path_string)
 
-        settings = default_settings(path, store=True)
-        
-        settings["config_path_string"]   = config_path_string
-        settings["config_macros_string"] = readSetting(f"file{settings_index}/macros", "")
-        settings["config_basic_string"]  = readSetting(f"file{settings_index}/basic", "")
-        
-        settings["path"] = path
-        
-        def read_settings_string(string):
-            start_idx = 0
-            end_idx = 0
-            final_idx = len(string)
-            while True:
-                end_idx += 1
-                if end_idx == final_idx:
-                    yield string[start_idx:end_idx]
-                    break
-                if string[end_idx] == "," and string[end_idx-1] != "/":
-                    yield string[start_idx:end_idx]
-                    start_idx = end_idx+1
-        
-        s_basic = settings["basic"]
-        ss = read_settings_string(settings["config_basic_string"])
-        # TODO: remember to escape custom names/paths.
-        settings["node_type"]             = ('p','f').index(next(ss))
-        s_basic["file_name_source"]       = ('p','f','c').index(next(ss))
-        s_basic["file_name_custom"]       = next(ss)
-        s_basic["ext"]                    = "." + next(ss)
-        s_basic["location"]               = ('s','d','u','ud','c').index(next(ss))
-        s_basic["location_name_source"]   = ('p','c').index(next(ss))
-        s_basic["location_name_custom"]   = next(ss)
-        s_basic["location_custom"]        = Path(next(ss))
-        s_basic["scale"]                  = flag2bool(next(ss))
-        s_basic["scale_side"]             = int(next(ss))
-        sm = int(next(ss))
-        s_basic["scale_width_mode"]       = sm
-        s_basic["scale_width"]            = int(next(ss)) if sm == QEUnits.PIXELS else float(next(ss))
-        sm = int(next(ss))
-        s_basic["scale_height_mode"]      = sm
-        s_basic["scale_height"]           = int(next(ss)) if sm == QEUnits.PIXELS else float(next(ss))
-        s_basic["scale_keep_aspect"]      = flag2bool(next(ss))
-        s_basic["scale_filter"]           = int(next(ss))
-        sr = next(ss)
-        s_basic["scale_res"]              = float(sr) if sr != "-1" else -1
-        
-        for ext in supported_extensions():
-            ext_key = ext[1:]
-            ext_ss = readSetting(f"file{settings_index}/{ext_key}", "")
+            settings = default_settings(path, store=True)
             
-            if not ext_ss:
-                continue
+            settings["config_path_string"]   = config_path_string
+            settings["config_macros_string"] = readSetting(f"file{settings_index}/macros", "")
+            settings["config_basic_string"]  = readSetting(f"file{settings_index}/basic", "")
             
-            settings[f"config_export_{ext_key}_string"] = ext_ss
-            settings["export"][ext_key] = json.loads(ext_ss)
+            settings["path"] = path
+            
+            def read_settings_string(string):
+                start_idx = 0
+                end_idx = 0
+                final_idx = len(string)
+                while True:
+                    end_idx += 1
+                    if end_idx == final_idx:
+                        yield string[start_idx:end_idx]
+                        break
+                    if string[end_idx] == "," and string[end_idx-1] != "/":
+                        yield string[start_idx:end_idx]
+                        start_idx = end_idx+1
+            
+            s_basic = settings["basic"]
+            ss = read_settings_string(settings["config_basic_string"])
+            # TODO: remember to escape custom names/paths.
+            settings["node_type"]             = ('p','f').index(next(ss))
+            s_basic["file_name_source"]       = ('p','f','c').index(next(ss))
+            s_basic["file_name_custom"]       = next(ss)
+            s_basic["ext"]                    = "." + next(ss)
+            s_basic["location"]               = ('s','d','u','ud','c').index(next(ss))
+            s_basic["location_name_source"]   = ('p','c').index(next(ss))
+            s_basic["location_name_custom"]   = next(ss)
+            s_basic["location_custom"]        = Path(next(ss))
+            s_basic["scale"]                  = flag2bool(next(ss))
+            s_basic["scale_side"]             = int(next(ss))
+            sm = int(next(ss))
+            s_basic["scale_width_mode"]       = sm
+            s_basic["scale_width"]            = int(next(ss)) if sm == QEUnits.PIXELS else float(next(ss))
+            sm = int(next(ss))
+            s_basic["scale_height_mode"]      = sm
+            s_basic["scale_height"]           = int(next(ss)) if sm == QEUnits.PIXELS else float(next(ss))
+            s_basic["scale_keep_aspect"]      = flag2bool(next(ss))
+            s_basic["scale_filter"]           = int(next(ss))
+            sr = next(ss)
+            s_basic["scale_res"]              = float(sr) if sr != "-1" else -1
+            
+            for ext in supported_extensions():
+                ext_key = ext[1:]
+                ext_ss = readSetting(f"file{settings_index}/{ext_key}", "")
+                
+                if not ext_ss:
+                    continue
+                
+                settings[f"config_export_{ext_key}_string"] = ext_ss
+                settings["export"][ext_key] = json.loads(ext_ss)
+            
+            qe_settings[path] = settings
+            settings_index += 1
+        return True
         
-        qe_settings[path] = settings
-        settings_index += 1
+    except Exception as e:
+        from traceback import format_tb
+        e_tb = format_tb(e.__traceback__)
+        msgBox = QMessageBox(QMessageBox.Critical,
+                             "Quick Export",
+                             "The Quick Export plugin configuration could not be read.",
+                             QMessageBox.Ok,
+                             app.activeWindow().qwindow() if app.activeWindow() else None)
+        msgBox.setDetailedText(f"You can try removing or editing the lines with keys starting 'file{settings_index}' under the [TomJK_QuickExport] group in your kritarc file. Be sure to close Krita before doing so.\n\n"
+                               "----\n\n"
+                               f"While loading settings for file #{settings_index}, the following error occured:\n\n{type(e).__name__}: {e}\n\n"
+                               f"{"\n".join(e_tb)}\n"
+                               "----\n\n"
+                               f"Settings values at time of error:\n\n{'\n'.join((f'{k}: {v}' for k,v in settings.items()))}")
+        msgBox.exec()
+        qe_settings = qe_settings_backup
 
 def load_0_0_2_settings_from_config():
     """
