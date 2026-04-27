@@ -50,7 +50,7 @@ def _make_thumbnail_for_file(path):
 
 
 class PasteDialog(QDialog):
-    last_used = {"overwrite_only":True, "name":False, "type":False, "location":False, "export_settings":True, "type_export_settings":{}}
+    last_used = {"overwrite_only":True, "name":False, "type":False, "location":False, "scale":False, "export_settings":True, "type_export_settings":{}}
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -73,6 +73,11 @@ class PasteDialog(QDialog):
         self.cb_location.setToolTip("Location, folder name source, custom name and custom path.")
         self.cb_location.setCheckState(Qt.Checked if self.last_used["location"] else Qt.Unchecked)
         layout.addWidget(self.cb_location)
+        
+        self.cb_scale = QCheckBox("Scale settings")
+        self.cb_scale.setToolTip("Whether scaling is enabled, and scale side, size and units, proportions constraint and filter strategy.")
+        self.cb_scale.setCheckState(Qt.Checked if self.last_used["scale"] else Qt.Unchecked)
+        layout.addWidget(self.cb_scale)
         
         cb_export_layout = QHBoxLayout()
         self.cb_export = QCheckBox("Export settings")
@@ -154,6 +159,7 @@ class PasteDialog(QDialog):
         self.last_used["name"] = self.cb_name.checkState() == Qt.Checked
         self.last_used["type"] = self.cb_type.checkState() == Qt.Checked
         self.last_used["location"] = self.cb_location.checkState() == Qt.Checked
+        self.last_used["scale"] = self.cb_scale.checkState() == Qt.Checked
         self.last_used["export_settings"] = self.cb_export.checkState() == Qt.Checked
         
         for ext,cb in self.cb_ext.items():
@@ -703,8 +709,19 @@ class QETree(QTreeView):
                 if paste_settings["location"]:
                     #print(" - paste location settings")
                     bes["location"] = ccbes["location"]
-                    bes["location_name_src"] = ccbes["location_name_src"]
+                    bes["location_name_source"] = ccbes["location_name_source"]
+                    bes["location_name_custom"] = ccbes["location_name_custom"]
                     bes["location_custom"] = ccbes["location_custom"]
+                if paste_settings["scale"]:
+                    #print(" - paste scale settings")
+                    bes["scale"] = ccbes["scale"]
+                    bes["scale_side"] = ccbes["scale_side"]
+                    bes["scale_width"] = ccbes["scale_width"]
+                    bes["scale_width_mode"] = ccbes["scale_width_mode"]
+                    bes["scale_height"] = ccbes["scale_height"]
+                    bes["scale_height_mode"] = ccbes["scale_height_mode"]
+                    bes["scale_keep_aspect"] = ccbes["scale_keep_aspect"]
+                    bes["scale_filter"] = ccbes["scale_filter"]
                 if paste_settings["export_settings"]:
                     overwrite_only = paste_settings["overwrite_only"]
                     for ext in paste_settings["type_export_settings"]:
