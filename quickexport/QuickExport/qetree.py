@@ -192,14 +192,12 @@ class TreeButton(QToolButton):
                 #add_default_store_for_path(self.path, self.item_type)
                 self.setIcon(app.icon("edit-delete"))
                 l = self.parent().layout()
-                for i in (1,2):
-                    l.itemAt(i).widget().show()
+                l.itemAt(1).widget().show()
             else:
                 del qe_settings[self.path]
                 self.setIcon(app.icon("list-add"))
                 l = self.parent().layout()
-                for i in (1,2):
-                    l.itemAt(i).widget().hide()
+                l.itemAt(1).widget().hide()
             
             self.item.model().dataChanged.emit(self.item.index(), self.item2.index())
             self.tree.selectionModel().selectionChanged.emit(QItemSelection(), QItemSelection())
