@@ -5,12 +5,13 @@ from pathlib import Path
 from krita import *
 
 from .utils import *
-#from .dialog import QEDialog
 from .qedialog import QEDialog
 
 app = Krita.instance()
 app_notifier = app.notifier()
 app_notifier.setActive(True)
+
+known_windows = []
 
 class QuickExportExtension(Extension):
     themeChanged = pyqtSignal()
@@ -48,8 +49,6 @@ class QuickExportExtension(Extension):
             }
         
         self.set_default_icons()
-        
-        self.default_export_action = None
         
         self.theme_name = ""
         self.theme_is_dark = False
@@ -90,9 +89,10 @@ class QuickExportExtension(Extension):
         self.update_action_icons()
     
     def set_action_icons(self):
-        self.refresh_actions()
-        self.qe_action.setIcon(self.get_icon("qe"))
-        self.qec_action.setIcon(self.get_icon("qec"))
+        print("set_action_icons")
+        for win in known_windows:
+            win["qe_action"].setIcon(self.get_icon("qe"))
+            win["qec_action"].setIcon(self.get_icon("qec"))
     
     def update_action_icons(self):
         self.use_custom_icons = str2bool(readSetting("use_custom_icons"))
@@ -100,26 +100,22 @@ class QuickExportExtension(Extension):
         
         self.theme_is_dark = True if custom_icons_theme == "dark" else False if custom_icons_theme == "light" else self.is_theme_dark()
         self.set_action_icons()
-        self.set_default_icons()
         self.themeChanged.emit()
     
     def createActions(self, window):
         print("QE: createActions")
         
-        self.qe_action = window.createAction("tomjk_quick_export", "Quick export", "file")
-        self.qe_action.setEnabled(False)
-        self.qe_action.triggered.connect(self._on_quick_export_triggered)
-        self.qec_action = window.createAction("tomjk_quick_export_configure", "Quick export configuration...", "file")
-        self.qec_action.triggered.connect(self._on_quick_export_configuration_triggered)
+        qe_action = window.createAction("tomjk_quick_export", "Quick export", "file")
+        qe_action.setEnabled(False)
+        qe_action.triggered.connect(self._on_quick_export_triggered)
+        qec_action = window.createAction("tomjk_quick_export_configure", "Quick export configuration...", "file")
+        qec_action.triggered.connect(self._on_quick_export_configuration_triggered)
         
-        self.icons["default"]["qe"] = self.qe_action.icon()
-        self.icons["default"]["qec"] = self.qec_action.icon()
-        
-        move_partial = partial(self.moveAction, [self.qe_action, self.qec_action], "file_export_advanced", window.qwindow())
-        call_later = partial(self.finishCreateActions, move_partial)
+        move_partial = partial(self.moveAction, [qe_action, qec_action], "file_export_advanced", window.qwindow())
+        call_later = partial(self.finishCreateActions, move_partial, qe_action, qec_action, window.qwindow())
         QTimer.singleShot(0, call_later)
     
-    def finishCreateActions(self, move_partial):
+    def finishCreateActions(self, move_partial, qe_action, qec_action, qwindow):
         move_partial.func(*move_partial.args)
         
         theme_menu_action = next(
@@ -132,16 +128,18 @@ class QuickExportExtension(Extension):
                 self.theme_name = theme_action.text().lower()
         
         self.theme_is_dark = self.is_theme_dark(self.theme_name)
+        
+        window = next((w for w in app.windows() if w.qwindow() == qwindow), None)
+        if not window:
+            print(f"Couldn't find window assocated with qwindow '{qwindow.objectName()}'.")
+            return
+        known_windows.append({"window":window, "qe_action":qe_action, "qec_action":qec_action})
+        
         self.update_action_icons()
         
-        for action in app.actions():
-            if action.objectName() == "file_export_file":
-                self.default_export_action = action
-        
-        # TODO: only works for initial window.
-        self.window = app.activeWindow()
-        self.window.activeViewChanged.connect(self.update_quick_export_display)
-        self.qe_action.changed.connect(self.update_quick_export_display)
+        window.activeViewChanged.connect(self.update_quick_export_display)
+        window.windowClosed.connect(partial(self._on_window_closed, window))
+        qe_action.changed.connect(self.update_quick_export_display)
         app_notifier.imageSaved.connect(partial(self.update_quick_export_display))
     
     def moveAction(self, actions_to_move, name_of_action_to_insert_before, qwindow):
@@ -158,18 +156,13 @@ class QuickExportExtension(Extension):
                         file_menu.insertAction(file_action, action)
                     break
     
-    def refresh_actions(self):
-        """retrieve action objects if we lose them for some reason."""
-        try:
-            self.qe_action.objectName()
-            self.qec_action.objectName()
-        except RuntimeError:
-            self.qe_action = next((a for a in app.actions() if a.objectName() == "tomjk_quick_export"), None)
-            self.qec_action = next((a for a in app.actions() if a.objectName() == "tomjk_quick_export_configure"), None)
-    
     def update_quick_export_display(self):
-        self.refresh_actions()
-        shortcut_text = self.qe_action.shortcut().toString()
+        print("update_quick_export_display")
+        if len(known_windows) == 0:
+            return
+        
+        qe_action = app.action("tomjk_quick_export")
+        shortcut_text = qe_action.shortcut().toString()
         shortcut_text = f" ({shortcut_text})" if shortcut_text else ""
         window = app.activeWindow()
         view = window.activeView()
@@ -179,7 +172,7 @@ class QuickExportExtension(Extension):
                 if doc.fileName():
                     doc_file_path = Path(doc.fileName())
                     if doc_file_path.suffix == ".kra":
-                        self.qe_action.setEnabled(True)
+                        qe_action.setEnabled(True)
                         file_settings_path = find_settings_path_for_file(doc_file_path)
                         if file_settings_path:
                             # file has QE settings.
@@ -187,22 +180,37 @@ class QuickExportExtension(Extension):
                             show_export_name_in_menu = str2bool(readSetting("show_export_name_in_menu"))
                             output_file_path = export_file_path(file_settings, doc_file_path)
                             if show_export_name_in_menu:
-                                self.qe_action.setText(f"Quick export to '{output_file_path.name}'")
+                                qe_action.setText(f"Quick export to '{output_file_path.name}'")
                             else:
-                                self.qe_action.setText("Quick export")
-                            self.qe_action.setToolTip(f"Quick export{shortcut_text}\n{str(output_file_path)}")
+                                qe_action.setText("Quick export")
+                            qe_action.setToolTip(f"Quick export{shortcut_text}\n{str(output_file_path)}")
                             return
                         # file has been saved but has no settings.
-                        self.qe_action.setText("Quick export...")
-                        self.qe_action.setToolTip(f"Quick export{shortcut_text}")
+                        qe_action.setText("Quick export...")
+                        qe_action.setToolTip(f"Quick export{shortcut_text}")
                         return
         # no doc, unsaved doc or non-.kra doc.
         reason = "No active document." if not doc else "Document has not been saved." if not doc.fileName() else "Document is not saved as a Krita project file (kra)."
-        self.qe_action.setText(f"Quick export")
-        self.qe_action.setToolTip(f"Quick export{shortcut_text}\n{reason}")
+        qe_action.setText(f"Quick export")
+        qe_action.setToolTip(f"Quick export{shortcut_text}\n{reason}")
         default_export_unsaved = str2bool(readSetting("default_export_unsaved"))
-        self.qe_action.setEnabled(default_export_unsaved)
-    
+        qe_action.setEnabled(default_export_unsaved)
+
+    def _on_window_closed(self, window):
+        print(f"_on_window_closed: {window=} {window.qwindow().objectName()}")
+        for i,win in enumerate(known_windows):
+            if window == win["window"]:
+                del known_windows[i]
+                break
+        
+        if len(known_windows) > 0:
+            return
+            
+        # Krita is closing, force dialog closed if open.
+        dialog = QEDialog.instance
+        if dialog and dialog.isVisible():
+            dialog.close()
+
     def _on_quick_export_triggered(self):
         doc = app.activeDocument()
         if not doc:
@@ -216,7 +224,7 @@ class QuickExportExtension(Extension):
                 app.activeWindow().activeView().showFloatingMessage(msg, app.icon('document-export'), 5000, 2)
                 return
             else:
-                self.default_export_action.trigger()
+                app.action("file_export_file").trigger()
                 return
         
         path = Path(doc.fileName())
