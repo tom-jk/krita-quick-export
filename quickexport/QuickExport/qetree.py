@@ -829,11 +829,11 @@ class QETree(QTreeView):
                     for child_idx in range(item.rowCount()):
                         child = item.child(child_idx)
                         child_path = child.data(PathRole)
-                        print(f" - {child_path=}")
+                        print(f" - {child_path=} (row:{child.row()})")
                         if child_path in qe_settings:
                             del qe_settings[child_path]
-                print(f" - {path=}")
-                self.model.removeRow(item.row(), self.model.mapFromSource((item.parent() or self.source_model.invisibleRootItem()).index()))
+                print(f" - {path=} (row:{item.row()})")
+                self.source_model.removeRow(item.row(), (item.parent() or self.source_model.invisibleRootItem()).index())
                 if path in qe_settings:
                     del qe_settings[path]
             
