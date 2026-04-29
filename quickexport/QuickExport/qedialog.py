@@ -86,6 +86,11 @@ class QEDialog(QDialog):
         
         #self.tree.setup_filter_completer()
         
+        if (doc := app.activeDocument()):
+            if (filename := doc.fileName()):
+                filepath = Path(filename)
+                self.tree.select_for_file_path(filepath)
+        
         #if self.tree.focused_item:
         #    self.tree.scrollToItem(self.tree.focused_item, QAbstractItemView.PositionAtCenter)
         

@@ -1058,3 +1058,28 @@ class QETree(QTreeView):
         self.source_model.dataChanged.emit(source_index, source_index)
         
         suppress_store_on_widget_edit = False
+    
+    def select_for_file_path(self, filepath):
+        """
+        For a given file, if it exists in the tree, expand folder and
+        project and scroll to file row, and select the project.
+        """
+        basepath = filepath.with_name(base_stem_and_version_number_for_versioned_file(filepath)[0])
+        #print(f"finding folder for {filepath} with {basepath=}")
+        model = self.model
+        for folder_row in range(model.rowCount()):
+            folder_index = model.index(folder_row, 0)
+            if folder_index.data(PathRole) == filepath.parent:
+                #print(f" {folder_index=}")
+                for project_row in range(model.rowCount(folder_index)):
+                    project_index = model.index(project_row, 0, folder_index)
+                    if project_index.data(PathRole) == basepath:
+                        #print(f"  {project_index=}")
+                        for file_row in range(model.rowCount(project_index)):
+                            file_index = model.index(file_row, 0, project_index)
+                            if file_index.data(PathRole) == filepath:
+                                #print(f"   {file_index=} FOUND")
+                                self.expand(folder_index)
+                                self.expand(project_index)
+                                self.setCurrentIndex(project_index)
+                                self.scrollTo(file_index, self.PositionAtCenter)
