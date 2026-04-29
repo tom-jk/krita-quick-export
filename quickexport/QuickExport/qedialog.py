@@ -48,7 +48,11 @@ class QEDialog(QDialog):
         # TODO: save user changes to tree column sizes and retrieve at each start.
         self.tree_is_ready = False
         self.tree = QETree(self)
+        self.tree.addingFolder.connect(self._on_tree_adding_folder)
+        self.tree.removingFolder.connect(self._on_tree_removing_folder)
+        self.folder_filter_button.setAllFoldersUnused()
         self.tree.setup()
+        self.folder_filter_button.purgeUnusedFolders()
         self.tree.source_model.dataChanged.connect(self._on_tree_source_model_data_changed)
         self.tree.selectionModel().selectionChanged.connect(self._on_tree_selection_changed)
         self.tree.requestConfigWidgetsRefreshForPath.connect(self._on_tree_request_config_widgets_refresh_for_path)
@@ -68,6 +72,9 @@ class QEDialog(QDialog):
         if self.filter_edit.text():
             self.tree._on_filter_edit_text_changed(self.filter_edit.text())
         
+        if (included_folders := self.folder_filter_button.includedFolders()):
+            self._on_folder_filter_button_filter_changed()
+        
         self.tree_container_layout.addWidget(self.tree)
         self.tree_is_ready = True
         
@@ -78,10 +85,6 @@ class QEDialog(QDialog):
         #self.tree.set_settings_display_mode()
         
         #self.tree.setup_filter_completer()
-        
-        if False:
-            for path in qe_settings.keys():
-                self.folder_filter_button.add_folder_to_tree(path)
         
         #if self.tree.focused_item:
         #    self.tree.scrollToItem(self.tree.focused_item, QAbstractItemView.PositionAtCenter)
@@ -127,12 +130,11 @@ class QEDialog(QDialog):
         self.filter_edit.addAction(app.icon("tool_zoom"), QLineEdit.LeadingPosition)
         view_buttons_layout.addWidget(self.filter_edit)
         
-        if False:
-            self.folder_filter_button = FolderFilterButton()
-            self.folder_filter_button.setAutoDefault(False)
-            self.folder_filter_button.filterChanged.connect(self._on_folder_filter_button_filter_changed)
-            
-            view_buttons_layout.addWidget(self.folder_filter_button)
+        self.folder_filter_button = FolderFilterButton()
+        self.folder_filter_button.setAutoDefault(False)
+        self.folder_filter_button.filterChanged.connect(self._on_folder_filter_button_filter_changed)
+        
+        view_buttons_layout.addWidget(self.folder_filter_button)
         
         view_buttons_layout.setContentsMargins(0,0,0,0)
         view_buttons.setLayout(view_buttons_layout)
@@ -839,7 +841,9 @@ class QEDialog(QDialog):
         self.tree.refilter()
     
     def _on_folder_filter_button_filter_changed(self):
-        self.tree.refilter()
+        self.tree.model.setIncludedFolders(self.folder_filter_button.includedFolders())
+        self.tree.model.invalidateFilter()
+        self.tree.add_buttons_for_all_rows()
 
     def _on_auto_save_on_close_action_toggled(self, checked):
         writeSetting("auto_save_on_close", bool2str(checked))
@@ -1215,3 +1219,13 @@ class QEDialog(QDialog):
     
     def _on_tree_request_show_message(self, message, timeout):
         self.sbar.showMessage(message, timeout)
+    
+    def _on_tree_adding_folder(self, path):
+        self.folder_filter_button.add_folder_to_tree(path)
+        #print("_on_tree_adding_folder")
+        #print(self.folder_filter_button.includedFolders())
+        #print(" * * *")
+    
+    def _on_tree_removing_folder(self, path):
+        self.folder_filter_button.remove_folder_from_tree(path)
+        #print(f"_on_tree_removing_folder: {path=}")

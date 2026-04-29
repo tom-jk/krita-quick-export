@@ -15,6 +15,10 @@ class CheckBox(QCheckBox):
 class FolderFilterButton(QPushButton):
     filterChanged = pyqtSignal()
     
+    TextRole = Qt.UserRole
+    CheckedRole = Qt.UserRole+1
+    UsedRole = Qt.UserRole+2
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -93,7 +97,7 @@ class FolderFilterButton(QPushButton):
             item = iter.value()
             checkbox = self.tree.itemWidget(item, 0).layout().itemAt(0).widget()
             checkbox.setCheckState(Qt.Unchecked)
-            item.setData(0, Qt.UserRole+1, Qt.Unchecked)
+            item.setData(0, self.CheckedRole, Qt.Unchecked)
             iter += 1
         self.included_folders.clear()
         self.tree_item_checkbox_state_changed_recursing = False
@@ -115,7 +119,7 @@ class FolderFilterButton(QPushButton):
             if item.isSelected():
                 checkbox = self.tree.itemWidget(item, 0).layout().itemAt(0).widget()
                 checkbox.setCheckState(check_state)
-                item.setData(0, Qt.UserRole+1, check_state)
+                item.setData(0, self.CheckedRole, check_state)
                 if check_state == Qt.Unchecked and item in self.included_folders:
                     self.included_folders.pop(self.included_folders.index(item))
                 if check_state != Qt.Unchecked and item not in self.included_folders:
@@ -137,8 +141,9 @@ class FolderFilterButton(QPushButton):
         checkbox.stateChanged.connect(lambda state, cb=checkbox, i=item: self._on_tree_item_checkbox_state_changed(state, cb, i))
         l.addWidget(checkbox)
         self.tree.setItemWidget(item, 0, wgt)
-        item.setData(0, Qt.UserRole, text)
-        item.setData(0, Qt.UserRole+1, Qt.Unchecked)
+        item.setData(0, self.TextRole, text)
+        item.setData(0, self.CheckedRole, Qt.Unchecked)
+        item.setData(0, self.UsedRole, True)
         item.setExpanded(True)
         return item
     
@@ -153,46 +158,46 @@ class FolderFilterButton(QPushButton):
         if state == Qt.Checked:
             if not item in self.included_folders:
                 self.included_folders.append(item)
-                item.setData(0, Qt.UserRole+1, Qt.Checked)
-            #print(f"added {item.data(0, Qt.UserRole)}")
+                item.setData(0, self.CheckedRole, Qt.Checked)
+            #print(f"added {item.data(0, self.TextRole)}")
         else:
             try:
-                item.setData(0, Qt.UserRole+1, Qt.Unchecked)
+                item.setData(0, self.CheckedRole, Qt.Unchecked)
                 self.included_folders.pop(self.included_folders.index(item))
-                #print(f"removed {item.data(0, Qt.UserRole)}")
+                #print(f"removed {item.data(0, self.TextRole)}")
             except ValueError as e:
-                print(f"item {item.data(0, Qt.UserRole)}:", e)
+                print(f"item {item.data(0, self.TextRole)}:", e)
     
         stack = [item]
         numloops = 0
         while stack and numloops < 9999:
             numloops += 1
             item_ = stack.pop()
-            if item_ == item or item_.data(0, Qt.UserRole+1) != Qt.Checked:
+            if item_ == item or item_.data(0, self.CheckedRole) != Qt.Checked:
                 if item_.childCount() > 0:
                     for idx in range(item_.childCount()):
                         stack.append(item_.child(idx))
             if item_ == item:
                 continue
             checkbox = self.tree.itemWidget(item_, 0).layout().itemAt(0).widget()
-            if state == Qt.Checked and item_.data(0, Qt.UserRole+1) == Qt.Unchecked:
+            if state == Qt.Checked and item_.data(0, self.CheckedRole) == Qt.Unchecked:
                 checkbox.setCheckState(Qt.PartiallyChecked)
-                item_.setData(0, Qt.UserRole+1, Qt.PartiallyChecked)
+                item_.setData(0, self.CheckedRole, Qt.PartiallyChecked)
                 self.included_folders.append(item_)
-                #print(f"added {item_.data(0, Qt.UserRole)}")
-            if not state == Qt.Checked and item_.data(0, Qt.UserRole+1) == Qt.PartiallyChecked:
+                #print(f"added {item_.data(0, self.TextRole)}")
+            if not state == Qt.Checked and item_.data(0, self.CheckedRole) == Qt.PartiallyChecked:
                 checkbox.setCheckState(Qt.Unchecked)
-                item_.setData(0, Qt.UserRole+1, Qt.Unchecked)
+                item_.setData(0, self.CheckedRole, Qt.Unchecked)
                 try:
                     self.included_folders.pop(self.included_folders.index(item_))
-                    #print(f"removed {item_.data(0, Qt.UserRole)}")
+                    #print(f"removed {item_.data(0, self.TextRole)}")
                 except ValueError as e:
-                    print(f"item {item.data(0, Qt.UserRole)}:", e)
+                    print(f"item {item.data(0, self.TextRole)}:", e)
         if numloops==9999: print("bailed at numloops==9999")
     
         self.tree_item_checkbox_state_changed_recursing = False
         
-        #print(f"{[i.data(0, Qt.UserRole) for i in self.included_folders]}")
+        #print(f"{[i.data(0, self.TextRole) for i in self.included_folders]}")
         
         self.update_label()
         self.filterChanged.emit()
@@ -203,7 +208,7 @@ class FolderFilterButton(QPushButton):
         # TODO: when many, show highest common ancestor (eg. "Documents") if there is one with all descendents checked.
         if not self.temp_show_all_checkbox.isChecked() and inc_count > 0:
             if False:#inc_count == 1:
-                self.label_text = self.included_folders[0].data(0, Qt.UserRole)
+                self.label_text = self.included_folders[0].data(0, self.TextRole)
             else:
                 self.label_text = f"Filter {inc_count} folder{'s' if inc_count>1 else ''}"
         else:
@@ -222,9 +227,9 @@ class FolderFilterButton(QPushButton):
             if item == -1:
                 stack.pop()
                 continue
-            stack.append(item.data(0, Qt.UserRole))
+            stack.append(item.data(0, self.TextRole))
             #print(stack)
-            if item.data(0, Qt.UserRole+1) != Qt.Unchecked:
+            if item.data(0, self.CheckedRole) != Qt.Unchecked:
                 paths.append(stack.copy())
             if item.childCount() > 0:
                 l = []
@@ -244,21 +249,23 @@ class FolderFilterButton(QPushButton):
     
     def add_folder_to_tree(self, path):
         path_parts = path.parts
-        print(f"{path_parts=}")
+        #print(f"{path_parts=}")
         
         tree = self.tree
         
         item = None
         for item_idx in range(tree.topLevelItemCount()):
             item_ = tree.topLevelItem(item_idx)
-            if item_.data(0, Qt.UserRole) == path_parts[0]:
+            if item_.data(0, self.TextRole) == path_parts[0]:
                 item = item_
                 break
         
         if not item:
             #print("New root item:", path_parts[0])
             item = self.add_item_to_tree(tree, path_parts[0])
-            print(item.data(0, Qt.UserRole), item.data(0, Qt.UserRole+1))
+            print(item.data(0, self.TextRole), item.data(0, self.CheckedRole))
+        
+        self.tree_item_checkbox_state_changed_recursing = True
         
         print(path_parts[1:])
         for part in path_parts[1:]:
@@ -266,15 +273,126 @@ class FolderFilterButton(QPushButton):
             for child_idx in range(item.childCount()):
                 child = item.child(child_idx)
                 #print("compare:", child.text(0), part)
-                if child.data(0, Qt.UserRole) == part:
+                if child.data(0, self.TextRole) == part:
                     #print("Already exists")
                     already_exists = True
                     break
             if already_exists:
                 item = child
                 continue
-            #print("adding", part)
-            item = self.add_item_to_tree(item, part)
+            print("adding", part)
+            new_item = self.add_item_to_tree(item, part)
+            if item.data(0, self.CheckedRole) in (Qt.Checked, Qt.PartiallyChecked):
+                # propagate checked state.
+                cb = tree.itemWidget(new_item, 0).findChild((QCheckBox,))
+                cb.setCheckState(Qt.PartiallyChecked)
+                new_item.setData(0, self.CheckedRole, Qt.PartiallyChecked)
+                self.included_folders.append(new_item)
+            item = new_item
+        
+        self.tree_item_checkbox_state_changed_recursing = False
+        
+        item.setData(0, self.UsedRole, True)
+        
+        self.update_label()
+        self.filterChanged.emit()
+    
+    def remove_folder_from_tree(self, path):
+        path_parts = path.parts
+        tree = self.tree
+        
+        item = None
+        for item_idx in range(tree.topLevelItemCount()):
+            item_ = tree.topLevelItem(item_idx)
+            if item_.data(0, self.TextRole) == path_parts[0]:
+                item = item_
+                break
+        
+        if not item:
+            print(f"failed to remove folder {path=} (root not in tree).")
+            return
+        
+        for part in path_parts[1:]:
+            ancestor_exists = False
+            for child_idx in range(item.childCount()):
+                child = item.child(child_idx)
+                if child.data(0, self.TextRole) == part:
+                    ancestor_exists = True
+                    break
+            if ancestor_exists:
+                item = child
+                continue
+            print(f"failed to remove folder {path=} (ancestor {part} not in tree).")
+        
+        item.setData(0, self.UsedRole, False)
+        
+        # look at all folders under this one, and cascade up through ancestors.
+        
+        def is_any_descendent_used(itm):
+            for child_idx in range(itm.childCount()):
+                child = itm.child(child_idx)
+                if child.data(0, self.UsedRole):
+                    return True
+                if child.childCount() > 0:
+                    if is_any_descendent_used(child):
+                        return True
+            return False
+        
+        while True:
+            if is_any_descendent_used(item):
+                return
+            
+            parent = item.parent()
+            if not parent:
+                return
+            
+            cb = tree.itemWidget(item, 0).findChild((QCheckBox,))
+            cb.setCheckState(Qt.Unchecked)
+            parent.removeChild(item)
+            item = parent
+    
+    def setAllFoldersUnused(self, item=None):
+        if not item:
+            item = self.tree.invisibleRootItem()
+        
+        for child_idx in range(item.childCount()):
+            child = item.child(child_idx)
+            child.setData(0, self.UsedRole, False)
+            if child.childCount() > 0:
+                self.setAllFoldersUnused(child)
+    
+    def purgeUnusedFolders(self, item=None):
+        if not item:
+            item = self.tree.invisibleRootItem()
+        
+        any_child_used = False
+        
+        for child_idx in reversed(range(item.childCount())):
+            child = item.child(child_idx)
+            if child.childCount() > 0:
+                any_child_used |= self.purgeUnusedFolders(child)
+            else:
+                if child.data(0, self.UsedRole):
+                    any_child_used |= True
+                else:
+                    cb = self.tree.itemWidget(child, 0).findChild((QCheckBox,))
+                    cb.setCheckState(Qt.Unchecked)
+                    item.removeChild(child)
+        
+        if any_child_used:
+            return True
+        
+        if item.data(0, self.UsedRole):
+            return True
+        
+        parent = item.parent()
+        if not parent:
+            return True
+        
+        cb = self.tree.itemWidget(item, 0).findChild((QCheckBox,))
+        cb.setCheckState(Qt.Unchecked)
+        parent.removeChild(item)
+        return False
     
     def _on_clicked(self, checked):
         popup = self.popup

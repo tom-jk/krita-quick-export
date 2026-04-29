@@ -323,18 +323,33 @@ class ItemDelegate(QStyledItemDelegate):
 
 
 class MySortFilterProxyModel(QSortFilterProxyModel):
+    def setIncludedFolders(self, paths):
+        self.includedFolders_ = paths
+    
+    def includedFolders(self):
+        if hasattr(self, "includedFolders_"):
+            return self.includedFolders_
+        return None
+    
     def filterAcceptsRow(self, source_row, source_parent):
+        #print(f"{self.includedFolders()=}")
         source_model = self.sourceModel()
         index = source_model.index(source_row, 0, source_parent)
         path = source_model.data(index, PathRole)
         #print(f"{sp}{source_row=} {source_parent=} {source_parent.model()=} {path=}")
         item_type = source_model.data(index, ItemTypeRole)
         
-        if not self.filterRegExp().pattern():
-            return True
-        
         if not path:
             return False
+        
+        if (folders := self.includedFolders()):
+            folder = path if item_type == QEItemType.FOLDER else path.parent
+            if folder not in folders:
+                print(f" {path} was not displayed.")
+                return False
+        
+        if not self.filterRegExp().pattern():
+            return True
         
         matched = self.filterRegExp().indexIn(str(path))
         #print(f"{sp} filterAcceptsRow: pattern={self.filterRegExp().pattern()}, {matched=} (length {self.filterRegExp().matchedLength()})")
@@ -353,6 +368,8 @@ class QETree(QTreeView):
     requestAddFolderAtPath = pyqtSignal(Path)
     requestAddProjectAtPath = pyqtSignal(Path)
     requestShowMessage = pyqtSignal(str, int)
+    addingFolder = pyqtSignal(Path)
+    removingFolder = pyqtSignal(Path)
     
     def setup(self):
         item_delegate = ItemDelegate()
@@ -547,6 +564,7 @@ class QETree(QTreeView):
             if self.source_model.data(index, PathRole) == path:
                 return self.source_model.item(i)
         
+        self.addingFolder.emit(path)
         return self.add_item_to_tree(self.source_model, path, str(path), app.icon("folder"), QEItemType.FOLDER)
 
     def _on_custom_context_menu_requested(self, pos):
@@ -811,10 +829,12 @@ class QETree(QTreeView):
             # gather items to be removed, excluding projects inside folders that are being removed, as they'll be removed with the folder anyway.
             print("building list of rows to remove...")
             row_items = []
+            folder_paths_being_removed = []
             for row_index in rows:
                 row_item = self.source_model.itemFromIndex(self.model.mapToSource(row_index))
                 if row_index.data(ItemTypeRole) == QEItemType.FOLDER:
                     print(f" - add folder {row_index.data(PathRole)}.")
+                    folder_paths_being_removed.append(row_index.data(PathRole))
                     row_items.append(row_item)
                 else:
                     if not row_index.parent() in rows:
@@ -839,6 +859,9 @@ class QETree(QTreeView):
             
             # TODO: this is badly done (indeces passes to dataChanged must all have same parent; that's not guaranteed here).
             self.source_model.dataChanged.emit(rows[0], rows[-1])
+            
+            for folder_path in folder_paths_being_removed:
+                self.removingFolder.emit(path)
             
             print("done")
             #for k,v in qe_settings.items():
@@ -976,6 +999,11 @@ class QETree(QTreeView):
             store_temp_copy = qe_settings[old_path]
             del qe_settings[old_path]
             qe_settings[new_path] = store_temp_copy
+        
+        if item_type == QEItemType.FOLDER:
+            self.removingFolder.emit(old_path)
+            self.addingFolder.emit(new_path)
+        
         item.setData(str(new_path) if item_type == QEItemType.FOLDER else new_path.name, Qt.DisplayRole)
         item.setData(new_path, PathRole)
 
@@ -991,6 +1019,9 @@ class QETree(QTreeView):
         if text != "":
             self.expandAll()
         
+        self.add_buttons_for_all_rows()
+    
+    def add_buttons_for_all_rows(self):
         def callback_method(index):
             item = self.source_model.itemFromIndex(index)
             item2_source_index = index.siblingAtColumn(index.column()+1)
