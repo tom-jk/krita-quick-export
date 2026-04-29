@@ -401,6 +401,9 @@ class FolderFilterButton(QPushButton):
         #print(popup.geometry(), popup.screen().size())
         if popup.geometry().bottom() > popup.screen().size().height():
             popup.move(self.mapToGlobal(rect.topLeft() - QPoint(0, popup.rect().height())))
+            popup.layout().setDirection(QVBoxLayout.TopToBottom)
+        else:
+            popup.layout().setDirection(QVBoxLayout.BottomToTop)
         popup.show()
     
     def paintEvent(self, event):
