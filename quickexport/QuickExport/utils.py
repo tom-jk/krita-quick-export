@@ -400,7 +400,6 @@ def load_0_0_3_settings_from_config():
             
             s_basic = settings["basic"]
             ss = read_settings_string(settings["config_basic_string"])
-            # TODO: remember to escape custom names/paths.
             settings["node_type"]             = ('p','f').index(next(ss))
             s_basic["file_name_source"]       = ('p','f','c').index(next(ss))
             s_basic["file_name_custom"]       = unescape_settings_string(next(ss))
@@ -624,7 +623,7 @@ def generate_save_string(settings_path, s=None):
     scale_height = int(s_basic['scale_height']) if s_basic['scale_height_mode'] == QEUnits.PIXELS else s_basic['scale_height']
     scale_res = f"{s_basic['scale_res']:.4f}".rstrip('0').rstrip('.') if s_basic["scale_res"] != -1 else "-1"
     
-    s["config_path_string"] = str(settings_path)
+    s["config_path_string"] = settings_path.as_posix()
     s["config_macros_string"] = ""
     s["config_basic_string"] = (
         f"{('p','f')[s['node_type']]},"
@@ -634,7 +633,7 @@ def generate_save_string(settings_path, s=None):
         f"{('s','d','u','ud','c')[s_basic['location']]},"
         f"{('p','c')[s_basic['location_name_source']]},"
         f"{escape_settings_string(s_basic['location_name_custom'])},"
-        f"{escape_settings_string(str(s_basic['location_custom']))},"
+        f"{escape_settings_string(s_basic['location_custom'].as_posix())},"
         f"{bool2flag(s_basic['scale'])},{int(s_basic['scale_side'])},{int(s_basic['scale_width_mode'])},{scale_width},{int(s_basic['scale_height_mode'])},{scale_height},{bool2flag(s_basic['scale_keep_aspect'])},{s_basic["scale_filter"]},{scale_res}"
     )
     
