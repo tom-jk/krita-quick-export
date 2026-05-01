@@ -768,6 +768,13 @@ def export_file_path(settings, source_path, item_type=QEItemType.FILE):
     location_name_custom = s_basic["location_name_custom"]
     location_custom = s_basic["location_custom"]
     
+    if not location_custom.is_absolute():
+        try:
+            location_custom = location_custom.expanduser()
+        except RuntimeError:
+            print(f"can't expanduser for '{location_custom}'")
+        location_custom = (folder / location_custom).resolve()
+    
     output_stem = (base, file_name, file_name_custom)[file_name_source_index]
     folder_name = base if location_name_source_index == QEFolderNameSource.PROJECT else location_name_custom
     output_folder = (folder, folder / folder_name, folder.parent, folder.parent / folder_name, location_custom)[location_index]

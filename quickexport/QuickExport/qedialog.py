@@ -201,8 +201,18 @@ class QEDialog(QDialog):
         self.basic_export_settings_folder_name_custom.hide()
         basic_export_settings_folder_container_layout.addWidget(self.basic_export_settings_folder_name_custom)
         self.basic_export_settings_location_custom = QLineEdit("Location Custom")
+        action = self.basic_export_settings_location_custom.addAction(app.icon("system-help"), QLineEdit.TrailingPosition)
+        action.setToolTip("Can be specified relative to source folder:\n 'subfolder'\n 'subfolder/subsubfolder'\n '../parentsiblingfolder'\n '../../grandparentsiblingfolder'\n etc.\n\n"
+                          "Or absolute:\n '/home/user/folder' (Unix)\n 'c:/users/user/folder' (Windows).\n\n"
+                          "Rather than a fixed path for a specific user,\nprefer '~' for the current user's home folder:\n '~/folder' is '/home/(user)/folder' (Unix)\n '~/folder' is 'c:/users/(user)/folder' (Windows).\n\n"
+                          "Relative paths are the most portable: if the source file is moved, a relative path 'moves' with it.\nPrefer to use relative paths.")
         self.basic_export_settings_location_custom.hide()
         basic_export_settings_folder_container_layout.addWidget(self.basic_export_settings_location_custom)
+        self.basic_export_settings_folder_custom_switch_type = QToolButton()
+        self.basic_export_settings_folder_custom_switch_type.setIcon(app.icon("view-refresh"))
+        self.basic_export_settings_folder_custom_switch_type.setToolTip("Swap between absolute and relative paths.")
+        self.basic_export_settings_folder_custom_switch_type.hide()
+        basic_export_settings_folder_container_layout.addWidget(self.basic_export_settings_folder_custom_switch_type)
         self.basic_export_settings_folder_pick_custom = QToolButton()
         self.basic_export_settings_folder_pick_custom.setIcon(app.icon("folder"))
         self.basic_export_settings_folder_pick_custom.hide()
@@ -305,6 +315,7 @@ class QEDialog(QDialog):
         self.basic_export_settings_folder_name.currentIndexChanged.connect(self._on_basic_export_settings_folder_name_current_index_changed)
         self.basic_export_settings_folder_name_custom.textChanged.connect(self.update_basic_export_settings_output_path_label)
         self.basic_export_settings_location_custom.textChanged.connect(self.update_basic_export_settings_output_path_label)
+        self.basic_export_settings_folder_custom_switch_type.clicked.connect(self._on_basic_export_settings_folder_custom_switch_type_clicked)
         self.basic_export_settings_folder_pick_custom.clicked.connect(self._on_basic_export_settings_folder_pick_custom_clicked)
         self.basic_export_settings_scale_enabled.toggled.connect(self._on_basic_export_settings_scale_enabled_toggled)
         self.basic_export_settings_scale_side.currentIndexChanged.connect(self._on_basic_export_settings_scale_side_current_index_changed)
@@ -1110,12 +1121,36 @@ class QEDialog(QDialog):
         self.basic_export_settings_folder_name.setVisible(show_name)
         self.basic_export_settings_folder_name_custom.setVisible(show_name and self.basic_export_settings_folder_name.currentIndex() == QEFolderNameSource.CUSTOM)
         self.basic_export_settings_location_custom.setVisible(index == QELocation.CUSTOM)
+        self.basic_export_settings_folder_custom_switch_type.setVisible(index == QELocation.CUSTOM)
         self.basic_export_settings_folder_pick_custom.setVisible(index == QELocation.CUSTOM)
         self.update_basic_export_settings_output_path_label()
 
     def _on_basic_export_settings_folder_name_current_index_changed(self, index):
         self.basic_export_settings_folder_name_custom.setVisible(self.basic_export_settings_folder_location.currentIndex() in (QELocation.IN_SUBFOLDER, QELocation.IN_SIBLING_OF_FOLDER) and index == QEFolderNameSource.CUSTOM)
         self.basic_export_settings_location_custom.setVisible(self.basic_export_settings_folder_location.currentIndex() == QELocation.CUSTOM)
+        self.update_basic_export_settings_output_path_label()
+
+    def _on_basic_export_settings_folder_custom_switch_type_clicked(self):
+        path = Path(self.basic_export_settings_location_custom.text())
+        path = path.expanduser()
+        
+        sel_rows = self.tree.selectionModel().selectedRows()
+        index = self.tree.model.mapToSource(sel_rows[0])
+        
+        row_path = index.data(PathRole)
+        item_type = index.data(ItemTypeRole)
+        source_path = row_path if item_type == QEItemType.FOLDER else row_path.parent
+        
+        if path.is_absolute():
+            path = path.relative_to(source_path, walk_up=True)
+        else:
+            path = (source_path / path).resolve()
+            try:
+                path = Path("~") / (path.relative_to(Path.home()))
+            except ValueError:
+                pass
+        
+        self.basic_export_settings_location_custom.setText(str(path))
         self.update_basic_export_settings_output_path_label()
 
     def _on_basic_export_settings_folder_pick_custom_clicked(self):
