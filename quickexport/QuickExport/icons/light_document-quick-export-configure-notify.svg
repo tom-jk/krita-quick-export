@@ -46,6 +46,11 @@ rdf:resource="http://creativecommons.org/ns#ShareAlike" />
 </rdf:RDF>
 </metadata>
 <path
-style="fill:#373737;fill-rule:evenodd;"
+style="fill:#d2d2d2;fill-rule:evenodd;"
 d="M 2,5 V 17 H 3 V 5 Z M 4,3 v 16 h 10 v -2 h -1 v 1 H 5 V 4 h 8 v 1 h 1 V 3 Z m 8,9 h 8 v 2 h -8 z m -3,0 h 2 v 2 H 9 Z m 3,-4 h 8 v 2 H 12 Z M 9,8 h 2 v 2 H 9 Z" />
+<circle
+style="fill:#d48a6f;fill-rule:evenodd;"
+cx="18"
+cy="4"
+r="2" />
 </svg>

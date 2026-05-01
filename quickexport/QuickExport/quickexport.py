@@ -21,8 +21,6 @@ class QuickExportExtension(Extension):
         print("QuickExport init.")
         
         set_extension(self)
-        
-        load_settings_from_config(soft_warning_for_unsupported_version=True)
 
     def setup(self):
         print("QE: setup")
@@ -40,6 +38,7 @@ class QuickExportExtension(Extension):
             self.icons[theme] = {
                 "qe":               icon("document-quick-export"),
                 "qec":              icon("document-quick-export-configure"),
+                "qec-notify":       icon("document-quick-export-configure-notify"),
                 "settings":         icon("settings"),
                 "visibility": {
                     "hide":         app.icon("novisible"),
@@ -58,6 +57,7 @@ class QuickExportExtension(Extension):
         self.icons["default"] = {
             "qe":                   app.icon("document-export"),
             "qec":                  app.icon("configure"),
+            "qec-notify":           app.icon("configure"),
             "settings":             app.icon("configure"),
             "visibility": {
                 "hide":             app.icon("novisible"),
@@ -90,9 +90,10 @@ class QuickExportExtension(Extension):
     
     def set_action_icons(self):
         print("set_action_icons")
+        correct_settings_version = readSetting("settings_version") == "0.0.3"
         for win in known_windows:
             win["qe_action"].setIcon(self.get_icon("qe"))
-            win["qec_action"].setIcon(self.get_icon("qec"))
+            win["qec_action"].setIcon(self.get_icon("qec") if correct_settings_version else self.get_icon("qec-notify"))
     
     def update_action_icons(self):
         self.use_custom_icons = str2bool(readSetting("use_custom_icons"))
@@ -157,7 +158,7 @@ class QuickExportExtension(Extension):
                     break
     
     def update_quick_export_display(self):
-        print("update_quick_export_display")
+        #print("update_quick_export_display")
         if len(known_windows) == 0:
             return
         

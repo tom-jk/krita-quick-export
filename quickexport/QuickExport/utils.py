@@ -5,7 +5,6 @@ import sip
 from timeit import default_timer
 from traceback import format_tb
 from pathlib import Path
-from os.path import relpath
 from functools import reduce
 from enum import IntEnum, auto
 import platform, os, subprocess
@@ -136,10 +135,9 @@ setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_k
                     "visible_types":".avif .exr .gif .ico .jpg .jpeg .jxl .png .tif .webp", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"",
                     "wide_column_resize_grabber":"false", "create_missing_folders_at_export":"ask", "settings_version":""}
 
+filter_strategy_strings         = ["Auto", "Bell", "Bicubic", "Bilinear", "BSpline", "Hermite", "Lanczos3", "Mitchell", "NearestNeighbor"]
 filter_strategy_display_strings = ["Auto", "Bell", "Bicubic", "Bilinear", "BSpline", "Hermite", "Lanczos3", "Mitchell", "Nearest"]
-filter_strategy_store_strings     = {"Auto":"A", "Bell":"B", "Bicubic":"Bic", "Bilinear":"Bil", "BSpline":"BS", "Hermite":"H", "Lanczos3":"L", "Mitchell":"M", "NearestNeighbor":"NN"}
 filter_strategy_aliases           = {"Nearest Neighbor":"NearestNeighbor", "Nearest":"NearestNeighbor"}
-filter_strategy_rev_store_strings = {v:k for k,v in filter_strategy_store_strings.items()}
 
 colour_label_colours = (
     Qt.transparent,     QColor(91,173,220),  QColor(151,202,63),
@@ -174,78 +172,6 @@ def bool2flag(*args):
 
 def flag2bool(strval):
     return True if strval == "1" else False
-
-def deserialize_stored_output_string(base, s):
-    """
-    arguments
-        base    Path    path that s is relative to, if s is relative.
-                        note this is the source path, not the source file (eg. Path("/home/user/Pictures"), not Path("/home/user/Pictures/pic.kra")).
-        s       str     stored file path string to deserialize.
-                        note this is the output file without extension (eg. "pic", "./../pic", "/home/user/pic").
-    returns tuple
-                bool    if path is stored absolute.
-                Path    path as absolute, without file name.
-                str     file name without extension.
-    
-    output path can be:
-            same as source: no leading slash, no slashes anywhere (name only)
-        relative to source: leading dot-slash (./)
-             absolute path: leading slash (/)
-    examples:
-    path=/home/user/a/b.kra,output=b,ext=.png             ->  base = Path("/home/user/a"), s="b"             ->  returns (False, Path("/home/user/a"),  "b")  ->  same as source:     /home/user/a/b.png, shortened path for special case of same directory
-    path=/home/user/a/b.kra,output=./b,ext=.png           ->  base = Path("/home/user/a"), s="./b"           ->  returns (False, Path("/home/user/a"),  "b")  ->  relative to source: /home/user/a/b.png, equivalent but redundant version of above
-    path=/home/user/a/b.kra,output=./../b,ext=.png        ->  base = Path("/home/user/a"), s="./../b"        ->  returns (False, Path("/home/user"),    "b")  ->  relative to source: /home/user/b.png
-    path=/home/user/a/b.kra,output=./../x/b,ext=.png      ->  base = Path("/home/user/a"), s="./../x/b"      ->  returns (False, Path("/home/user/x"),  "b")  ->  relative to source: /home/user/x/b.png, which succeeds only if x already exists
-    path=/home/user/a/b.kra,output=./../../b,ext=.png     ->  base = Path("/home/user/a"), s="./../../b"     ->  returns (False, Path("/home"),         "b")  ->  relative to source: /home/b.png, which I think would fail
-    path=/home/user/a/b.kra,output=./f/b,ext=.png         ->  base = Path("/home/user/a"), s="./f/b"         ->  returns (False, Path("/home/user/a/f), "b")  ->  relative to source: /home/user/a/f/b.png, which succeeds only if f already exists
-    path=/home/user/a/b.kra,output=/home/user/b,ext=.png  ->  base = Path("/home/user/a"), s="/home/user/b"  ->  returns (True,  Path("/home/user),     "b")  ->  absolute path:      /home/user/b.png
-    """
-    
-    p = Path(s)
-    
-    if s.startswith("./"):
-        # relative to base path.
-        #print(f"deserialize_stored_output_string:\n args\n  {base=}\n  {s=}\n returns (1. relative to base path)\n  {(False, base.joinpath(p.parent).resolve(), p.name)}")
-        return (False, base.joinpath(p.parent).resolve(), p.name)
-    
-    if s.startswith("/"):
-        # absolute path.
-        #print(f"deserialize_stored_output_string:\n args\n  {base=}\n  {s=}\n returns (2. absolute path)\n  {(True, p.parent, p.name)}")
-        return (True, p.parent, p.name)
-    
-    # special case of same directory as base.
-    #print(f"deserialize_stored_output_string:\n args\n  {base=}\n  {s=}\n returns (3. same directory as base)\n  {(False, base, s)}")
-    return (False, base, s)
-
-def serialize_stored_output_string(base, is_abs, abs_dir, name):
-    """
-    arguments
-        base        Path    path that abs_dir is relative to, if is_abs is True.
-                            note this is the source path, not the source file (eg. Path("/home/user/Pictures"), not Path("/home/user/Pictures/pic.png")).
-        is_abs      bool    if path is stored absolute.
-        abs_dir     Path    path as absolute, without file name.
-        name        str     file name without extension.
-    returns
-                    str     string to be stored.
-    
-    examples:
-    base = Path("/home/user/Pictures"), is_abs = False, abs_dir = Path("/home/user"),                 name = "pic" -> returns "./../pic"
-    base = Path("/home/user/Pictures"), is_abs = False, abs_dir = Path("/home/user/Pictures/subdir"), name = "pic" -> returns "./subdir/pic"
-    base = Path("/home/user/Pictures"), is_abs = False, abs_dir = Path("/home/user/Pictures"),        name = "pic" -> returns "pic"
-    base = Path("/home/user/Pictures"), is_abs = True,  abs_dir = Path("/home/user/Pictures"),        name = "pic" -> returns "/home/user/Pictures/pic"
-    """
-    
-    if is_abs:
-        # absolute path.
-        return str(abs_dir.joinpath(name))
-    
-    if base == abs_dir:
-        # special case of same directory as base.
-        return name
-    
-    else:
-        # relative to base path.
-        return "./" + relpath(abs_dir.joinpath(name), base)
 
 qe_supported_extensions = (".avif", ".bmp", ".csv", ".exr", ".gbr", ".gif", ".gih", ".hdr", ".heic", ".ico", ".jpg", ".jpeg", ".jxl", ".krz", ".kpp", ".ora",
                            ".pbm", ".pgm", ".png", ".ppm", ".psd", ".qml", ".r16", ".r32", ".r8", ".scml", ".tga", ".tif", ".webp", ".xbm", ".xpm")
@@ -303,7 +229,7 @@ def is_any_qe_setting_modified():
     return qe_settings != qe_settings_last_load
 
 # TODO: needs work upgrading old versions up to latest.
-def load_settings_from_config(soft_warning_for_unsupported_version=False, suppress_version_warning=False):
+def load_settings_from_config(suppress_version_warning=False):
     qe_settings.clear()
     
     settings_version = readSetting("settings_version")
@@ -313,7 +239,10 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
         # 0.0.3+ save to different keys and leave 'settings' unchanged, so
         # we don't have to backup these settings; they are their own backup.
         # TODO: add a button somewhere so user can overwrite it with "".
-        load_0_0_2_settings_from_config()
+        from .versioning import load_0_0_2_settings_from_config
+        if not load_0_0_2_settings_from_config():
+            return False
+        
         for s in qe_settings:
             generate_save_string(s)
         save_settings_to_config()
@@ -333,21 +262,20 @@ def load_settings_from_config(soft_warning_for_unsupported_version=False, suppre
             f"saved as version: {settings_version}\n\n" \
             "It may be that a backup was made before saving the later version settings - check in your kritarc file.\n\n" \
             "You may also try opening an issue on the Github to request a converter, but using the latest version of the plugin is recommended.\n\n" \
-            f"{'You should now either update the plugin, or close Krita and retrieve your settings in a compatible format.' if soft_warning_for_unsupported_version else 'If you continue, your existing export settings will be lost.'}"
+            "You should now either update the plugin, or close Krita and retrieve your settings in a compatible format.\n\n" \
+            "If you continue, there will be a new empty session and on the next save your existing export settings will likely be overwritten."
         )
-        if soft_warning_for_unsupported_version:
-            msgBox.setStandardButtons(QMessageBox.Ok)
-        else:
-            msgBox.setStandardButtons(QMessageBox.Discard | QMessageBox.Cancel)
-            discard_button = msgBox.button(QMessageBox.Discard)
-            discard_button.setText('Continue')
-            msgBox.setDefaultButton(QMessageBox.Cancel)
+        msgBox.setStandardButtons(QMessageBox.Discard | QMessageBox.Cancel)
+        discard_button = msgBox.button(QMessageBox.Discard)
+        discard_button.setText('Continue')
+        msgBox.setDefaultButton(QMessageBox.Cancel)
         ret = msgBox.exec()
         
-        if ret in (QMessageBox.Ok, QMessageBox.Cancel):
+        if ret == QMessageBox.Cancel:
             return False
     
     update_qe_settings_last_load()
+    extension().set_action_icons()
     
     return True
 
@@ -451,129 +379,7 @@ def load_0_0_3_settings_from_config():
                                f"Settings values at time of error:\n\n{'\n'.join((f'{k}: {v}' for k,v in settings.items()))}")
         msgBox.exec()
         qe_settings = qe_settings_backup
-
-def load_0_0_2_settings_from_config():
-    """
-    read in settings string from kritarc.
-    example: "path=/a/b.kra,output=b,ext=.png,scale=[e=1,w=1024,h=768,f=Bic,r=72],png=[fc=#ffffff,co=9,flag=110000000],jpeg=[];"
-    becomes: settings[{"document":<obj>, "store":True, "path":Path("/a/b.kra"), "output_is_abs":False, "output_abs_dir":Path("/a"), "output_name":"b", "ext":".png", "scale":True,
-                       "scale_width":1024, ... "png_fillcolour":QColor('#ffffff'), "png_compression":9, "png_alpha":True, "png_indexed":True, ... etc.}]
     
-    commas (,) in file paths and names are replaced with slash-comma (/,).
-    example: settings[{"path":Path("path=/pa,th/to/,a/file.kra", "output_name":"file,", "ext":".png", ... }]
-    becomes: "path=/pa/,th/to//,a/file.kra,output=file/,,ext=.png ... "
-    """
-    
-    settings_string = readSetting("settings", "")
-    #print(f"{settings_string=}")
-    
-    if settings_string == "":
-        return
-    
-    settings_tokens = []
-    tokenize_settings_string(settings_string, settings_tokens)
-    unescape_tokenized_settings_string(settings_tokens)
-    
-    if settings_tokens[-1] != ";":
-        settings_tokens.append(";")
-    
-    token_prefix = ""
-    token_stack = []
-    settings_per_file = []
-    settings_kvpairs = []
-    
-    for token in settings_tokens:
-        if token == ",":
-            continue
-        elif token == ";":
-            settings_per_file.append(settings_kvpairs)
-            settings_kvpairs = []
-        elif token == "=":
-            continue
-        elif token == "[":
-            token_prefix = token_stack.pop() + "_"
-        elif token == "]":
-            token_prefix = ""
-        else:
-            token_stack.append(token)
-            if len(token_stack) == 2:
-                settings_kvpairs.append([token_prefix + token_stack.pop(-2), token_stack.pop()])
-    
-    #print()
-    
-    for file_kvpairs in settings_per_file:
-        #print("found file settings", file_kvpairs)
-        settings = default_settings(store=True)
-        output_string = ""
-        for k,v in file_kvpairs:
-            if k == "path":
-                settings[k] = Path(v)
-                for i, d in enumerate(app.documents()):
-                    if d.fileName() == v:
-                        settings["document"] = d
-                        settings["doc_index"] = i
-                        break
-            elif k == "v":
-                settings["versions"] = {"s":"single", "a":"all", "f":"all_forward"}[v]
-            elif k == "output":
-                output_string = v
-            elif k == "ext":
-                settings["ext"] = v
-            elif k == "scale_e":
-                settings["scale"] = flag2bool(v)
-            elif k == "scale_w":
-                settings["scale_width"] = int(v)
-            elif k == "scale_h":
-                settings["scale_height"] = int(v)
-            elif k == "scale_f":
-                settings["scale_filter"] = filter_strategy_rev_store_strings.get(v, v)
-            elif k == "scale_r":
-                settings["scale_res"] = float(v)
-            elif k == "png_fc":
-                settings["png_fillcolour"] = QColor(v)
-            elif k == "png_co":
-                settings["png_compression"] = int(v)
-            elif k == "png_flag":
-                settings["png_alpha"]       = flag2bool(v[0])
-                settings["png_indexed"]     = flag2bool(v[1])
-                settings["png_interlaced"]  = flag2bool(v[2])
-                settings["png_hdr"]         = flag2bool(v[3])
-                settings["png_embed_srgb"]  = flag2bool(v[4])
-                settings["png_force_srgb"]  = flag2bool(v[5])
-                settings["png_metadata"]    = flag2bool(v[6])
-                settings["png_author"]      = flag2bool(v[7])
-                settings["png_force_8bit"]  = flag2bool(v[8])
-            elif k == "jpeg_fc":
-                settings["jpeg_fillcolour"] = QColor(v)
-            elif k == "jpeg_qu":
-                settings["jpeg_quality"] = int(v)
-            elif k == "jpeg_sm":
-                settings["jpeg_smooth"] = int(v)
-            elif k == "jpeg_ss":
-                settings["jpeg_subsampling"] = v
-            elif k == "jpeg_flag":
-                settings["jpeg_progressive"]      = flag2bool(v[0])
-                settings["jpeg_icc_profile"]      = flag2bool(v[1])
-                settings["jpeg_force_baseline"]   = flag2bool(v[2])
-                settings["jpeg_optimise"]         = flag2bool(v[3])
-                settings["jpeg_exif"]             = flag2bool(v[4])
-                settings["jpeg_iptc"]             = flag2bool(v[5])
-                settings["jpeg_xmp"]              = flag2bool(v[6])
-                settings["jpeg_tool_information"] = flag2bool(v[7])
-                settings["jpeg_anonymiser"]       = flag2bool(v[8])
-                settings["jpeg_metadata"]         = flag2bool(v[9])
-                settings["jpeg_author"]           = flag2bool(v[10])
-            else:
-                print(f" unrecognised parameter name '{k}'")
-                continue
-            #print(f" found {k}:{v}")
-        if output_string:
-            output = deserialize_stored_output_string(settings["path"].parent, output_string)
-            settings["output_is_abs"] = output[0]
-            settings["output_abs_dir"] = output[1]
-            settings["output_name"] = output[2]
-        qe_settings.append(settings)
-        #print()
 
 def find_settings_path_for_file(file_path):
     """
@@ -692,30 +498,7 @@ def save_settings_to_config():
     writeSetting("settings_version", "0.0.3")
     
     update_qe_settings_last_load()
-
-def tokenize_settings_string(s, tokens):
-    i = 0
-    while True:
-        subs = s[i:]
-        mo = re.search(r"=|,|;|\[|\]", subs)
-        #print(mo)
-        if not mo:
-            break
-        if subs[:mo.end()-1] != "":
-            tokens.append(subs[:mo.end()-1])
-        tokens.append(mo.group())
-        i += mo.end()
-
-def unescape_tokenized_settings_string(tokens):
-    token_id = 0
-    while token_id < len(tokens)-1:
-        if tokens[token_id].endswith("/") and tokens[token_id+1] == ",":
-            tokens[token_id] = tokens[token_id][:-1] + ","
-            tokens.pop(token_id+1)
-            if not tokens[token_id+1] == ",":
-                tokens[token_id] += tokens.pop(token_id+1)
-            continue
-        token_id += 1
+    extension().set_action_icons()
 
 def escape_settings_string(s):
     return s.replace("/", "//").replace(",", "/,")
