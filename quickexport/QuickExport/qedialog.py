@@ -306,6 +306,7 @@ class QEDialog(QDialog):
         self.basic_export_settings_output_path = QLabel("export path preview")
         self.basic_export_settings_output_path.setDisabled(True)
         self.basic_export_settings_output_path.setWordWrap(True)
+        self.basic_export_settings_output_path.setTextFormat(Qt.PlainText)
         self.basic_export_settings_output_path.setAlignment(Qt.AlignHCenter)
 
         self.basic_export_settings_file_name.currentIndexChanged.connect(self._on_basic_export_settings_file_name_current_index_changed)
