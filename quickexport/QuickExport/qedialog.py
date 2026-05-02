@@ -1042,6 +1042,7 @@ class QEDialog(QDialog):
         if not result:
             return
         item = self.tree.add_folder_to_tree(Path(result))
+        self.tree.selectionModel().select(self.tree.model.mapFromSource(item.index()), QItemSelectionModel.ClearAndSelect)
 
     def _on_add_project_action_triggered(self, start_path = None, force_use_start_path = False):
         start_path = start_path or Path(app.activeDocument().fileName()).parent if app.activeDocument() else Path.home()
@@ -1055,6 +1056,8 @@ class QEDialog(QDialog):
         base = base_stem_and_version_number_for_versioned_file(file)[0]
         path = file.parent / base
         item = self.tree.add_base_to_tree(path)
+        self.tree.expand(self.tree.model.mapFromSource(item.parent().index()))
+        self.tree.selectionModel().select(self.tree.model.mapFromSource(item.index()), QItemSelectionModel.ClearAndSelect)
 
     def _on_tree_source_model_data_changed(self, topLeft, bottomRight, roles):
         # TODO: restrict save string update to affected items.

@@ -514,6 +514,8 @@ class QETree(QTreeView):
         item = self.add_item_to_tree(folder_item, path, path.name, icon, QEItemType.PROJECT)
         
         self.populate_base_item_with_file_items(item, path)
+        
+        return item
 
     def populate_base_item_with_file_items(self, item, path=None):
         if not path:
@@ -942,6 +944,13 @@ class QETree(QTreeView):
         print("done")
         #for k,v in qe_settings.items():
             #print("  ",k,":",v)
+        
+        self.selectionModel().clear()
+        for selected_row_item in row_items:
+            selected_row_index = selected_row_item.index()
+            selected_row_index = self.model.mapFromSource(selected_row_index)
+            self.selectionModel().select(selected_row_index, QItemSelectionModel.Select)
+        
         print("relocate_rows_in_tree: end")
         print("- - - - -")
 
