@@ -1373,6 +1373,7 @@ class QEDialog(QDialog):
     
     def _on_tree_request_config_widgets_refresh_for_path(self, path):
         self.set_basic_export_settings_controls_for_path(path)
+        self.set_big_thumbnail(path)
     
     def _on_tree_request_add_folder_at_path(self, path):
         self._on_add_folder_action_triggered(start_path = path, force_use_start_path = True)
