@@ -484,3 +484,42 @@ class UncheckableButtonGroup(QButtonGroup):
         self.checkedButton().setChecked(False)
         self.setExclusive(is_exclusive)
 
+# adapted from https://stackoverflow.com/a/71436950 by iblanco & phyatt.
+class ResizingPixmapLabel(QLabel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setMinimumSize(1,1)
+        self.setScaledContents(False)
+        self._pixmap = None
+
+    def heightForWidth(self, width:int):
+        if not self._pixmap:
+            return self.height()
+        else:
+            return self._pixmap.height() * width / self._pixmap.width()
+
+    def scaledPixmap(self):
+        scaled = self._pixmap.scaled(
+            self.size() * self.devicePixelRatioF(),
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation
+        )
+        scaled.setDevicePixelRatio(self.devicePixelRatioF())
+        return scaled
+
+    def setPixmap(self, pixmap):
+        self._pixmap = pixmap
+        if self._pixmap:
+            super().setPixmap(self.scaledPixmap())
+            self.setAlignment(Qt.AlignCenter)
+        else:
+            super().setPixmap(QPixmap())
+
+    def sizeHint(self):
+        width = self.width()
+        return QSize(width, round(self.heightForWidth(width)))
+
+    def resizeEvent(self, event):
+        if self._pixmap:
+            super().setPixmap(self.scaledPixmap())
+            self.setAlignment(Qt.AlignCenter)

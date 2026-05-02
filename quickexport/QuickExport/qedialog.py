@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBo
                              QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
                              QActionGroup, QToolButton, QComboBox, QStackedWidget, QStyle, QStyleOption,
                              QStyleOptionButton, QSpinBox, QStyleOptionSpinBox, QGraphicsOpacityEffect,
-                             QFileDialog)
+                             QFileDialog, QSplitter, QSplitterHandle)
 from PyQt5.QtCore import Qt, QObject, QRegExp, QModelIndex, pyqtSignal, QEvent
 from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette, QMouseEvent, QTabletEvent
 import zipfile
@@ -13,7 +13,7 @@ from enum import IntEnum, auto
 from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
-from .qewidgets import QEMenu, SnapSlider, SpinBoxSlider, QEComboBox, CheckToolButton, QSplitter
+from .qewidgets import QEMenu, SnapSlider, SpinBoxSlider, QEComboBox, CheckToolButton, ResizingPixmapLabel
 from .qefilterwidgets import FilterLineEdit, FolderFilterButton
 from .qetree import QETree#QECols, QETree
 from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
@@ -22,6 +22,63 @@ from .filenameedit import FileNameEdit
 app = Krita.instance()
 
 suppress_store_on_widget_edit = False
+
+class SplitterHandle(QSplitterHandle):
+    """
+    Snapping SplitterHandle for big thumbnail.
+    """
+    def mousePressEvent(self, event):
+        if event.button() != Qt.LeftButton:
+            return
+        super().mouseMoveEvent(event)
+        self.splitter().user_interacting = True
+
+    def mouseMoveEvent(self, event):
+        if not event.buttons() & Qt.LeftButton:
+            return
+        splitter = self.splitter()
+        pos_x = self.mapToParent(event.pos()).x()
+        snap_x = QEDialog.instance.preferred_big_thumbnail_height
+        if pos_x < 16:
+            splitter.moveSplitter(0, 1)
+            splitter.user_set_position = 0
+        elif abs(snap_x - pos_x) < 8:
+            splitter.moveSplitter(snap_x, 1)
+            splitter.user_set_position = snap_x
+        elif abs(snap_x//2 - pos_x) < 8:
+            splitter.moveSplitter(snap_x//2, 1)
+            splitter.user_set_position = snap_x//2
+        else:
+            super().mouseMoveEvent(event)
+            splitter.user_set_position = pos_x
+
+    def mouseReleaseEvent(self, event):
+        if event.button() != Qt.LeftButton:
+            return
+        self.splitter().user_interacting = False
+        super().mouseReleaseEvent(event)
+
+
+class Splitter(QSplitter):
+    """
+    Splitter that keeps user-set pixel size of left-side widget, for
+    big thumbnail/basic export settings box.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user_interacting = False
+        self.user_set_position = -1
+
+    def createHandle(self):
+        return SplitterHandle(self.orientation(), self)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.user_interacting:
+            return
+        total_size = sum(self.sizes())
+        self.setSizes([self.user_set_position, total_size - self.user_set_position])
+
 
 class QEDialog(QDialog):
     instance = None
@@ -154,6 +211,13 @@ class QEDialog(QDialog):
             # bad config, reset to default.
             writeSetting("visible_types", setting_defaults["visible_types"])
             visible_extensions = readSetting("visible_types").split(" ")
+
+        basic_export_settings_splitter = Splitter()
+        
+        self.preferred_big_thumbnail_height = 32
+        self.big_thumbnail = ResizingPixmapLabel()
+        self.big_thumbnail.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        basic_export_settings_splitter.addWidget(self.big_thumbnail)
 
         self.basic_export_settings_container = QGroupBox()
         self.basic_export_settings_container.setDisabled(True)
@@ -330,8 +394,27 @@ class QEDialog(QDialog):
         basic_export_settings_container_layout.addWidget(basic_export_settings_file_container)
         basic_export_settings_container_layout.addWidget(basic_export_settings_folder_container)
         basic_export_settings_container_layout.addWidget(basic_export_settings_scale_container)
-        layout.addWidget(self.basic_export_settings_container)
+        basic_export_settings_splitter.addWidget(self.basic_export_settings_container)
+        layout.addWidget(basic_export_settings_splitter)
         layout.addWidget(self.basic_export_settings_output_path)
+        
+        basic_export_settings_splitter.setCollapsible(1, False)
+        
+        # set thumbnail/basic settings splitter to reasonable initial position, then a better one once initial layout is done.
+        basic_export_settings_splitter.moveSplitter(64, 1)
+        
+        def move_splitter():
+            h = round(self.basic_export_settings_container.sizeHint().height() * 0.9)
+            self.preferred_big_thumbnail_height = h
+            basic_export_settings_splitter.moveSplitter(h, 1)
+            basic_export_settings_splitter.user_set_position = h
+            self.big_thumbnail.setMaximumSize(h*2, h*2)
+            # refresh thumbnail.
+            index = self.tree.selectionModel().currentIndex()
+            if index.isValid():
+                index = self.tree.model.mapToSource(index)
+                self.set_big_thumbnail(index.data(PathRole))
+        QTimer.singleShot(0, lambda: move_splitter())
         
         self.save_buttons_container = QWidget()
         self.save_buttons_container_layout = QHBoxLayout(self.save_buttons_container)
@@ -992,8 +1075,12 @@ class QEDialog(QDialog):
             
             index = rows[0]
             index = model.mapToSource(index)
+            path = index.data(PathRole)
             #print("_on_tree_selection_changed:", index.row(), index.column(), index.parent(), index.model(), index.data(PathRole))
-            self.set_basic_export_settings_controls_for_path(index.data(PathRole))
+            self.set_basic_export_settings_controls_for_path(path)
+            
+            self.set_big_thumbnail(path)
+            
         else:
             self.basic_export_settings_container.setDisabled(True)
             self.basic_export_settings_output_path.setText("export path preview")
@@ -1004,6 +1091,38 @@ class QEDialog(QDialog):
                 suppress_store_on_widget_edit = True
                 self.update_basic_export_settings_output_path_label()
                 suppress_store_on_widget_edit = False
+                
+                index = self.tree.selectionModel().currentIndex()
+                index = model.mapToSource(index)
+                self.set_big_thumbnail(index.data(PathRole))
+            else:
+                self.set_big_thumbnail(None)
+
+    def set_big_thumbnail(self, path=Path()):
+        if not path:
+            self.big_thumbnail.setPixmap(None)
+            return
+        
+        file_to_use = None
+        
+        if path.exists() and path.is_file():
+            # file.
+            file_to_use = path
+        elif path.parent.exists():
+            # project.
+            sorted_list = sorted(path.parent.glob(f"{path.name}*.kra"), key = lambda file: Path(file).stat().st_mtime)
+            for file in sorted_list:
+                file_base = base_stem_and_version_number_for_versioned_file(file)[0]
+                if path.stem == file_base:
+                    file_to_use = file
+        
+        if file_to_use:
+            print(f"set_big_thumbnail from {file_to_use} at {self.preferred_big_thumbnail_height*2}px")
+            thumb = _make_thumbnail_for_file(file_to_use)
+            icon = square_thumbnail(thumb, self.preferred_big_thumbnail_height*2)
+            self.big_thumbnail.setPixmap(icon)
+        else:
+            self.big_thumbnail.setPixmap(None)
 
     def update_basic_export_settings_output_path_label(self):
         sel_rows = self.tree.selectionModel().selectedRows()
@@ -1270,3 +1389,25 @@ class QEDialog(QDialog):
     def _on_tree_removing_folder(self, path):
         self.folder_filter_button.remove_folder_from_tree(path)
         #print(f"_on_tree_removing_folder: {path=}")
+
+def _make_thumbnail_for_file(path):
+    thumbnail = QPixmap()
+    extension = path.suffix
+    try:
+        if extension == '.kra':
+            page = zipfile.ZipFile(path, "r")
+            thumbnail.loadFromData(page.read("preview.png"))
+        else:
+            thumbnail = QPixmap(str(path))
+    except FileNotFoundError:
+        print(f"file '{path}' not found.")
+    except Exception as e:
+        print(f"error trying to read file '{path}'. the error is:\n{type(e).__name__}: {e}")
+
+    if thumbnail.isNull():
+        # TODO: make and return only one copy of the not-found icon.
+        print(f"couldn't make thumbnail for file '{path}'.")
+        size = QEDialog.instance.preferred_big_thumbnail_height*2
+        thumbnail = app.icon('window-close').pixmap(size,size)
+    
+    return thumbnail
