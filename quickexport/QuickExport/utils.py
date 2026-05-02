@@ -842,16 +842,19 @@ def find_layers(root_node, name, name_is_regex, respect_locks, colour_labels, ba
 
     return nodes
 
-# from https://www.geeksforgeeks.org/python/pyqt5-how-to-get-cropped-square-image-from-rectangular-image/
+# adapted from https://www.geeksforgeeks.org/python/pyqt5-how-to-get-cropped-square-image-from-rectangular-image/
 def square_thumbnail(pixmap, size=8):
-    image = QImage(pixmap)#.fromData(imgdata, imgtype)
+    image = QImage(pixmap)
 
     image.convertToFormat(QImage.Format_ARGB32)
 
-    imgsize = min(image.width(), image.height())
+    in_width = image.width()
+    in_height = image.height()
+
+    imgsize = max(in_width, in_height)
     rect = QRect(
-        (image.width() - imgsize) // 2,
-        (image.height() - imgsize) // 2,
+        (in_width - imgsize) // 2,
+        (in_height - imgsize) // 2,
         imgsize,
         imgsize,
     )
@@ -860,18 +863,14 @@ def square_thumbnail(pixmap, size=8):
     out_img = QImage(imgsize, imgsize, QImage.Format_ARGB32)
     out_img.fill(Qt.transparent)
 
-    # Create a texture brush and paint a circle
-    # with the original image onto
-    # the output image:
-    brush = QBrush(image)
-
-    # Paint the output image
     painter = QPainter(out_img)
-    painter.setBrush(brush)
-    painter.setPen(Qt.NoPen)
 
     # drawing square
-    painter.drawRect(0, 0, imgsize, imgsize)
+    src_l = (imgsize - in_width) // 2
+    src_t = (imgsize - in_height) // 2
+    src_r = (imgsize + in_width) // 2
+    src_b = (imgsize + in_height) // 2
+    painter.drawImage((imgsize - in_width) // 2, (imgsize - in_height) // 2, image, src_l, src_t, src_r - src_l, src_b - src_t)
 
     painter.end()
 
