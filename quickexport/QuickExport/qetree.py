@@ -525,7 +525,7 @@ class QETree(QTreeView):
         latest_file = None
         
         if path.parent.exists():
-            sorted_list = sorted(path.parent.glob("*.kra"), key = lambda file: Path(file).stat().st_mtime)
+            sorted_list = sorted(path.parent.glob(f"{path.name}*.kra"), key = lambda file: Path(file).stat().st_mtime)
             for file in sorted_list:
                 file_base = base_stem_and_version_number_for_versioned_file(file)[0]
                 if path.stem == file_base:
