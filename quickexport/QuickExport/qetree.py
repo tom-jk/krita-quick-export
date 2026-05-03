@@ -80,7 +80,7 @@ class PasteDialog(QDialog):
         layout.addWidget(self.cb_scale)
         
         cb_export_layout = QHBoxLayout()
-        self.cb_export = QCheckBox("Export settings")
+        self.cb_export = QCheckBox("Export type settings")
         self.cb_export.setCheckState(Qt.Checked if self.last_used["export_settings"] else Qt.Unchecked)
         cb_export_layout.addWidget(self.cb_export)
         cb_export_layout.addStretch()
