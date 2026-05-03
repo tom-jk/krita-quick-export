@@ -749,9 +749,8 @@ class QETree(QTreeView):
                             #print(f" - paste {ext} export config")
                             qe_settings[path]["export"][ext[1:]] = deepcopy(cc["export"][ext[1:]])
             
-            #self._on_selection_changed(None, None)
-            # TODO: this is badly done (indeces passes to dataChanged must all have same parent; that's not guaranteed here).
-            self.source_model.dataChanged.emit(rows[0], rows[-1])
+            # TODO: this is not quite right (supposed to be a range, but we don't use the passed indeces anyway).
+            self.source_model.dataChanged.emit(rows[0], rows[0])
             self.requestConfigWidgetsRefreshForPath.emit(path)
                 
             #for k,v in store.items():
@@ -816,8 +815,8 @@ class QETree(QTreeView):
                 if f"config_export_{ext}_string" in qe_settings[path]:
                     del qe_settings[path][f"config_export_{ext}_string"]
             
-            # TODO: this is badly done (indeces passes to dataChanged must all have same parent; that's not guaranteed here).
-            self.source_model.dataChanged.emit(rows[0], rows[-1])
+            # TODO: this is not quite right (supposed to be a range, but we don't use the passed indeces anyway).
+            self.source_model.dataChanged.emit(rows[0], rows[0])
             
             print("done.")
         
@@ -859,8 +858,8 @@ class QETree(QTreeView):
                 if path in qe_settings:
                     del qe_settings[path]
             
-            # TODO: this is badly done (indeces passes to dataChanged must all have same parent; that's not guaranteed here).
-            self.source_model.dataChanged.emit(rows[0], rows[-1])
+            # TODO: this is not quite right (supposed to be a range, but we don't use the passed indeces anyway).
+            self.source_model.dataChanged.emit(self.source_model.invisibleRootItem().index(), self.source_model.invisibleRootItem().index())
             
             for folder_path in folder_paths_being_removed:
                 self.removingFolder.emit(path)
