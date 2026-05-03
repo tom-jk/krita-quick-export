@@ -10,6 +10,7 @@ from pathlib import Path
 from krita import Krita, InfoObject, FileDialog
 from .utils import *
 app = Krita.instance()
+app_notifier = app.notifier()
 
 tree_icon_size = QApplication.style().pixelMetric(QStyle.PM_SmallIconSize)
 
@@ -416,6 +417,8 @@ class QETree(QTreeView):
 
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
+        
+        app_notifier.imageCreated.connect(self._on_image_created)
 
     def dropEvent(self, event):
         if event.source() != self:
@@ -1062,6 +1065,12 @@ class QETree(QTreeView):
         self.source_model.dataChanged.emit(source_index, source_index)
         
         suppress_store_on_widget_edit = False
+    
+    def _on_image_created(self, doc):
+        if not doc.fileName():
+            return
+        
+        self.add_file_to_tree(Path(doc.fileName()))
     
     def select_for_file_path(self, filepath):
         """
