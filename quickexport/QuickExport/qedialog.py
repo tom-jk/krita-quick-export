@@ -1,23 +1,18 @@
-from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
-                             QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate, QMenu,
-                             QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
-                             QActionGroup, QToolButton, QComboBox, QStackedWidget, QStyle, QStyleOption,
-                             QStyleOptionButton, QSpinBox, QStyleOptionSpinBox, QGraphicsOpacityEffect,
-                             QFileDialog, QSplitter, QSplitterHandle)
-from PyQt5.QtCore import Qt, QObject, QRegExp, QModelIndex, pyqtSignal, QEvent
-from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette, QMouseEvent, QTabletEvent
+from PyQt5.QtWidgets import (QLabel, QDialog, QHBoxLayout, QVBoxLayout,
+                             QCheckBox, QSpinBox, QMenu, QSizePolicy,
+                             QWidget, QLineEdit, QMessageBox, QStatusBar,
+                             QActionGroup, QToolButton, QComboBox,
+                             QSpinBox, QGraphicsOpacityEffect,
+                             QSplitter, QSplitterHandle)
+from PyQt5.QtCore import Qt, QEvent
+from PyQt5.QtGui import QPixmap
 import zipfile
 from pathlib import Path
-from functools import partial
-from enum import IntEnum, auto
-from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
-from .qewidgets import QEMenu, SnapSlider, SpinBoxSlider, QEComboBox, CheckToolButton, ResizingPixmapLabel
-from .qefilterwidgets import FilterLineEdit, FolderFilterButton
-from .qetree import QETree#QECols, QETree
-from .multilineelidedbutton import MultiLineElidedText, MultiLineElidedButton
-from .filenameedit import FileNameEdit
+from .qewidgets import QEMenu, ResizingPixmapLabel
+from .qefilterwidgets import FolderFilterButton
+from .qetree import QETree
 
 app = Krita.instance()
 
@@ -102,7 +97,6 @@ class QEDialog(QDialog):
         
         layout = self.layout()
         
-        # TODO: save user changes to tree column sizes and retrieve at each start.
         self.tree_is_ready = False
         self.tree = QETree(self)
         self.tree.addingFolder.connect(self._on_tree_adding_folder)
@@ -122,7 +116,6 @@ class QEDialog(QDialog):
         self.basic_export_settings_output_path.setText("export path preview")
         self.basic_export_settings_output_path.setDisabled(True)
         
-        # TODO: disallow sorting by thumbnail and action button columns.
         #self.tree.setSortingEnabled(True)
         #self.tree.sortByColumn(QECols.OPEN_FILE_COLUMN, Qt.AscendingOrder)
         
@@ -139,10 +132,6 @@ class QEDialog(QDialog):
         
         self.update_save_button()
         
-        #self.tree.set_settings_display_mode()
-        
-        #self.tree.setup_filter_completer()
-        
         if (doc := app.activeDocument()):
             if (filename := doc.fileName()):
                 filepath = Path(filename)
@@ -151,20 +140,11 @@ class QEDialog(QDialog):
         #if self.tree.focused_item:
         #    self.tree.scrollToItem(self.tree.focused_item, QAbstractItemView.PositionAtCenter)
         
-        self.update_show_extensions_in_list_for_all_types()
-        
         # refresh options button icon, make sure isn't stuck on outdated theme.
         self.options_button.setIcon(app.icon('view-choose'))
         
         # status bar.
         self.sbar_ready_label.setText(" Ready." if msg == "" else " "+msg) # extra space to align with showmessage.
-        
-        # TODO: inform user about having multiple copies of same file open.
-        #if len(self.tree.dup_counts) == 1:
-        #    self.sbar_ready_label.setText(f"Note: Multiple copies of '{list(self.tree.dup_counts.keys())[0]}' are currently open in Krita.")
-        #elif len(self.tree.dup_counts) > 1:
-        #    self.sbar_ready_label.setText(f"Note: Multiple copies of multiple files (hover mouse here to see) are currently open in Krita.")
-        #    self.sbar_ready_label.setToolTip("\n".join(self.tree.dup_counts.keys()))
 
     def first_setup(self):
         layout = QVBoxLayout(self)
@@ -549,11 +529,11 @@ class QEDialog(QDialog):
         autosave_on_close_action.setChecked(str2qtcheckstate(readSetting("auto_save_on_close")))
         autosave_on_close_action.toggled.connect(self._on_auto_save_on_close_action_toggled)
         
-        show_thumbnails_for_unopened_images_action = options_menu.addAction("Load thumbnails")
-        show_thumbnails_for_unopened_images_action.setToolTip("Changing this setting will not affect existing thumbnails.")
-        show_thumbnails_for_unopened_images_action.setCheckable(True)
-        show_thumbnails_for_unopened_images_action.setChecked(str2qtcheckstate(readSetting("show_thumbnails_for_unopened")))
-        show_thumbnails_for_unopened_images_action.toggled.connect(lambda checked: writeSetting("show_thumbnails_for_unopened", bool2str(checked)))
+        show_thumbnails_in_tree_action = options_menu.addAction("Load thumbnails")
+        show_thumbnails_in_tree_action.setToolTip("Changing this setting will not affect existing thumbnails.")
+        show_thumbnails_in_tree_action.setCheckable(True)
+        show_thumbnails_in_tree_action.setChecked(str2qtcheckstate(readSetting("show_thumbnails_in_tree")))
+        show_thumbnails_in_tree_action.toggled.connect(lambda checked: writeSetting("show_thumbnails_in_tree", bool2str(checked)))
         
         show_thumbnail_for_selected_action = options_menu.addAction("Show thumbnail for selected")
         show_thumbnail_for_selected_action.setCheckable(True)
@@ -617,271 +597,11 @@ class QEDialog(QDialog):
         dialog_width = int(readSetting("dialogWidth"))
         dialog_height = int(readSetting("dialogHeight"))
         self.resize(dialog_width, dialog_height)
-
-    def OLD_first_setup(self):
-
-        layout = QVBoxLayout()
-
-        view_buttons = QWidget()
-        view_buttons_layout = QHBoxLayout()
-
-        # TODO: inform user that some items are currently hidden, and how many.
-
-        # show unstored button.
-        tooltip = "Show unstored\n" \
-                  "Enable this to pick the images you're interested in exporting, then disable it to hide the rest."
-        self.show_unstored_button = CheckToolButton(icon_name="show_unstored", checked=str2bool(readSetting("show_unstored")), tooltip=tooltip)
-        self.show_unstored_button.clicked.connect(self._on_show_unstored_button_clicked)
-
-        # show unopened button.
-        tooltip = "Show unopened\n" \
-                  "Show the export settings of every file - currently open or not - for which settings have been saved."
-        self.show_unopened_button = CheckToolButton(icon_name="show_unopened", checked=str2bool(readSetting("show_unopened")), tooltip=tooltip)
-        self.show_unopened_button.clicked.connect(self._on_show_unopened_button_clicked)
-
-        # show non-kra files button.
-        tooltip = "Show non-kra\n" \
-                  "Show export settings for files of usually exported types, such as .png and .jpg. Disabled by default because it's kind of redundant."
-        self.show_non_kra_button = CheckToolButton(icon_name="show_non_kra", checked=str2bool(readSetting("show_non_kra")), tooltip=tooltip)
-        self.show_non_kra_button.clicked.connect(self._on_show_non_kra_button_clicked)
-
-        self.settings_display_mode_combobox = QEComboBox(flat=False)
-        self.settings_display_mode_combobox.addItem("Minimized", "minimized", "All rows are minimized.")
-        self.settings_display_mode_combobox.addItem("Compact", "compact", "All rows are compact.")
-        self.settings_display_mode_combobox.addItem("Focused", "focused", "The focused row is expanded, all others are compact or minimized.\nDouble-click a row to focus it.")
-        self.settings_display_mode_combobox.addItem("Expanded", "expanded", "All rows are expanded.")
-        self.settings_display_mode_combobox.setCurrentIndex(self.settings_display_mode_combobox.findData(readSetting("settings_display_mode")))
-        self.settings_display_mode_combobox.currentIndexChanged.connect(self._on_settings_display_mode_combobox_current_index_changed)
-
-        self.settings_minimize_unfocused_button = QCheckBox("minimize")
-        self.settings_minimize_unfocused_button.setToolTip("In focused display mode, reduce the size of the unfocused rows.")
-        self.settings_minimize_unfocused_button.setCheckState(str2qtcheckstate(readSetting("minimize_unfocused")))
-        self.settings_minimize_unfocused_button.setVisible(readSetting("settings_display_mode") == "focused")
-        self.settings_minimize_unfocused_button.clicked.connect(self._on_settings_minimize_unfocused_button_clicked)
-
-        self.filter_edit = FilterLineEdit()
-        
-        self.folder_filter_button = FolderFilterButton()
-        self.folder_filter_button.setAutoDefault(False)
-        self.folder_filter_button.filterChanged.connect(self._on_folder_filter_button_filter_changed)
-
-        self.fade_button = QToolButton()
-        self.fade_button.setText("Fade")
-        self.fade_button.setAutoRaise(True)
-        self.fade_button.clicked.connect(self._on_fade_button_clicked)
-
-        self.alt_row_contrast_slider = SpinBoxSlider("Contrast", "%", 0, 100, 2, "")
-        self.alt_row_contrast_slider.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-        self.alt_row_contrast_slider.setValue(int(readSetting("alt_row_contrast")))
-        self.alt_row_contrast_slider.valueChanged.connect(self._on_alt_row_contrast_slider_value_changed)
-
-        self.unhovered_fade_slider = SpinBoxSlider("Settings", "%", 0, 100, 5, "")
-        self.unhovered_fade_slider.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-        self.unhovered_fade_slider.setValue(int(readSetting("unhovered_fade")))
-        self.unhovered_fade_slider.valueChanged.connect(self._on_unhovered_fade_slider_value_changed)
-
-        self.stored_highlight_slider = SpinBoxSlider("Stored", "%", 0, 100, 5, "")
-        self.stored_highlight_slider.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-        self.stored_highlight_slider.setValue(int(readSetting("highlight_alpha")))
-        self.stored_highlight_slider.valueChanged.connect(self._on_stored_highlight_slider_value_changed)
-        
-        self.update_fade_sliders_visibility(str2bool(readSetting("show_fade_sliders")))
-
-        view_buttons_layout.addWidget(QLabel("Show:"))
-        view_buttons_layout.addWidget(self.show_non_kra_button)
-        view_buttons_layout.addWidget(self.show_unopened_button)
-        view_buttons_layout.addWidget(self.show_unstored_button)
-        view_buttons_layout.addWidget(self.settings_display_mode_combobox)
-        view_buttons_layout.addWidget(self.settings_minimize_unfocused_button)
-        view_buttons_layout.addWidget(self.filter_edit)
-        view_buttons_layout.addWidget(self.folder_filter_button)
-        view_buttons_layout.addWidget(self.fade_button)
-        view_buttons_layout.addWidget(self.alt_row_contrast_slider)
-        view_buttons_layout.addWidget(self.unhovered_fade_slider)
-        view_buttons_layout.addWidget(self.stored_highlight_slider)
-
-        view_buttons_layout.setContentsMargins(0,0,0,0)
-        view_buttons.setLayout(view_buttons_layout)
-        layout.addWidget(view_buttons)
-
-        config_buttons = QWidget()
-        config_buttons_layout = QHBoxLayout()
-
-        # advanced mode button.
-        self.advanced_mode_button = QCheckBox("Advanced")
-        self.advanced_mode_button.setToolTip("Basic mode: export settings are saved by default (recommended).\nAdvanced mode: configure how settings are stored.")
-        self.advanced_mode_button.setCheckState(str2qtcheckstate(readSetting("advanced_mode")))
-        self.advanced_mode_button.clicked.connect(self._on_advanced_mode_button_clicked)
-
-        self.auto_store_label = QLabel("Store on:")
-
-        # auto store for modified button.
-        self.auto_store_on_modify_button = QCheckBox("modify")
-        self.auto_store_on_modify_button.setToolTip("Automatically check the store button for a file when you modify any of its export settings.")
-        self.auto_store_on_modify_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_modify")))
-        self.auto_store_on_modify_button.clicked.connect(self._on_auto_store_on_modify_button_clicked)
-
-        # auto store for exported button.
-        self.auto_store_on_export_button = QCheckBox("export")
-        self.auto_store_on_export_button.setToolTip("Automatically check the store button for a file when you export it.")
-        self.auto_store_on_export_button.setCheckState(str2qtcheckstate(readSetting("auto_store_on_export")))
-        self.auto_store_on_export_button.clicked.connect(self._on_auto_store_on_export_button_clicked)
-
-        # auto save settings on close button.
-        self.auto_save_on_close_button = QCheckBox("Autosave on close")
-        self.auto_save_on_close_button.setToolTip("Automatically save changes to settings without asking when you close the dialog.")
-        self.auto_save_on_close_button.setCheckState(str2qtcheckstate(readSetting("auto_save_on_close")))
-        self.auto_save_on_close_button.clicked.connect(self._on_auto_save_on_close_button_clicked)
-
-        # save button.
-        self.save_button = QPushButton("Save Settings*")
-        self.save_button.setMinimumWidth(self.save_button.sizeHint().width())
-        self.save_button.setText("Save Settings")
-        self.save_button.setDisabled(True)
-        self.save_button.clicked.connect(self._on_save_button_clicked)
-
-        config_buttons_layout.addWidget(self.auto_store_label)
-        config_buttons_layout.addWidget(self.auto_store_on_modify_button)
-        config_buttons_layout.addWidget(self.auto_store_on_export_button)
-        config_buttons_layout.addStretch()
-        config_buttons_layout.addWidget(self.auto_save_on_close_button)
-        config_buttons_layout.addWidget(self.save_button)
-
-        config_buttons_layout.setContentsMargins(0,0,0,0)
-        config_buttons.setLayout(config_buttons_layout)
-        layout.addWidget(config_buttons)
-
-        # status bar area.
-        status_widget = QWidget()
-        status_layout = QHBoxLayout()
-        
-        # qe options menu.
-        self.options_button = QToolButton()
-        self.options_button.setToolButtonStyle(Qt.ToolButtonIconOnly)
-        self.options_button.setAutoRaise(True)
-        self.options_button.setStyleSheet("QToolButton::menu-indicator {image: none;}")
-        self.options_button.setPopupMode(QToolButton.InstantPopup)
-        status_layout.addWidget(self.options_button)
-        
-        options_menu = QEMenu()
-
-        custom_icons_menu = QEMenu()
-
-        use_custom_icons_action = custom_icons_menu.addAction("Use custom icons")
-        use_custom_icons_action.setCheckable(True)
-        use_custom_icons_action.setChecked(str2qtcheckstate(readSetting("use_custom_icons")))
-        use_custom_icons_action.toggled.connect(self._on_use_custom_icons_action_toggled)
-
-        custom_icons_menu.addSeparator()
-
-        custom_icons_theme_action_group = QActionGroup(custom_icons_menu)
-        custom_icons_theme_action_group.triggered.connect(lambda action, grp=custom_icons_theme_action_group: self._on_custom_icons_theme_action_group_triggered(action, grp))
-
-        icons_follow_theme_action = custom_icons_menu.addAction("Try to follow theme")
-        icons_follow_theme_action.setToolTip("If using one of the themes bundled with Krita, the correct icons will be used.\n" \
-                                             "If not, guesses which icons to use based on keywords in the theme name ('dark', 'black', etc.)\n" \
-                                             "If there are no such keywords, assumes light theme. You can force a theme if the guess is wrong.")
-        icons_follow_theme_action.setActionGroup(custom_icons_theme_action_group)
-        icons_follow_theme_action.setCheckable(True)
-        icons_follow_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme"), "follow"))
-
-        icons_light_theme_action = custom_icons_menu.addAction("Use light theme icons")
-        icons_light_theme_action.setActionGroup(custom_icons_theme_action_group)
-        icons_light_theme_action.setCheckable(True)
-        icons_light_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme"), "light"))
-
-        icons_dark_theme_action = custom_icons_menu.addAction("Use dark theme icons")
-        icons_dark_theme_action.setActionGroup(custom_icons_theme_action_group)
-        icons_dark_theme_action.setCheckable(True)
-        icons_dark_theme_action.setChecked(str2qtcheckstate(readSetting("custom_icons_theme"), "dark"))
-
-        custom_icons_action = options_menu.addAction("Custom icons")
-        custom_icons_action.setMenu(custom_icons_menu)
-
-        options_menu.addSeparator()
-        
-        show_export_name_in_menu_action = options_menu.addAction("Show export name in File menu")
-        show_export_name_in_menu_action.setToolTip("When possible, show in the File menu as 'Quick Export to 'myImageName.png'.\n" \
-                                                   "Otherwise show as 'Quick Export' only.")
-        show_export_name_in_menu_action.setCheckable(True)
-        show_export_name_in_menu_action.setChecked(str2qtcheckstate(readSetting("show_export_name_in_menu")))
-        show_export_name_in_menu_action.toggled.connect(self._on_show_export_name_in_menu_action_toggled)
-        
-        default_export_unsaved_action = options_menu.addAction("Default export for unsaved images")
-        default_export_unsaved_action.setToolTip("Run the normal Krita exporter when you press Quick Export for not-yet-saved images.\n" \
-                                                 "Otherwise don't export, just show a reminder to save the file.")
-        default_export_unsaved_action.setCheckable(True)
-        default_export_unsaved_action.setChecked(str2qtcheckstate(readSetting("default_export_unsaved")))
-        default_export_unsaved_action.toggled.connect(self._on_default_export_unsaved_action_toggled)
-        
-        options_menu.addSeparator()
-        
-        show_thumbnails_for_unopened_images_action = options_menu.addAction("Show thumbnails for unopened images")
-        show_thumbnails_for_unopened_images_action.setToolTip("Will take effect when this dialog next runs.")
-        show_thumbnails_for_unopened_images_action.setCheckable(True)
-        show_thumbnails_for_unopened_images_action.setChecked(str2qtcheckstate(readSetting("show_thumbnails_for_unopened")))
-        show_thumbnails_for_unopened_images_action.toggled.connect(lambda checked: writeSetting("show_thumbnails_for_unopened", bool2str(checked)))
-        
-        self.show_extensions_in_list_menu = QEMenu()
-        visible_extensions = readSetting("visible_types").split(" ")
-        
-        if len(visible_extensions) == 0 or not any(test in supported_extensions() for test in visible_extensions):
-            # bad config, reset to default.
-            writeSetting("visible_types", setting_defaults["visible_types"])
-            visible_extensions = (".jpg", ".jpeg", ".png")
-        
-        for ext in supported_extensions():
-            action = self.show_extensions_in_list_menu.addAction(ext)
-            action.setCheckable(True)
-            action.setChecked(ext in visible_extensions)
-        
-        self.show_extensions_in_list_menu.triggered.connect(self._on_show_extensions_in_list_menu_triggered)
-        show_extensions_in_list_action = options_menu.addAction("Visible file types")
-        show_extensions_in_list_action.setMenu(self.show_extensions_in_list_menu)
-        
-        options_menu.addSeparator()
-        
-        wide_column_resize_grabber_action = options_menu.addAction("Wider grabber for resizing columns")
-        wide_column_resize_grabber_action.setToolTip("The regions in the header where you can click and drag to resize columns will be twice as wide.\n" \
-                                                     "Try this option if you frequently sort or move columns by accident.")
-        wide_column_resize_grabber_action.setCheckable(True)
-        wide_column_resize_grabber_action.setChecked(str2qtcheckstate(readSetting("wide_column_resize_grabber")))
-        wide_column_resize_grabber_action.toggled.connect(self._on_wide_column_resize_grabber_action_toggled)
-        
-        self.options_button.setMenu(options_menu)
-        
-        status_layout.addWidget(self.advanced_mode_button)
-        
-        # status bar.
-        # TODO: allow custom prompt messages on startup to be reset once eg. an image has been exported?
-        self.sbar = QStatusBar()
-        self.sbar_ready_label = QLabel()
-        self.sbar.insertWidget(0, self.sbar_ready_label)
-        status_layout.addWidget(self.sbar)
-        
-        # statistics (number of items, of which hidden).
-        self.statistics_label = QLabel("")
-        self.statistics_label_opacity = QGraphicsOpacityEffect(self.statistics_label)
-        self.statistics_label_opacity.setOpacity(0.5)
-        self.statistics_label.setGraphicsEffect(self.statistics_label_opacity)
-        self.sbar.addPermanentWidget(self.statistics_label)
-        
-        status_layout.setContentsMargins(0,0,0,0)
-        status_widget.setLayout(status_layout)
-        layout.addWidget(status_widget)
-
-        # setup dialog window.
-        self.setLayout(layout)
-        self.setWindowTitle("Quick Export")
-        dialog_width = int(readSetting("dialogWidth"))
-        dialog_height = int(readSetting("dialogHeight"))
-        self.resize(dialog_width, dialog_height)
     
     def reject(self):
         self.close()
     
     def closeEvent(self, event):
-        # TODO: export file name not set if user doesn't unfocus lineedit before closing.
         ret = QMessageBox.Discard
         
         if str2bool(readSetting("auto_save_on_close")):
@@ -905,14 +625,7 @@ class QEDialog(QDialog):
         writeSetting("dialogWidth", str(self.size().width()))
         writeSetting("dialogHeight", str(self.size().height()))
         
-        if False:
-            self.tree.thumbnail_worker.close()
-            
-            if len(self.tree.items) > 0:
-                # only write columns state if they've been fit to any items.
-                state = self.tree.header().saveState()
-                state_str = str(state.toBase64()).lstrip("b'").rstrip("'")
-                writeSetting("columns_state", state_str)
+        #self.tree.thumbnail_worker.close()
         
         self.tree_container_layout.removeWidget(self.tree)
         WidgetBin.addWidget(self.tree)
@@ -936,18 +649,6 @@ class QEDialog(QDialog):
             if self.save_buttons_container.isEnabled():
                 self.save_buttons_container.setDisabled(True)
                 self.save_buttons_container_opacity.setOpacity(0.5)
-
-    def _on_show_unstored_button_clicked(self, checked):
-        writeSetting("show_unstored", bool2str(checked))
-        self.tree.refilter()
-
-    def _on_show_unopened_button_clicked(self, checked):
-        writeSetting("show_unopened", bool2str(checked))
-        self.tree.refilter()
-
-    def _on_show_non_kra_button_clicked(self, checked):
-        writeSetting("show_non_kra", bool2str(checked))
-        self.tree.refilter()
     
     def _on_folder_filter_button_filter_changed(self):
         self.tree.model.setIncludedFolders(self.folder_filter_button.includedFolders())
@@ -986,12 +687,6 @@ class QEDialog(QDialog):
     def _on_default_export_unsaved_action_toggled(self, checked):
         writeSetting("default_export_unsaved", bool2str(checked))
         extension().update_quick_export_display()
-
-    def update_show_extensions_in_list_for_all_types(self):
-        return
-        for action in self.show_extensions_in_list_menu.actions():
-            self.update_show_extensions_in_list_for_type(action.text(), action.isChecked())
-        self.post_update_show_extensions_in_list()
 
     def _on_show_extensions_in_list_menu_triggered(self, action):
         self.update_show_extensions_in_list_for_type(action.text(), action.isChecked())
@@ -1258,9 +953,6 @@ class QEDialog(QDialog):
         s_basic["scale_height_mode"] = scale_h_mode
         s_basic["scale_keep_aspect"] = scale_keep_aspect
         s_basic["scale_filter"] = scale_filter
-        
-        print(path)
-        print(s_basic)
         
         generate_save_string(path)
         self.update_save_button()

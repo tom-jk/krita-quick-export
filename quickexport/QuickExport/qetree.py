@@ -1,11 +1,10 @@
-from PyQt5.QtWidgets import (QWidget, QSizePolicy, QDialog, QDialogButtonBox, QMessageBox, QFileDialog,
-                             QMenu, QVBoxLayout, QHBoxLayout, QGroupBox, QComboBox, QLineEdit, QCheckBox,
-                             QPushButton, QAbstractItemView, QTreeView, QLabel, QStyledItemDelegate,
-                             QStyle, QHeaderView, QToolButton, QGraphicsOpacityEffect, QApplication)
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap, QImage, QBrush, QPainter, QWindow
-from PyQt5.QtCore import Qt, QModelIndex, QSortFilterProxyModel, QRegExp, QRect, QTimer, QItemSelection
+from PyQt5.QtWidgets import (QWidget, QDialog, QDialogButtonBox, QMessageBox,
+                             QMenu, QVBoxLayout, QHBoxLayout, QGroupBox, QCheckBox,
+                             QAbstractItemView, QTreeView, QStyledItemDelegate,
+                             QStyle, QHeaderView, QToolButton, QApplication)
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap
+from PyQt5.QtCore import Qt, QModelIndex, QSortFilterProxyModel, QTimer, QItemSelection
 import zipfile
-import re
 from copy import deepcopy
 from pathlib import Path
 from krita import Krita, InfoObject, FileDialog
@@ -17,7 +16,7 @@ tree_icon_size = QApplication.style().pixelMetric(QStyle.PM_SmallIconSize)
 
 # borrowed from the Last Documents Docker.
 def _make_thumbnail_for_file(path):
-    if not str2bool(readSetting("show_thumbnails_for_unopened")):
+    if not str2bool(readSetting("show_thumbnails_in_tree")):
         if path.exists():
             thumbnail = app.icon('view-preview').pixmap(64,64)
         else:
@@ -186,17 +185,14 @@ class TreeButton(QToolButton):
         print("clicked", self.role, self.path)
         
         if self.role == "del":
+            l = self.parent().layout()
             if self.path not in qe_settings:
                 qe_settings[self.path] = default_settings(path=self.path, node_type=self.item_type)
-                # ~ qe_settings[self.path]["config_file_index"] = 0
-                #add_default_store_for_path(self.path, self.item_type)
                 self.setIcon(app.icon("edit-delete"))
-                l = self.parent().layout()
                 l.itemAt(1).widget().show()
             else:
                 del qe_settings[self.path]
                 self.setIcon(app.icon("list-add"))
-                l = self.parent().layout()
                 l.itemAt(1).widget().hide()
             
             self.item.model().dataChanged.emit(self.item.index(), self.item2.index())
@@ -454,7 +450,7 @@ class QETree(QTreeView):
         item.setData(text, Qt.DisplayRole)
         item.setIcon(icon)
         item.setSelectable(selectable)
-        item2.setSelectable(False)#selectable)
+        item2.setSelectable(False)
         item.setEditable(selectable)
         item2.setEditable(False)
         item.setDropEnabled(selectable)

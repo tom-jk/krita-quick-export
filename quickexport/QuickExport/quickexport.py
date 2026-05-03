@@ -1,4 +1,3 @@
-from PyQt5.QtWidgets import QAction, QMessageBox, QDialog
 from PyQt5.QtCore import QTimer, pyqtSignal
 from functools import partial
 from pathlib import Path
@@ -89,7 +88,6 @@ class QuickExportExtension(Extension):
         self.update_action_icons()
     
     def set_action_icons(self):
-        print("set_action_icons")
         correct_settings_version = readSetting("settings_version") == "0.0.3"
         for win in known_windows:
             win["qe_action"].setIcon(self.get_icon("qe"))
@@ -232,7 +230,7 @@ class QuickExportExtension(Extension):
         file_settings_path = find_settings_path_for_file(path)
         
         if file_settings_path == None:
-            self.run_dialog(msg="Configure export settings for the image then try again.", doc=doc)
+            self.run_dialog(msg="Configure export settings for the project first then try again.", doc=doc)
             return
         
         result = export_image(file_settings_path, doc)

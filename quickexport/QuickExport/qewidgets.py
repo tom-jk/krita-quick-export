@@ -1,16 +1,12 @@
-from PyQt5.QtWidgets import (QLabel, QTreeWidget, QTreeWidgetItem, QDialog, QHBoxLayout, QVBoxLayout,
-                             QPushButton, QCheckBox, QSpinBox, QSlider, QStyledItemDelegate, QMenu,
-                             QSizePolicy, QWidget, QLineEdit, QMessageBox, QStatusBar, QButtonGroup,
-                             QActionGroup, QToolButton, QComboBox, QStackedWidget, QStyle, QStyleOption,
-                             QStyleOptionButton, QSpinBox, QStyleOptionSpinBox, QGraphicsOpacityEffect,
-                             QFileDialog)
-from PyQt5.QtCore import Qt, QObject, QRegExp, QModelIndex, pyqtSignal, QEvent
-from PyQt5.QtGui import QFontMetrics, QRegExpValidator, QIcon, QPixmap, QColor, QPainter, QPalette, QMouseEvent, QTabletEvent
-import zipfile
+from PyQt5.QtWidgets import (QLabel, QDialog, QHBoxLayout, QVBoxLayout,
+                             QCheckBox, QSpinBox, QSlider, QMenu,
+                             QSizePolicy, QWidget, QLineEdit, QButtonGroup,
+                             QToolButton, QComboBox, QStackedWidget, QStyle,
+                             QStyleOptionButton, QSpinBox, QStyleOptionSpinBox,
+                             QGraphicsOpacityEffect, QDoubleSpinBox)
+from PyQt5.QtCore import Qt, pyqtSignal, QEvent
+from PyQt5.QtGui import QFontMetrics, QIcon, QPixmap, QColor, QPainter, QPalette
 from pathlib import Path
-from functools import partial
-from enum import IntEnum, auto
-from krita import InfoObject, ManagedColor
 import krita
 from .utils import *
 
@@ -25,7 +21,7 @@ class FlowLayout(QLayout):
         super().__init__(parent)
 
         if parent is not None:
-            fm = QFontMetrics(parent.font)
+            fm = QFontMetrics(parent.font())
             fw = fm.horizontalAdvance("x")
             fh = fm.height()
             self.setContentsMargins(QMargins(fw//2, fh//2, fw//2, fh//2))

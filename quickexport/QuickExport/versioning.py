@@ -1,18 +1,8 @@
-from PyQt5.QtWidgets import QDialog, QMessageBox, QStyle, QButtonGroup, QRadioButton, QDialogButtonBox
+from PyQt5.QtWidgets import QDialog, QStyle, QButtonGroup, QRadioButton, QDialogButtonBox
 from PyQt5.QtGui import QColor
-from PyQt5.QtCore import QObject
-import sip
-from timeit import default_timer
-from traceback import format_tb
 from pathlib import Path
 from os.path import relpath
-from functools import reduce
-from enum import IntEnum, auto
-import platform, os, subprocess
 import re
-import math
-import json
-from copy import deepcopy
 from krita import *
 
 from .utils import *

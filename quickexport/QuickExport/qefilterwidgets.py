@@ -1,8 +1,8 @@
 from PyQt5.QtWidgets import (QLabel, QHBoxLayout, QVBoxLayout, QLineEdit, QStyle, QCompleter, QTreeWidget,
-                             QTreeWidgetItem, QHBoxLayout, QVBoxLayout, QPushButton, QCheckBox, QWidget, QToolButton,
-                             QStyleOption, QStyleOptionButton, QAbstractItemView, QTreeWidgetItemIterator)
-from PyQt5.QtCore import Qt, QSize, QPoint, QObject, QModelIndex, pyqtSignal, QEvent, QTimer
-from PyQt5.QtGui import QFontMetrics, QIcon, QPixmap, QColor, QPainter, QPalette
+                             QTreeWidgetItem, QHBoxLayout, QPushButton, QCheckBox, QWidget, QToolButton,
+                             QStyleOptionButton, QAbstractItemView, QTreeWidgetItemIterator)
+from PyQt5.QtCore import Qt, QSize, QPoint, pyqtSignal, QTimer
+from PyQt5.QtGui import QFontMetrics, QPainter
 from pathlib import Path
 import krita
 

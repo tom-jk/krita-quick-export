@@ -131,7 +131,7 @@ def settings_last_load():
 qe_extension = None
 
 setting_defaults = {"show_unstored":"true", "show_unopened":"false", "show_non_kra":"false", "auto_save_on_close":"true", "use_custom_icons":"true",
-                    "custom_icons_theme":"follow", "show_export_name_in_menu":"true", "default_export_unsaved":"false", "show_thumbnails_for_unopened":"true",
+                    "custom_icons_theme":"follow", "show_export_name_in_menu":"true", "default_export_unsaved":"false", "show_thumbnails_in_tree":"true",
                     "visible_types":".avif .exr .gif .ico .jpg .jpeg .jxl .png .tif .webp", "dialogWidth":"1024", "dialogHeight":"640", "columns_state":"",
                     "wide_column_resize_grabber":"false", "create_missing_folders_at_export":"ask", "show_thumbnail_for_selected":"true", "settings_version":""}
 
@@ -228,7 +228,6 @@ def is_any_qe_setting_modified():
     #       type-specific export configs, so not sure what's best to do.
     return qe_settings != qe_settings_last_load
 
-# TODO: needs work upgrading old versions up to latest.
 def load_settings_from_config(suppress_version_warning=False):
     qe_settings.clear()
     
