@@ -51,6 +51,8 @@ class QuickExportExtension(Extension):
         self.theme_name = ""
         self.theme_is_dark = False
         self.use_custom_icons = False
+        
+        app_notifier.imageSaved.connect(partial(self.update_quick_export_display))
     
     def set_default_icons(self):
         self.icons["default"] = {
@@ -139,7 +141,6 @@ class QuickExportExtension(Extension):
         window.activeViewChanged.connect(self.update_quick_export_display)
         window.windowClosed.connect(partial(self._on_window_closed, window))
         qe_action.changed.connect(self.update_quick_export_display)
-        app_notifier.imageSaved.connect(partial(self.update_quick_export_display))
     
     def moveAction(self, actions_to_move, name_of_action_to_insert_before, qwindow):
         menu_bar = qwindow.menuBar()
