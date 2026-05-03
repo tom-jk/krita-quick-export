@@ -416,6 +416,8 @@ class QEDialog(QDialog):
             if index.isValid():
                 index = self.tree.model.mapToSource(index)
                 self.set_big_thumbnail(index.data(PathRole))
+            if not str2bool(readSetting("show_thumbnail_for_selected")):
+                self.big_thumbnail.hide()
         QTimer.singleShot(0, lambda: move_splitter())
         
         self.save_buttons_container = QWidget()
@@ -552,6 +554,11 @@ class QEDialog(QDialog):
         show_thumbnails_for_unopened_images_action.setCheckable(True)
         show_thumbnails_for_unopened_images_action.setChecked(str2qtcheckstate(readSetting("show_thumbnails_for_unopened")))
         show_thumbnails_for_unopened_images_action.toggled.connect(lambda checked: writeSetting("show_thumbnails_for_unopened", bool2str(checked)))
+        
+        show_thumbnail_for_selected_action = options_menu.addAction("Show thumbnail for selected")
+        show_thumbnail_for_selected_action.setCheckable(True)
+        show_thumbnail_for_selected_action.setChecked(str2qtcheckstate(readSetting("show_thumbnail_for_selected")))
+        show_thumbnail_for_selected_action.toggled.connect(self._on_show_thumbnail_for_selected_action_toggled)
         
         self.show_extensions_in_list_menu = QEMenu()
         
@@ -950,6 +957,17 @@ class QEDialog(QDialog):
     def _on_auto_save_on_close_action_toggled(self, checked):
         writeSetting("auto_save_on_close", bool2str(checked))
 
+    def _on_show_thumbnail_for_selected_action_toggled(self, checked):
+        writeSetting("show_thumbnail_for_selected", bool2str(checked))
+        if checked:
+            self.big_thumbnail.show()
+            index = self.tree.selectionModel().currentIndex()
+            if index.isValid():
+                index = self.tree.model.mapToSource(index)
+                self.set_big_thumbnail(index.data(PathRole))
+        else:
+            self.big_thumbnail.hide()
+
     def _on_use_custom_icons_action_toggled(self, checked):
         writeSetting("use_custom_icons", bool2str(checked))
         extension().update_action_icons()
@@ -1104,7 +1122,7 @@ class QEDialog(QDialog):
                 self.set_big_thumbnail(None)
 
     def set_big_thumbnail(self, path=Path()):
-        if not path:
+        if not (path and str2bool(readSetting("show_thumbnail_for_selected"))):
             self.big_thumbnail.setPixmap(None)
             self.big_thumbnail_file = None
             self.big_thumbnail_st_mtime = 0
