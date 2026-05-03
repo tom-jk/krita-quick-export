@@ -215,6 +215,8 @@ class QEDialog(QDialog):
         basic_export_settings_splitter = Splitter()
         
         self.preferred_big_thumbnail_height = 32
+        self.big_thumbnail_file = None
+        self.big_thumbnail_st_mtime = 0
         self.big_thumbnail = ResizingPixmapLabel()
         self.big_thumbnail.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         basic_export_settings_splitter.addWidget(self.big_thumbnail)
@@ -1104,6 +1106,8 @@ class QEDialog(QDialog):
     def set_big_thumbnail(self, path=Path()):
         if not path:
             self.big_thumbnail.setPixmap(None)
+            self.big_thumbnail_file = None
+            self.big_thumbnail_st_mtime = 0
             return
         
         file_to_use = None
@@ -1120,12 +1124,20 @@ class QEDialog(QDialog):
                     file_to_use = file
         
         if file_to_use:
+            if file_to_use == self.big_thumbnail_file:
+                if file_to_use.stat().st_mtime == self.big_thumbnail_st_mtime:
+                    print(f"set_big_thumbnail from {file_to_use}: already loaded")
+                    return
             print(f"set_big_thumbnail from {file_to_use} at {self.preferred_big_thumbnail_height*2}px")
             thumb = _make_thumbnail_for_file(file_to_use)
             icon = square_thumbnail(thumb, self.preferred_big_thumbnail_height*2)
             self.big_thumbnail.setPixmap(icon)
+            self.big_thumbnail_file = file_to_use
+            self.big_thumbnail_st_mtime = file_to_use.stat().st_mtime
         else:
             self.big_thumbnail.setPixmap(None)
+            self.big_thumbnail_file = None
+            self.big_thumbnail_st_mtime = 0
 
     def update_basic_export_settings_output_path_label(self):
         sel_rows = self.tree.selectionModel().selectedRows()
