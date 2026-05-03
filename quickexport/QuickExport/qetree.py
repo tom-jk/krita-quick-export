@@ -227,7 +227,23 @@ class TreeButton(QToolButton):
             
             plugin_dir = Path(app.getAppDataLocation()) / "pykrita" / "QuickExport"
 
+            # save current "create new document" dialog defaults.
+            new_doc_width = app.readSetting("", "imageWidthDef", "")
+            new_doc_height = app.readSetting("", "imageHeightDef", "")
+            new_doc_res = app.readSetting("", "imageResolutionDef", "")
+            new_doc_color_depth = app.readSetting("", "colorDepthDef", "")
+            new_doc_color_model = app.readSetting("", "colorModelDef", "")
+            new_doc_color_profile = app.readSetting("", "colorProfileDef", "")
+
             doc = app.createDocument(2,2,"QuickExportDummyDoc","RGBA","U8","",72.0)
+
+            # restore defaults.
+            app.writeSetting("", "imageWidthDef", new_doc_width)
+            app.writeSetting("", "imageHeightDef", new_doc_height)
+            app.writeSetting("", "imageResolutionDef", new_doc_res)
+            app.writeSetting("", "colorDepthDef", new_doc_color_depth)
+            app.writeSetting("", "colorModelDef", new_doc_color_model)
+            app.writeSetting("", "colorProfileDef", new_doc_color_profile)
             
             dummy_file_name = "ExportDummy" + extension
             
