@@ -280,7 +280,7 @@ def load_0_0_2_settings_from_config():
     layout.setAlignment(Qt.AlignTop)
     layout.addWidget(icon_label)
     msg_layout = QVBoxLayout()
-    title_label = QLabel("<b>Upgrading v0.0.2 settings to v0.0.3.</b>")
+    title_label = QLabel("<b>Upgrading v0.0.2 settings to v0.1.0.</b>")
     msg_layout.addWidget(title_label)
     warning_label = QLabel(("<b>Your settings use features that are no longer supported.</b> There may be some changes to your settings. Read about them below" +
                            (" and make any adjustments if required." if used_multiple_per_path else ".") + "<br/><br/>") if used_unsupported_features else

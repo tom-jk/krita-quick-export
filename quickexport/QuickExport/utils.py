@@ -234,8 +234,8 @@ def load_settings_from_config(suppress_version_warning=False):
     settings_version = readSetting("settings_version")
     
     if settings_version == "":
-        # <0.0.3 settings were saved as a single string with key 'settings'.
-        # 0.0.3+ save to different keys and leave 'settings' unchanged, so
+        # <0.1.0 settings were saved as a single string with key 'settings'.
+        # 0.1.0+ save to different keys and leave 'settings' unchanged, so
         # we don't have to backup these settings; they are their own backup.
         # TODO: add a button somewhere so user can overwrite it with "".
         from .versioning import load_0_0_2_settings_from_config
@@ -246,8 +246,8 @@ def load_settings_from_config(suppress_version_warning=False):
             generate_save_string(s)
         save_settings_to_config()
     
-    elif settings_version == "0.0.3":
-        return load_0_0_3_settings_from_config()
+    elif settings_version == "0.1.0":
+        return load_0_1_0_settings_from_config()
     
     else:
         if suppress_version_warning:
@@ -257,7 +257,7 @@ def load_settings_from_config(suppress_version_warning=False):
         msgBox.setText("Quick Export settings in unsupported format found.")
         msgBox.setInformativeText(
             "Settings were saved in a different format by a later version of QuickExport. They can not be read by this version.\n\n" \
-            "compatible versions: 0.0.3 and below\n" \
+            "compatible versions: 0.1.0 and below\n" \
             f"saved as version: {settings_version}\n\n" \
             "It may be that a backup was made before saving the later version settings - check in your kritarc file.\n\n" \
             "You may also try opening an issue on the Github to request a converter, but using the latest version of the plugin is recommended.\n\n" \
@@ -278,7 +278,7 @@ def load_settings_from_config(suppress_version_warning=False):
     
     return True
 
-def load_0_0_3_settings_from_config():
+def load_0_1_0_settings_from_config():
     """
     read in settings from kritarc. example:
     file0/macros=
@@ -494,7 +494,7 @@ def save_settings_to_config():
                 writeSetting(f"file{settings_index}/{ext_key}", "")
         settings_index += 1
     
-    writeSetting("settings_version", "0.0.3")
+    writeSetting("settings_version", "0.1.0")
     
     update_qe_settings_last_load()
     extension().set_action_icons()

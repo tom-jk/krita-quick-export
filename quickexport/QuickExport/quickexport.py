@@ -90,7 +90,7 @@ class QuickExportExtension(Extension):
         self.update_action_icons()
     
     def set_action_icons(self):
-        correct_settings_version = readSetting("settings_version") == "0.0.3"
+        correct_settings_version = readSetting("settings_version") == "0.1.0"
         for win in known_windows:
             win["qe_action"].setIcon(self.get_icon("qe"))
             win["qec_action"].setIcon(self.get_icon("qec") if correct_settings_version else self.get_icon("qec-notify"))
