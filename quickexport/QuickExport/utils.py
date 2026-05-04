@@ -84,7 +84,7 @@ class WidgetBin(QObject):
 
     @classmethod
     def addWidget(cls, widget):
-        print(f"WidgetBin: adding widget {widget}.")
+        #print(f"WidgetBin: adding widget {widget}.")
         item = [
             default_timer(),
             widget
@@ -101,7 +101,7 @@ class WidgetBin(QObject):
             item = self.deleted_[item_index]
             delete_time = item[0]
             if current_time - delete_time > 0.01:
-                print(f"WidgetBin: deleting widget {item[1]}.")
+                #print(f"WidgetBin: deleting widget {item[1]}.")
                 self.deleted_.pop(item_index)
                 sip.delete(item[1])
                 del item
@@ -401,17 +401,17 @@ def find_settings_path_for_file(file_path):
     base_version_string, match_version_number = base_stem_and_version_number_for_versioned_file(file_path, unversioned_version_num=0)
     base_path = folder_path / Path(base_version_string)
     
-    print(f"find_settings_path_for_file {file_path}: looking for {base_path=}")
+    #print(f"find_settings_path_for_file {file_path}: looking for {base_path=}")
     if base_path in qe_settings:
-        print(f"find_settings_path_for_file {file_path}: got settings for project.")
+        #print(f"find_settings_path_for_file {file_path}: got settings for project.")
         return base_path
     
-    print(f"find_settings_path_for_file {file_path}: looking for {folder_path=}")
+    #print(f"find_settings_path_for_file {file_path}: looking for {folder_path=}")
     if folder_path in qe_settings:
-        print(f"find_settings_path_for_file {file_path}: got settings for containing folder.")
+        #print(f"find_settings_path_for_file {file_path}: got settings for containing folder.")
         return folder_path
     
-    print(f"find_settings_for_file {file_path}: no settings found.")
+    #print(f"find_settings_for_file {file_path}: no settings found.")
     return None
 
 def generate_save_string(settings_path, s=None):
@@ -442,7 +442,7 @@ def generate_save_string(settings_path, s=None):
         f"{bool2flag(s_basic['scale'])},{int(s_basic['scale_side'])},{int(s_basic['scale_width_mode'])},{scale_width},{int(s_basic['scale_height_mode'])},{scale_height},{bool2flag(s_basic['scale_keep_aspect'])},{s_basic["scale_filter"]},{scale_res}"
     )
     
-    print(f"{s['config_basic_string']=}")
+    #print(f"{s['config_basic_string']=}")
 
     for ext in supported_extensions():
         ext_key = ext[1:]
@@ -453,7 +453,7 @@ def generate_save_string(settings_path, s=None):
         s[f"config_export_{ext_key}_string"] = json.dumps(s["export"][ext_key], separators=(",",":"))
 
 def save_settings_to_config():
-    print("save_settings_to_config")
+    #print("save_settings_to_config")
     
     settings_index = 0
     
@@ -554,7 +554,7 @@ def export_file_path(settings, source_path, item_type=QEItemType.FILE):
         try:
             location_custom = location_custom.expanduser()
         except RuntimeError:
-            print(f"can't expanduser for '{location_custom}'")
+            pass#print(f"can't expanduser for '{location_custom}'")
         location_custom = (folder / location_custom).resolve()
     
     output_stem = (base, file_name, file_name_custom)[file_name_source_index]
@@ -594,8 +594,8 @@ def export_image(settings_path, document=None):
             set_export_failed_msg(f"No configuration for {ext} file type.")
             return False
     
-    for p in exportParameters.properties():
-        print(p)
+    #for p in exportParameters.properties():
+        #print(p)
     
     if not document:
         document = settings["document"]
@@ -704,7 +704,7 @@ def export_image(settings_path, document=None):
         doc_copy = document.clone()
 
         doc_copy.flatten()
-        print(f"export: scale: {doc_width} x {doc_height}  ->  {scale_width} x {scale_height}")
+        #print(f"export: scale: {doc_width} x {doc_height}  ->  {scale_width} x {scale_height}")
         doc_copy.scaleImage(scale_width, scale_height, int(scale_xres), int(scale_yres), scale_filter)
 
         doc_copy.setBatchmode(True)

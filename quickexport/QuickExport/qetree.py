@@ -33,13 +33,13 @@ def _make_thumbnail_for_file(path):
         else:
             thumbnail = QPixmap(str(path))
     except FileNotFoundError:
-        print(f"file '{path}' not found.")
+        pass#print(f"file '{path}' not found.")
     except Exception as e:
         print(f"error trying to read file '{path}'. the error is:\n{type(e).__name__}: {e}")
 
     if thumbnail.isNull():
         # TODO: make and return only one copy of the not-found icon.
-        print(f"couldn't make thumbnail for file '{path}'.")
+        #print(f"couldn't make thumbnail for file '{path}'.")
         thumbnail = app.icon('window-close').pixmap(64,64)#self.thumb_height, self.thumb_height)
 
     #thumb_size = QSize(int(self.thumb_height*self.devicePixelRatioF()), int(self.thumb_height*self.devicePixelRatioF()))
@@ -57,7 +57,7 @@ class PasteDialog(QDialog):
 
         layout = QVBoxLayout(self)
         
-        print(f"{self.last_used=}")
+        #print(f"{self.last_used=}")
         
         self.cb_name = QCheckBox("Name settings")
         self.cb_name.setToolTip("Exported file name source and custom name.")
@@ -165,7 +165,7 @@ class PasteDialog(QDialog):
         for ext,cb in self.cb_ext.items():
             self.last_used["type_export_settings"][ext] = cb.checkState() == Qt.Checked
         
-        print(self.last_used)
+        #print(self.last_used)
         return self.last_used
 
 
@@ -183,7 +183,7 @@ class TreeButton(QToolButton):
         self.clicked.connect(self._on_clicked)
 
     def _on_clicked(self):
-        print("clicked", self.role, self.path)
+        #print("clicked", self.role, self.path)
         
         if self.role == "del":
             l = self.parent().layout()
@@ -255,7 +255,7 @@ class TreeButton(QToolButton):
                     info.setProperty(k, v)
             
             result = doc.exportImage(str(plugin_dir / dummy_file_name), info)
-            print(f"{result=}, {info=}, {info.properties()=}")
+            #print(f"{result=}, {info=}, {info.properties()=}")
             
             if result:
                 #print("BEFORE:")
@@ -270,7 +270,7 @@ class TreeButton(QToolButton):
 
             doc.waitForDone()
             doc.close()
-            print(doc)
+            #print(doc)
 
 
 row_height = -1
@@ -300,7 +300,7 @@ class ItemDelegate(QStyledItemDelegate):
         painter.restore()
     
     def setModelData(self, editor, model, index):
-        print(f"setModelData {editor=} {model=} {index=}")
+        #print(f"setModelData {editor=} {model=} {index=}")
         
         source_model = model.sourceModel()
         
@@ -313,14 +313,14 @@ class ItemDelegate(QStyledItemDelegate):
         if new_text == "":
             return
         
-        print(f"{old_text=} {new_text=}")
+        #print(f"{old_text=} {new_text=}")
         
         if not index.data(PathRole):
             return
         
         item_type = index.data(ItemTypeRole)
         if old_text == new_text or (item_type == QEItemType.FOLDER and Path(new_text) == index.data(PathRole)):
-            print("no change.")
+            #print("no change.")
             return
         
         if item_type == QEItemType.FOLDER:
@@ -358,7 +358,7 @@ class MySortFilterProxyModel(QSortFilterProxyModel):
         if (folders := self.includedFolders()):
             folder = path if item_type == QEItemType.FOLDER else path.parent
             if folder not in folders:
-                print(f" {path} was not displayed.")
+                #print(f" {path} was not displayed.")
                 return False
         
         if not self.filterRegExp().pattern():
@@ -413,7 +413,7 @@ class QETree(QTreeView):
         
         for doc in app.documents():
             file = Path(doc.fileName())
-            print(file, file.suffix)
+            #print(file, file.suffix)
             if not file:
                 continue
             if not file.suffix == ".kra":
@@ -449,15 +449,15 @@ class QETree(QTreeView):
         if not dropped_on_item:
             return
         
-        print(f"dropEvent: source: {event.source()}, mimeData.formats: {event.mimeData().formats()}, dropAction: {event.dropAction()}, dropped on: {dropped_on_item.data(PathRole)}")
+        #print(f"dropEvent: source: {event.source()}, mimeData.formats: {event.mimeData().formats()}, dropAction: {event.dropAction()}, dropped on: {dropped_on_item.data(PathRole)}")
         
         if dropped_on_item.data(ItemTypeRole) == QEItemType.FILE:
             dropped_on_item = dropped_on_item.parent()
-            print(f"dropped on file -> project: {dropped_on_item.data(PathRole)}")
+            #print(f"dropped on file -> project: {dropped_on_item.data(PathRole)}")
         
         if dropped_on_item.data(ItemTypeRole) == QEItemType.PROJECT:
             dropped_on_item = dropped_on_item.parent()
-            print(f"dropped on project -> folder: {dropped_on_item.data(PathRole)}")
+            #print(f"dropped on project -> folder: {dropped_on_item.data(PathRole)}")
         
         self.relocate_rows_in_tree(dropped_on_item.data(PathRole))
 
@@ -592,7 +592,7 @@ class QETree(QTreeView):
         QTimer.singleShot(0, lambda: self._on_custom_context_menu_requested_main(pos))
         
     def _on_custom_context_menu_requested_main(self, pos):
-        print("context menu", pos, self.indexAt(pos), self.indexAt(pos).data(PathRole))
+        #print("context menu", pos, self.indexAt(pos), self.indexAt(pos).data(PathRole))
         
         dialog = self.window()
         
@@ -605,7 +605,7 @@ class QETree(QTreeView):
         selection_project_count = 0
         selection_contains_stored_paths = False
         selection_contains_children_of_other_selected = False
-        print("selected rows:")
+        #print("selected rows:")
         for i, row_index in enumerate(rows):
             if row_index.data(PathRole) in qe_settings:
                 selection_contains_stored_paths = True
@@ -615,14 +615,14 @@ class QETree(QTreeView):
                 selection_project_count += 1
                 if row_index.parent() in rows:
                     selection_contains_children_of_other_selected = True
-            print("   ",i,":", row_index.data(PathRole))    
+            #print("   ",i,":", row_index.data(PathRole))    
         
-        print(f"Selection contains {selection_folder_count} Folders and {selection_project_count} Projects.")
+        #print(f"Selection contains {selection_folder_count} Folders and {selection_project_count} Projects.")
         if selection_contains_children_of_other_selected:
-            print("Some selected projects are inside folders that are also selected.")
+            pass#print("Some selected projects are inside folders that are also selected.")
         
         index = self.indexAt(pos)
-        print(index.row(), index.column(), index.data(PathRole), index.data(ItemTypeRole), index.model())
+        #print(index.row(), index.column(), index.data(PathRole), index.data(ItemTypeRole), index.model())
         
         path = index.data(PathRole)
         item_type = index.data(ItemTypeRole)
@@ -699,12 +699,12 @@ class QETree(QTreeView):
         elif result == ac_copy_config:
             config_clipboard["default"] = deepcopy(qe_settings[path])
             #print(store[path])
-            print(f"copied from {path}:")
-            print(config_clipboard)
+            #print(f"copied from {path}:")
+            #print(config_clipboard)
         
         elif result == ac_paste_config:
-            print("- - - - -")
-            print("ac_paste_config start")
+            #print("- - - - -")
+            #print("ac_paste_config start")
             
             paste_dialog = PasteDialog(dialog)
             paste_settings = paste_dialog.run()
@@ -730,7 +730,7 @@ class QETree(QTreeView):
                     del_btn = btns.findChild(TreeButton, "StoreAddDeleteButton")
                     del_btn.click()
                 
-                print(f"paste to {path}")
+                #print(f"paste to {path}")
                 bes = qe_settings[path]["basic"]
                 ccbes = cc["basic"]
                 if paste_settings["name"]:
@@ -772,8 +772,8 @@ class QETree(QTreeView):
             #for k,v in store.items():
             #    print("  ",k,":",v)
                 
-            print("ac_paste_config end")
-            print("- - - - -")
+            #print("ac_paste_config end")
+            #print("- - - - -")
         
         elif result == ac_relocate:
             
@@ -821,12 +821,12 @@ class QETree(QTreeView):
             if prune_msgbox.exec() != QMessageBox.Ok:
                 return
             
-            print("pruning export settings...")
+            #print("pruning export settings...")
             
             for setting_to_delete in settings_to_delete:
                 path = setting_to_delete["path"]
                 ext = setting_to_delete["ext"]
-                print(f" - deleting {ext} from {path}")
+                #print(f" - deleting {ext} from {path}")
                 del qe_settings[path]["export"][ext]
                 if f"config_export_{ext}_string" in qe_settings[path]:
                     del qe_settings[path][f"config_export_{ext}_string"]
@@ -834,31 +834,31 @@ class QETree(QTreeView):
             # TODO: this is not quite right (supposed to be a range, but we don't use the passed indeces anyway).
             self.source_model.dataChanged.emit(rows[0], rows[0])
             
-            print("done.")
+            #print("done.")
         
         elif result == ac_remove:
-            print("- - - - -")
-            print("ac_remove start")
+            #print("- - - - -")
+            #print("ac_remove start")
             
             #for k,v in qe_settings.items():
                 #print("  ",k,":",v)
                 
             # gather items to be removed, excluding projects inside folders that are being removed, as they'll be removed with the folder anyway.
-            print("building list of rows to remove...")
+            #print("building list of rows to remove...")
             row_items = []
             folder_paths_being_removed = []
             for row_index in rows:
                 row_item = self.source_model.itemFromIndex(self.model.mapToSource(row_index))
                 if row_index.data(ItemTypeRole) == QEItemType.FOLDER:
-                    print(f" - add folder {row_index.data(PathRole)}.")
+                    #print(f" - add folder {row_index.data(PathRole)}.")
                     folder_paths_being_removed.append(row_index.data(PathRole))
                     row_items.append(row_item)
                 else:
                     if not row_index.parent() in rows:
-                        print(f" - add project {row_index.data(PathRole)}.")
+                        #print(f" - add project {row_index.data(PathRole)}.")
                         row_items.append(row_item)
             
-            print("removing...")
+            #print("removing...")
             for item in row_items:
                 path = item.data(PathRole)
                 item_type = item.data(ItemTypeRole)
@@ -866,10 +866,10 @@ class QETree(QTreeView):
                     for child_idx in range(item.rowCount()):
                         child = item.child(child_idx)
                         child_path = child.data(PathRole)
-                        print(f" - {child_path=} (row:{child.row()})")
+                        #print(f" - {child_path=} (row:{child.row()})")
                         if child_path in qe_settings:
                             del qe_settings[child_path]
-                print(f" - {path=} (row:{item.row()})")
+                #print(f" - {path=} (row:{item.row()})")
                 self.source_model.removeRow(item.row(), (item.parent() or self.source_model.invisibleRootItem()).index())
                 if path in qe_settings:
                     del qe_settings[path]
@@ -880,15 +880,15 @@ class QETree(QTreeView):
             for folder_path in folder_paths_being_removed:
                 self.removingFolder.emit(path)
             
-            print("done")
+            #print("done")
             #for k,v in qe_settings.items():
                 #print("  ",k,":",v)
-            print("ac_remove end")
-            print("- - - - -")
+            #print("ac_remove end")
+            #print("- - - - -")
 
     def relocate_rows_in_tree(self, target_folder_path, rows=None):
-        print("- - - - -")
-        print("relocate_rows_in_tree: start")
+        #print("- - - - -")
+        #print("relocate_rows_in_tree: start")
         
         #for k,v in qe_settings.items():
             #print("  ",k,":",v)
@@ -922,16 +922,16 @@ class QETree(QTreeView):
         for selected_row_item in row_items:
             path = selected_row_item.data(PathRole)
             item_type = selected_row_item.data(ItemTypeRole)
-            print("- -")
-            print(f"relocating {path} to {target_folder_path}")
+            #print("- -")
+            #print(f"relocating {path} to {target_folder_path}")
             
             selected_row_index = selected_row_item.index()
         
             if not target_folder_exists_in_tree:
-                print("Target folder item doesn't exist in tree yet.")
+                #print("Target folder item doesn't exist in tree yet.")
                 target_folder_exists_in_tree = True
                 if item_type == QEItemType.FOLDER:
-                    print("This folder item will become the target folder item.")
+                    #print("This folder item will become the target folder item.")
                     self.change_settings_path_for_item(selected_row_item, target_folder_path)
                     selected_row_item2_source_index = self.source_model.sibling(selected_row_item.row(), selected_row_item.column()+1, selected_row_index)
                     selected_row_item2_index = self.model.mapFromSource(selected_row_item2_source_index)
@@ -944,19 +944,19 @@ class QETree(QTreeView):
                     target_folder_item = selected_row_item
                     continue
                 else:
-                    print("A new target folder item will be added to tree.")
+                    #print("A new target folder item will be added to tree.")
                     target_folder_item = self.add_folder_to_tree(target_folder_path)
                     self.setExpanded(self.model.mapFromSource(target_folder_item.index()), True)
         
             if item_type == QEItemType.FOLDER:
-                print("Projects in this folder will be moved to the target folder item.")
+                #print("Projects in this folder will be moved to the target folder item.")
                 while selected_row_item.child(0):
                     self.reparent_base_row_in_tree(selected_row_item, 0, target_folder_item, target_folder_path)
             else:
-                print("This project will be moved to the target folder item.")
+                #print("This project will be moved to the target folder item.")
                 self.reparent_base_row_in_tree(selected_row_item.parent(), selected_row_item.row(), target_folder_item, target_folder_path)
         
-        print("done")
+        #print("done")
         #for k,v in qe_settings.items():
             #print("  ",k,":",v)
         
@@ -966,8 +966,8 @@ class QETree(QTreeView):
             selected_row_index = self.model.mapFromSource(selected_row_index)
             self.selectionModel().select(selected_row_index, QItemSelectionModel.Select)
         
-        print("relocate_rows_in_tree: end")
-        print("- - - - -")
+        #print("relocate_rows_in_tree: end")
+        #print("- - - - -")
 
     def reparent_base_row_in_tree(self, source_parent_item, source_child_index, target_parent, target_folder_path):
         if source_parent_item == target_parent:
@@ -979,7 +979,7 @@ class QETree(QTreeView):
         self.populate_base_item_with_file_items(row_items[0])
 
     def change_settings_path_for_item(self, item, target_folder_path, new_name="", new_parent_item=None):
-        print(f"change_settings_path_for_item: {item=} {item.data(PathRole)=} {target_folder_path=} {new_name=} {new_parent_item=}")
+        #print(f"change_settings_path_for_item: {item=} {item.data(PathRole)=} {target_folder_path=} {new_name=} {new_parent_item=}")
         old_path = item.data(PathRole)
         item_type = item.data(ItemTypeRole)
         new_name = new_name or old_path.name
@@ -987,9 +987,9 @@ class QETree(QTreeView):
         
         if not new_parent_item:
             if item_type == QEItemType.FOLDER:
-                print(f"set new_parent_item to model root")
+                #print(f"set new_parent_item to model root")
                 new_parent_item = self.source_model.invisibleRootItem()
-                print(new_parent_item)
+                #print(new_parent_item)
             else:
                 if old_path.parent == target_folder_path:
                     new_parent_item = item.parent()
@@ -1011,7 +1011,7 @@ class QETree(QTreeView):
                     continue
                 if check_item.data(PathRole) == test_path:
                     dupe_num += 1
-                    print(f"new path {test_path} collides with existing.")
+                    #print(f"new path {test_path} collides with existing.")
                     test_path = new_path.with_stem(new_path.stem + f" ({dupe_num})")
                     collision = True
                     break
@@ -1038,7 +1038,7 @@ class QETree(QTreeView):
             self.tree_iter(self.model.index(row, 0, index), callback)
 
     def _on_filter_edit_text_changed(self, text):
-        print(text)
+        #print(text)
         self.model.setFilterFixedString(text)
         if text != "":
             self.expandAll()

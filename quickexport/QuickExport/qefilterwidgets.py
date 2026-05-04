@@ -90,7 +90,7 @@ class FolderFilterButton(QPushButton):
         self.filterChanged.emit()
     
     def _on_clear_button_clicked(self, checked):
-        print("_on_clear_button_clicked")
+        #print("_on_clear_button_clicked")
         self.tree_item_checkbox_state_changed_recursing = True
         iter = QTreeWidgetItemIterator(self.tree)
         while iter.value():
@@ -111,7 +111,7 @@ class FolderFilterButton(QPushButton):
         self.set_selected(Qt.Unchecked)
     
     def set_selected(self, check_state):
-        print("_on_check_selected_button_clicked")
+        #print("_on_check_selected_button_clicked")
         self.tree_item_checkbox_state_changed_recursing = True
         iter = QTreeWidgetItemIterator(self.tree)
         while iter.value():
@@ -263,11 +263,11 @@ class FolderFilterButton(QPushButton):
         if not item:
             #print("New root item:", path_parts[0])
             item = self.add_item_to_tree(tree, path_parts[0])
-            print(item.data(0, self.TextRole), item.data(0, self.CheckedRole))
+            #print(item.data(0, self.TextRole), item.data(0, self.CheckedRole))
         
         self.tree_item_checkbox_state_changed_recursing = True
         
-        print(path_parts[1:])
+        #print(path_parts[1:])
         for part in path_parts[1:]:
             already_exists = False
             for child_idx in range(item.childCount()):
@@ -280,7 +280,7 @@ class FolderFilterButton(QPushButton):
             if already_exists:
                 item = child
                 continue
-            print("adding", part)
+            #print("adding", part)
             new_item = self.add_item_to_tree(item, part)
             if item.data(0, self.CheckedRole) in (Qt.Checked, Qt.PartiallyChecked):
                 # propagate checked state.
@@ -309,7 +309,7 @@ class FolderFilterButton(QPushButton):
                 break
         
         if not item:
-            print(f"failed to remove folder {path=} (root not in tree).")
+            #print(f"failed to remove folder {path=} (root not in tree).")
             return
         
         for part in path_parts[1:]:
@@ -322,7 +322,7 @@ class FolderFilterButton(QPushButton):
             if ancestor_exists:
                 item = child
                 continue
-            print(f"failed to remove folder {path=} (ancestor {part} not in tree).")
+            #print(f"failed to remove folder {path=} (ancestor {part} not in tree).")
         
         item.setData(0, self.UsedRole, False)
         

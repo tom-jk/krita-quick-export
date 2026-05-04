@@ -752,7 +752,7 @@ class QEDialog(QDialog):
 
     def _on_add_folder_action_triggered(self, start_path = None, force_use_start_path = False):
         start_path = start_path or Path(app.activeDocument().fileName()).parent if app.activeDocument() else Path.home()
-        print("add folder at start_path =", start_path)
+        #print("add folder at start_path =", start_path)
         result = FileDialog.getExistingDirectory(self, "Locate folder", str(start_path), "QE_AddFolderToTree" if not force_use_start_path else None)
         if not result:
             return
@@ -761,10 +761,10 @@ class QEDialog(QDialog):
 
     def _on_add_project_action_triggered(self, start_path = None, force_use_start_path = False):
         start_path = start_path or Path(app.activeDocument().fileName()).parent if app.activeDocument() else Path.home()
-        print("add project at start_path =", start_path)
+        #print("add project at start_path =", start_path)
 
         file = FileDialog.getOpenFileName(self, "locate file", str(start_path), "Krita document (*.kra)", None, "QE_AddProjectToTree" if not force_use_start_path else None)
-        print(f"{file=}")
+        #print(f"{file=}")
         if not file:
             return
         file = Path(file)
@@ -839,9 +839,9 @@ class QEDialog(QDialog):
         if file_to_use:
             if file_to_use == self.big_thumbnail_file:
                 if file_to_use.stat().st_mtime == self.big_thumbnail_st_mtime:
-                    print(f"set_big_thumbnail from {file_to_use}: already loaded")
+                    #print(f"set_big_thumbnail from {file_to_use}: already loaded")
                     return
-            print(f"set_big_thumbnail from {file_to_use} at {self.preferred_big_thumbnail_height*2}px")
+            #print(f"set_big_thumbnail from {file_to_use} at {self.preferred_big_thumbnail_height*2}px")
             thumb = _make_thumbnail_for_file(file_to_use)
             icon = square_thumbnail(thumb, self.preferred_big_thumbnail_height*2)
             self.big_thumbnail.setPixmap(icon)
@@ -907,17 +907,17 @@ class QEDialog(QDialog):
             return
         
         if not (path and settings):
-            print("no path and setting")
+            #print("no path and setting")
             if not path:
                 index = self.tree.selectionModel().currentIndex()
                 if not index.isValid():
-                    print("invalid index")
+                    #print("invalid index")
                     return
                 model = self.tree.model
                 index = model.mapToSource(index)
                 path = index.data(PathRole)
             if path not in qe_settings:
-                print(f"{path=} not in settings")
+                #print(f"{path=} not in settings")
                 return
             settings = qe_settings[path]
         
@@ -1126,13 +1126,13 @@ def _make_thumbnail_for_file(path):
         else:
             thumbnail = QPixmap(str(path))
     except FileNotFoundError:
-        print(f"file '{path}' not found.")
+        pass#print(f"file '{path}' not found.")
     except Exception as e:
         print(f"error trying to read file '{path}'. the error is:\n{type(e).__name__}: {e}")
 
     if thumbnail.isNull():
         # TODO: make and return only one copy of the not-found icon.
-        print(f"couldn't make thumbnail for file '{path}'.")
+        #print(f"couldn't make thumbnail for file '{path}'.")
         size = QEDialog.instance.preferred_big_thumbnail_height*2
         thumbnail = app.icon('window-close').pixmap(size,size)
     

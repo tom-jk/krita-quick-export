@@ -197,7 +197,7 @@ class QuickExportExtension(Extension):
         qe_action.setEnabled(default_export_unsaved)
 
     def _on_window_closed(self, window):
-        print(f"_on_window_closed: {window=} {window.qwindow().objectName()}")
+        #print(f"_on_window_closed: {window=} {window.qwindow().objectName()}")
         for i,win in enumerate(known_windows):
             if window == win["window"]:
                 del known_windows[i]
