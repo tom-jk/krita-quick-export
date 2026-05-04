@@ -435,6 +435,7 @@ class QETree(QTreeView):
         self.setAcceptDrops(True)
         
         app_notifier.imageCreated.connect(self._on_image_created)
+        app_notifier.imageSaved.connect(self._on_image_saved)
 
     def dropEvent(self, event):
         if event.source() != self:
@@ -1087,6 +1088,9 @@ class QETree(QTreeView):
             return
         
         self.add_file_to_tree(Path(doc.fileName()))
+    
+    def _on_image_saved(self, filename):
+        self.add_file_to_tree(Path(filename))
     
     def select_for_file_path(self, filepath):
         """
