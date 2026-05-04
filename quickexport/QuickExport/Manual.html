@@ -5,9 +5,14 @@
 <head><title>Quick Export Plugin Manual</title>
 <style>
     * {
-        margin-top: 1.5em;
-        margin-bottom: 1.5em;
+        font-family: sans-serif;
+        margin-top: 1.25em;
+        margin-bottom: 1.25em;
         //line-height: 150%;
+    }
+    tt {
+        font-family: monospace;
+        font-size: 0.9rem;
     }
     ul {
         margin-top: 0.5em;
@@ -55,91 +60,66 @@
             <li><a href="#faq/missing-in-dialog">Why does my image not appear in the dialog?</a></li>
             <li><a href="#faq/bad-export">Why has my image not exported correctly?</a></li>
             <li><a href="#faq/versions">How can I use the same settings for multiple versions of an image?</a></li>
-            <li><a href="#faq/row-confusion">Why does my image not have the settings I previously set in the dialog?</a></li>
         </ul>
     </li>
-    <li>Configuration Dialog
+    <li><a href="#configuration-dialog">Configuration Dialog</a>
         <ul>
-            <li><a href="#configuration-dialog/settings-rows">Settings rows</a></li>
-            <li><a href="#configuration-dialog/dialog-appearance-options">Dialog appearance options</a></li>
-            <li><a href="#configuration-dialog/dialog-behaviour-options">Dialog behaviour options</a></li>
+            <li><a href="#configuration-dialog/tree">Tree</a></li>
+            <li><a href="#configuration-dialog/basic-settings">Basic Settings</a></li>
             <li><a href="#configuration-dialog/plugin-options-menu">Plugin options menu</a></li>
+            <li><a href="#configuration-dialog/save-revert">Saving & Reverting settings</a></li>
         </ul>
     </li>
     
 </ul>
 <h2 id="overview">Overview <a class="back-to-top" href="#contents">↥</a></h2>
 <p>
-    If you are working on an image for another project and need to check
-    how it's looking in situ frequently, Krita's native export workflow
-    can slow you down. While it only takes a few seconds each time, these
-    can add up. You may find yourself exporting less often because of the
-    friction involved in doing so, and the result may suffer for it.
+    Quick Export provides a set and forget workflow that reduces the
+    export round-trip time when working on images in Krita for use
+    elsewhere.
 </p><p>
-    The Quick Export plugin provides a set and forget workflow. The first
-    time you go to export your image, you'll first choose where to save
-    it, what type it will be, and the export settings for that type. From
-    then on, your image will export immediately.
-</p><p>
-    Quick Export also supports <a href="#versions-options">file versions</a> as produced when you use
-    Krita's save incremental version feature, so you can use the same
-    settings for the duration of a project. For example, the settings for
-    "file.kra" can automatically apply to "file_001.kra", "file_002.kra", 
-    and so on.
+    Krita's regular export process requires you to confirm that you 
+    wish to overwrite the existing file and then to configure export 
+    settings. Quick Export lets you configure these things once up 
+    front, and from then on your image will be exported immediately.
 </p><p>
     You can add the Quick Export and Quick Export Configuration action
     buttons to your toolbar from Settings → Configure Toolbars, and you can
-    assign shortcuts (eg. Alt+E) from Settings → Configure Krita → Keyboard Shortcuts → Menu → File.
+    assign a shortcut (eg. Alt+E) from Settings → Configure Krita → Keyboard Shortcuts → Menu → File.
 </p>
 <h2 id="faq">FAQ</h2>
 <h3 id="faq/quickstart">How do I setup an image for use with this plugin? <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
     First make sure the image is saved. Then press Quick Export in the
-    file menu or toolbar. In the dialog, choose an export name, type and
-    settings. Close the dialog. Now when this is the active image in Krita
-    and you press Quick Export, the image will be exported.
+    file menu or toolbar. In the dialog, press '+' to add a config. Now
+    choose an export file type and configure export settings for it.
+    Close the dialog. Now when this is the active image in Krita and you
+    press Quick Export, the image will be exported.
 </p>
 <h3 id="faq/missing-in-dialog">Why does my image not appear in the dialog? <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
-    First, have you saved your image? Quick Export ignores unsaved images.
-</p><p>
-    Second, has it been filtered out? Enable show non-kra and show unopened
-    (and show unstored if in Advanced mode). Make sure you are not filtering
-    by name or folder. If the image file isn't currently open in Krita,
-    check that it hasn't been moved to a different folder or name. Open
-    it in Krita then look in the dialog again: is it there?
-</p><p>
-    Perhaps its export settings had not been saved in the plugin. Remember to change
-    one of its settings or export it with the export now button, or check the store
-    settings checkbox directly (if in Advanced mode). If that checkbox isn't
-    checked, the plugin will not save settings for this image (and will forget
-    settings already saved, if any). By default, if the row is highlighted
-    in blue, it will be saved.
+    First, have you saved your image as a Krita project file (.kra)? Quick
+    Export ignores unsaved images and files of other types. Second, has
+    it been filtered out? Make sure you are not filtering by name or folder.
 </p>
 <h3 id="faq/bad-export">Why has my image not exported correctly? <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
-    If you've double checked your export settings and the image still comes
-    out wrong, you should first try exporting again with the same settings
-    using Krita's normal export workflow.
+    First try exporting again with the same settings using Krita's 
+    normal export workflow.
 </p><p>
-    Does Krita export the image wrongly too? If so, that may be a bug
-    in Krita. See if updating to a later version of Krita helps. If not,
+    Does Krita export the image wrongly too? See if updating to a later version of Krita helps. If not,
     consider filing a bug report on Krita's bug tracker.
 </p><p>
-    Does Krita export the image correctly? If so, that may be a bug in
-    the plugin. Check if a more recent version of the plugin is available.
-    If not, consider filing a bug report on the plugins bug tracker.
-</p><p>
-    Note that ultimately the plugins export capabilities are constrained
-    by what Krita's API makes available to it. Fixes for some plugin issues
-    may depend on changes to Krita's API.
+    Does Krita export the image correctly? Try a more recent version of 
+    the plugin if available. If not, consider filing a bug report on 
+    the plugin's bug tracker. Note that ultimately the plugins export 
+    capabilities are constrained by what Krita's API makes available to 
+    it. Fixes for some plugin issues may depend on changes to Krita's 
+    API.
 </p>
 <h3 id="faq/versions">How can I use the same settings for multiple versions of an image? <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
-    In the configuration dialog, on that image's row, set versions options
-    to "this and later versions of this file". See <a href=#versions-options>versions options.</a>
-</p><p>
-    To work, your images should follow the same naming convention as used
+    Your images should follow the same naming convention as used
     by Krita's "save incremental version" action.
 </p><p>
     The version number must always be a series of digits following an
@@ -147,341 +127,386 @@
     be at the start of the name, in the middle, or after the extension.
     It can not contain any non-numeric characters.
 </p><p>
-    <tt>"MyPic.kra"</tt>, <tt>"MyPic_0.kra"</tt>, <tt>"MyPic_000.kra"</tt> are examples
-    of acceptable names for the "base" version (or version 0) of the image <tt>"MyPic"</tt>.
+    <tt>MyPic.kra</tt>, <tt>MyPic_0.kra</tt>, <tt>MyPic_000.kra</tt> are examples
+    of acceptable names for the "base" version (or version 0) of the project <tt>MyPic</tt>.
 </p><p>
-    <tt>"MyPic_1.kra"</tt>, <tt>"MyPic_01.kra"</tt>, and <tt>"MyPic_001.kra"</tt> are
-    examples of acceptable names for version one of that image.
+    <tt>MyPic_1.kra</tt>, <tt>MyPic_01.kra</tt>, and <tt>MyPic_001.kra</tt> are
+    examples of acceptable names for version one of that project.
 </p><p>
-    <tt>"MyPic1.kra"</tt> or <tt>"MyPic01.kra"</tt> are not acceptable names for
-    version one of that image; they would instead be interpreted as the
-    "base" version (or version 0) of the images <tt>"MyPic1"</tt>  and <tt>"MyPic01"</tt>,
+    <tt>MyPic1.kra</tt> or <tt>MyPic01.kra</tt> are not acceptable names for
+    version one of that project; they would instead be interpreted as the
+    "base" version (or version 0) of the projects <tt>MyPic1</tt>  and <tt>MyPic01</tt>,
     respectively.
 </p>
-<h3 id="faq/row-confusion">Why does my image not have the settings I previously set in the dialog? <a class="back-to-top" href="#contents">↥</a></h3>
+<h2 id="configuration-dialog">Configuration Dialog <a class="back-to-top" href="#contents">↥</a></h2>
 <p>
-    You might be looking at the wrong row. Every currently open document
-    has a row of its own in the dialog, but in addition to that, a document
-    that is a version of an image will "inherit" the settings of that
-    image (provided that image's settings are set to apply to its versions).
+    <img 
+    src="data:image/png;base64,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">
 </p><p>
-    For example: settings are stored for "Image.kra", and its
-    versioning options are set to "versions of this file". Now we open the
-    dialog for "Image_001.kra". There will be a row for "Image_001.kra",
-    but the settings that are actually used when you export the document
-    from the file menu or toolbar are the settings for "Image.kra", because
-    it it set to apply to versions of it, and "Image_001.kra" is one. So
-    to change the export settings for "Image_001.kra", you should change
-    the export settings for "Image.kra".
+    The dialog is composed mainly of two parts: the Tree and the Basic Settings Box.
 </p>
-<h2 id="configuration-dialog">Configuration Dialog</h2>
-<h3 id="configuration-dialog/settings-rows">Settings rows <a class="back-to-top" href="#contents">↥</a></h3>
+<h3 id="configuration-dialog/tree">Tree <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
-    Each row in the dialog represents a file, one for each file currently
-    open in Krita, plus those not currently open but for which export settings
-    have previously been saved.
+    The Tree contains Folders; the Folders contain Projects; the Projects
+    contain Files.
 </p><p>
-    When you open the dialog, it will scroll to show the row with the
-    settings that apply to the active document.
+    Folders and Projects can have configurations attached. Files are
+    transient; they just show you which files belong to a Project. You
+    can't select a File, but you can click it to preview its export path.
+</p><p>
+    A Project can be exported by Quick Export without an export config,
+    provided that its Folder has one; in that case it will "inherit" the
+    Folders config. This way you can easily export a whole folder of projects.
+</p><p>
+    Note that unconfigured Folders do <i>not</i> inherit from <i>their</i> folder;
+    only Projects, and only from the Folder they are directly in.
+</p><p>
+    <b>Important</b>: the rows of the tree <i>represent</i> files and 
+    folders; moving and removing rows does <i>not</i> move or delete files, 
+    and moved and deleted files are not tracked by the tree. If you've 
+    moved a project in your file system, you can relocate it in Quick 
+    Export by either dragging and dropping its row onto the new folder 
+    row (if it's in the tree) or by choosing Relocate from the context 
+    menu and navigating to the new folder. Similarly, after renaming a 
+    project's files you can relocate it by double-clicking the project 
+    name and changing it to match. The same applies to folders.
 </p><p>
     From left to right, the contents of a row are as follows:
 </p>
 <dl>
-    <dt id="store-settings-checkbox">Store settings checkbox</dt>
     <dd>
-        Indicates that these settings will be saved. If you no longer
-        need to export an image, you can uncheck this and Quick Export
-        will forget about it. Remember that this won't happen until
-        you save your changes. (<a href="#advanced-mode">Advanced mode</a> only.)
-    </dd>
-    <dt>Open file button</dt>
-    <dd>
-        Press this button to open a currently unopened file. An asterisk
-        will show here for the file that was active in Krita when the
-        dialog opened. Otherwise this space is blank.
-    </dd>
-    <dt>Source file path and name</dt>
-    <dd>
-        The folder and file name with extension for the image to export
-        from.
-    </dd>
-    <dt id="versions-options">Versions options</dt>
-    <dd>
-        Here you can choose which files these settings apply to.
-        <dl>
-            <dt>This exact file</dt>
-            <dd>
-                Settings apply to the specified source file alone. Versions
-                of this image are ignored.
-            </dd>
-            <dt>Versions of this file</dt>
-            <dd>
-                Settings apply to the specified source file and any file
-                in the same directory with the same name plus an
-                underscore and one or more digits (and the same file
-                extension). For example, settings for "file.kra" will
-                also apply to "file_001.kra", "file_002.kra", etc. If the
-                source file name already has a version number (even if
-                it's "_000"), you probably want to use the next option;
-                "file_000.kra" would be considered the base for version
-                files named "file_000_001.kra", "file_000_002.kra", etc.
-            </dd>
-            <dt>This and later versions of this file</dt>
-            <dd>
-                Settings apply to the specified source file and any version
-                of that file in the same directory with a greater version
-                number. For example, settings for "file_005.kra" will also
-                apply to "file_006.kra" and "file_007.kra", but not to
-                "file_004.kra" or "file.kra". Use this option if you name
-                the first version of your image with a version number, or
-                wish to change export settings part way through a project
-                but also keep the old settings for earlier versions.
-            </dd>
-        </dl>
-        Most of the time, use option 3 (this and later versions).
-        <br/>
-        Press the arrow button to show a list of all the files that
-        the settings on this row apply to.
-    </dd>
-    <dt>Export file path button</dt>
-    <dd>
-        Click this to open a file dialog where you can choose the
-        folder and name to export to. When you are exporting to
-        the same folder as the source, this will show as a dot.
-    </dd>
-    <dt>Export file name</dt>
-    <dd>
-        You can also set the name to export to here. Note that when
-        the settings on this row apply to multiple versions of the
-        image, exporting from any of them will overwrite this file.
-        That is, exported files are unversioned (eg. "file.kra",
-        "file_001.kra", "file_002.kra" etc. will all export to
-        "file.png", not "file.png", "file_001.png", "file_002.png",
-        etc.)
-    </dd>
-    <dt id="export-file-type">Export file type</dt>
-    <dd>
-        This dropdown lists all supported file types. Select which
-        type you wish to export to. Note that by default, only the
-        most commonly used types are shown; see <a href="#visible-file-types">Visible file types</a>.
-    </dd>
-    <dt>Export settings</dt>
-    <dd>
-        The settings shown here depends on the export file type you've
-        chosen. Each setting has a tooltip containing information about
-        what it does.
-    </dd>
-    <dt>Export now button</dt>
-    <dd>
-        You can export an image at any time directly from the dialog
-        (provided it is open in Krita). For rows applying to multiple
-        currently open images, this button shows a menu where you can
-        select the one to export.
+        <b>Folder Path or Project/File Name:</b>
+        You can relocate settings for a Folder/Project by editing
+        the path/name.
+    </dd><dd>
+        <b>Add/remove config button:</b>
+        You must add a config before you can configure it. Note that 
+        when you remove the config it is lost - this is not an 
+        enabled/disabled toggle.
+    </dd><dd>
+        <b>Export settings button:</b>
+        This shows the native Krita export dialog for the chosen export 
+        file type so you can configure it.
+    </dd><dd>
+        <b>Open button:</b>
+        Open a folder in the system file manager, or a file in Krita.
     </dd>
 </dl>
-<h3 id="configuration-dialog/dialog-appearance-options">Dialog appearance options <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
-    Below the list are options for changing its appearance.
+    The context menu (right-click menu) can contain the following 
+    (depending on the selection):
 </p>
 <dl>
-    <dt>Show non-kra/unopened/unstored</dt>
     <dd>
-        Filters the list.
-        </dd><dd>
-        Non-kra: Typically you will work in and export from Krita
-        project files (.kra), so this option lets you hide images of
-        other types.
-        </dd><dd>
-        Unopened: By default the list will contain every file for which
-        export settings are stored, including those not currently open in
-        Krita. This option lets you hide those.
-        </dd><dd id="show-unstored">
-        Unstored (Advanced mode only): By default the list will contain
-        every file currently opened in Krita (excluding unsaved images),
-        including those for which no export settings are currently stored.
-        Once you have set up export settings for the images you want to
-        export, you can disable this option to reduce clutter.
-    </dd>
-    <dt>Display mode</dt>
-    <dd>
-        This dropdown lets you pick a display mode for this list.
-        </dd><dd>
-        Minimized: Every row will be as small as possible. Settings can
-        be accessed as a popup by pressing the button in the settings column.
-        </dd><dd>
-        Compact: Every row will be as short as it can be while still showing
-        all settings for the chosen image type. Settings will appear as
-        buttons without labels, but you can still see information about
-        them in their tooltips.
-        </dd><dd>
-        Focused: Every row will be compact or minimized, except for a
-        "focused" row which will appear expanded. By default, the image
-        that was active when the dialog opened will be focused. You can
-        change focus by double-clicking anywhere on a row.
-        </dd><dd>
-        Expanded: Every row will be as tall as necessary to show their
-        settings, each on their own line with a label.
-    </dd>
-    <dt>Minimize unfocused</dt>
-    <dd>
-        Only appears in focused display mode. When enabled, unfocused rows
-        will be minimized, as in minimized display mode except the settings
-        are hidden outright. When disabled, unfocused rows will be compact.
-    </dd>
-    <dt>Filter by name...</dt>
-    <dd>
-        Only show rows where the source image name starts with this text.
-        If left blank, no rows are hidden. A popup list will show possible
-        names as you type. If you remove all text or double-click the text
-        box when it is empty, all source image names currently in use will
-        be shown.
-    </dd>
-    <dt>Filter by folder...</dt>
-    <dd>
-        Only show rows where the source image is contained inside a set of
-        folders. Click the button to show a popup containing a tree of all
-        source folders currently in use. Only folders that contain source images
-        inside them (ncluding in any subfolder) are shown.
+        <b>Add Folder/Project:</b>
+        Browse for folders/files to add to the tree. The file dialog 
+        starts in the folder of the selected row.
     </dd><dd>
-        Click a folder name to include (check) or exclude (uncheck) it.
-        When you check a folder, its subfolders will appear "semi-checked"
-        to show that they are included implicitly. This implicit inclusion
-        propagates down all subfolders except those that are already
-        checked.
+        <b>Add/remove unconfigured projects in folder:</b>
+        Add all of the projects contained in this folder to the tree, or
+        removed all of them that don't have an export config.
     </dd><dd>
-        You can also check and uncheck particular folders explicitly.
-        Select rows (click in the empty space) and press the Check/Uncheck
-        buttons on the bottom-right of the popup. You can click and drag
-        to select multiple rows. Hold the control key to toggle selection.
+        <b>Show in file browser:</b>
+        Open this folder in the system file manager, same as the open
+        button on the row.
     </dd><dd>
-        Press the Clear button to uncheck everything (ie. do not filter).
-        You can use the Show all temporarily checkbox to disable filtering
-        without losing your current filter set.
-    </dd>
-    <dt>Fade sliders</dt>
-    <dd>
-        These sliders let you fine tune the intensity of some visual effects.
-        Press the "Fade..." button to show them, and again to hide.
-        </dd><dd>
-        Contrast: adjust the intensity of the alternating row colours.
-        </dd><dd>
-        Settings: adjust the opacity of settings for unhovered rows. This
-        applies only to compact and expanded display modes. Fading unhovered
-        settings can make the list feel less cluttered.
-        </dd><dd>
-        Stored: adjust the intensity of the row highlight for settings that
-        will be saved (that is, rows where the <a href="#store-settings-checkbox">store settings checkbox</a> is
-        checked).
+        <b>Copy/Paste:</b>
+        You can copy export settings from one row to others. When you 
+        press paste, a dialog will ask which settings you want to paste 
+        over (name, type, location, scale and export configs as a whole 
+        and by type).
+    </dd><dd>
+        <b>Prune export settings:</b>
+        Remove export settings for types other than the currently active
+        type. If for example you added png export settings for a project
+        you are now exporting as jpeg, you can use this option to remove
+        the old png settings. A dialog will appear telling you what will
+        be removed. Note that you aren't required to do this, it just
+        slightly reduces the size of the settings on file.
+    </dd><dd>
+        <b>Remove:</b>
+        Removes this row and its config from the tree. This is different
+        to the remove config button on the row, which leaves the row in
+        the tree. Be aware that if you remove a folder row, the rows of
+        all the projects inside it will also be removed. Remember you
+        can use the revert button to rescue accidental removals.
     </dd>
 </dl>
-<h3 id="configuration-dialog/dialog-behaviour-options">Dialog behaviour options <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
-    The second line of options (plus the Advanced mode checkbox below it) adjust the dialogs behaviour.
+    Above the tree are:
 </p>
 <dl>
-    <dt id="advanced-mode">Advanced mode</dt>
     <dd>
-        Advanced mode allows you to more finely adjust how and when export
-        settings are saved.
-        </dd><dd>
-        When turned <b>off</b>:
-        <dl>
-            <dd>The store settings checkbox column will be hidden</dd>
-            <dd>The show unstored checkbox will be checked and hidden</dd>
-            <dd>The store on modify checkbox will be checked and hidden</dd>
-            <dd>The store on export checkbox will be checked and hidden</dd>
-            <dd>The autosave on close checkbox will be checked and hidden</dd>
-            <dd>The save settings button will be hidden</dd>
-        </dl>
-        Essentially, export settings will be saved for any row you interact
-        with automatically.
-        </dd><dd>
-        When turned <b>on</b>, these will be visible and return to whatever you
-        last set them to. You only <i>have</i> to turn advanced mode on if you
-        want to remove export settings for images from Quick Export.
-    </dd>
-    <dt>Store on modify/export</dt>
-    <dd>
-        When enabled, a row's <a href="#store-settings-checkbox">store settings checkbox</a> will be automatically
-        checked:
-        </dd><dd>
-        Modify: ...if you change any of its settings (the checkbox will not be
-        unchecked if you return them to their original state).
-        </dd><dd>
-        Export: ...if you export it with the export now button.
-    </dd>
-    <dt>Autosave on close</dt>
-    <dd>
-        When enabled, any changes you have made in the dialog will be
-        saved when it closes. Otherwise you will be asked to save
-        unsaved changes.
-    </dd>
-    <dt>Save settings</dt>
-    <dd>
-        Click this button to save changes made in the dialog. The button
-        will be greyed out if there are no changes to save.
+        <b>Add Folder/Project button:</b>
+        Browse for folders/files to add to the tree.
+    </dd><dd>
+        <b>Name filter:</b> Filter tree by row path/name.
+    </dd><dd>
+        <b>Folder filter button:</b> Filter tree by folders. Selecting a
+        folder implicitly selects all subfolders by default, but you can
+        deselect them manually.
     </dd>
 </dl>
+
+<h3 id="configuration-dialog/basic-settings">Basic Settings <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    Located below the Tree, these are the settings that don't pertain to the export file format.
+</p><p>
+    Basic Settings are broken into three rows: File, Location and 
+    Scale. The controls for each are described below from left to 
+    right.
+</p>
+<dl>
+    <b>File settings row</b>
+    <dl>
+        <dt>
+            File name
+        </dt>
+        <dl>
+            <dd>
+                <b>Project</b>: All version files of this project will 
+                export to a file with the project name. For example, 
+                <tt>puppy_001.kra</tt>, <tt>puppy_002.kra</tt>, 
+                <tt>puppy_003.kra</tt>, etc. will all export to 
+                <tt>puppy.png</tt> (assuming .png type chosen). This 
+                means you can make incremental saves of your project 
+                without having to adjust your export file name each 
+                time.
+            </dd><dd>
+                <b>File</b>: Each version file of this project will 
+                export to the same name as the file. For example, 
+                <tt>cat.kra</tt>, <tt>cat_002.kra</tt>, and 
+                <tt>cat_003.kra</tt> will export to <tt>cat.png</tt>, 
+                <tt>cat_002.png</tt>, and <tt>cat_003.png</tt> 
+                respectively.
+            </dd><dd>
+                <b>Custom</b>: Enter a custom name. All version files 
+                of this project will export to a file with this name. 
+                For example, given the custom name "equestrian", 
+                <tt>horse.kra</tt>, <tt>horse_002.kra</tt> and 
+                <tt>horse_003.kra</tt> will all export to 
+                <tt>equestrian.png</tt>.
+            </dd>
+        </dl>
+        <dt>
+            File type
+        </dt><dd>
+            Choose the type to export to, such as png, jpeg, exr, etc. 
+            Remember to set an export config after choosing a new type. 
+            If you can't find the type you're looking for, check if 
+            it's hidden (plugin options menu → visible file types).
+        </dd>
+    </dl>
+</dl>
+<dl>
+    <b>Location settings row</b>
+    <dd>
+        For an example project with path <tt>~/pictures/animals/dog</tt> 
+        (that is, project <tt>dog</tt> in the folder 
+        <tt>animals</tt>, whose files might include 
+        <tt>~/pictures/animals/dog.kra</tt>):
+    </dd>
+    <dl>
+        <dd>
+            <b>In same folder</b>: 
+            <tt>~/pictures/animals/dog.png</tt>
+        </dd><dd>
+            <b>In subfolder</b>: 
+            <tt>~/pictures/animals/quadruped/dog.png</tt> (given 
+            custom subfolder name "quadruped"). You can choose 
+            between using the project name or a custom name.
+        </dd><dd>
+            <b>In parent of folder</b>: <tt>~/pictures/dog.png</tt>, 
+            equivalent to custom location <tt>..</tt>
+        </dd><dd>
+            <b>In sibling of folder</b>: 
+            <tt>~/pictures/exported/dog.png</tt> (given custom 
+            folder name "exported"). You can choose between using 
+            the project name or a custom name. Equivalent to custom 
+            location <tt>../exported</tt>
+        </dd><dd>
+            <b>In another folder</b>: You can enter a completely 
+            <b>custom</b> path to anywhere on the file system.
+        </dd><dd>
+            The custom path can be relative to the source path (eg. 
+            using <tt>..</tt> to go up one level, 
+            <tt>../../share</tt> to go up two levels then down one 
+            into a folder named "share", <tt>dogpark</tt> to go 
+            into a subfolder named "dogpark", or leave blank to 
+            stay in the same folder).
+        </dd><dd>
+            The custom path can also be absolute. You can use 
+            <tt>~</tt> to represent your home folder.
+        </dd><dd>
+            Consult the ? icon's tooltip for more information.
+        </dd><dd>
+            To the right of the custom path field are two buttons: 
+            the first switches your path between absolute and 
+            relative; the second allows you to browse for a folder.
+        </dd>
+    </dl>
+    <dd>
+        As you can see, the first four options provide a simple way to 
+        locate a folder near to the source, but you can also express 
+        any of them as a custom path.
+    </dd>
+</dl>
+<dl>
+    <b>Scale settings row</b>
+    <dd>
+        Optionally, you can scale the image you export.
+    </dd>
+    <dl>
+        <dd>
+            <b>Scale</b>: 
+            Enable or disable scaling.
+        </dd><dd>
+            <b>Side</b>: Which side(s) of the image to scale. You can scale 
+            width or height only, or both. You can also select the longest 
+            or shortest side.
+        </dd><dd>
+            <b>Size and Units</b>: Set the target size for the chosen side 
+            (or if both sides, width first then height). You can specify an 
+            absolute size (pixels) or a relative size (percent).
+        </dd><dd>
+            <b>Keep proportions</b>: 
+            Maintain aspect ratio. When setting size for one side, will set
+            the size for the other automatically.
+        </dd><dd>
+            <b>Filter strategy</b>: Changes how pixel data is interpolated 
+            when scaling. Consult the tooltip in Krita's own scale dialog 
+            for more information. Most of the time, auto will suffice.
+        </dd>
+    </dl>
+    <dd>
+        Beneath the Basic Settings is the <b>export path preview</b>. 
+        When the currently selected row in the tree has or inherits an 
+        export config, the absolute path it will export to is shown 
+        here. Note that project or file names will be substituted with 
+        "&lt;ProjectName&gt;" and "&lt;FileName&gt;" when they can't be 
+        resolved for the selected row.
+    </dd>
+</dl>
+
 <h3 id="configuration-dialog/plugin-options-menu">Plugin options menu <a class="back-to-top" href="#contents">↥</a></h3>
 <p>
-    Finally, there is the Quick Export plugin options menu button on the
-    left side of the status bar.
+    Located in the bottom-left of the dialog.
 </p>
 <dl>
-    <dt>Custom icons submenu</dt>
     <dd>
-        Use custom icons: enable or disable the use of the plugin's icons.
-        When disabled the icons will fall back to some close approximations
-        from Krita's own icon set.
+        <b>Custom icons submenu</b>
+        <dd>
+            Use custom icons: use the plugin's icons or fall back to 
+            Krita's own.
         </dd><dd>
-        Theme options: by default the plugin will try to match the current
-        theme with appropriate light or dark mode icons. If this goes wrong
-        you can manually specify the type of icons to use.
-    </dd>
-    <dt>Show export name in file menu</dt>
-    <dd>
-        When enabled, the Quick Export action in Krita's file menu will
+            Theme options: by default the plugin will try to match the 
+            current theme with appropriate light or dark mode icons. If 
+            this goes wrong you can manually specify the type of icons 
+            to use.
+        </dd>
+    </dd><dd>
+        <b>Show export name in file menu:</b>
+        when enabled, the Quick Export action in Krita's file menu will
         show the file name that will be exported to. Otherwise it will
         only say "Quick export".
-    </dd>
-    <dt>Default export for unsaved images</dt>
-    <dd>
-        When enabled, pressing the Quick Export action in the file menu
-        or toolbar for an as-yet unsaved image will instead perform a
-        normal Krita export, that is, it will behave as though you had
-        pressed the normal export button.
-        </dd><dd>
-        Otherwise, the Quick Export configuration dialog will appear.
-    </dd>
-    <dt>Show thumbnails for unopened images</dt>
-    <dd>
-        If enabled, the dialog will retrieve preview thumbnails from
-        stored but unopened files. If the file doesn't exist or can't be
-        opened, a cross will be shown instead. If disabled, those rows
-        will show no thumbnail until they are opened in Krita.
-    </dd>
-    <dt id="visible-file-types">Visible file types submenu</dt>
-    <dd>
-        This is a list of all file types that Quick Export can export to.
-        Here you can select a subset of these to show in the <a href="#export-file-type">file type
-        dropdown</a> on each export settings row. By default, only .jpg, .jpeg
-        and .png are enabled, so these will be the only ones you can export
-        to.
-        </dd><dd>
-        If you wish to export to .gif, for example, first enable it
-        in this menu, then you can select it from the export file type
-        dropdown for your image.
-        </dd><dd>
-        Hiding an image type does not affect any image already exporting
-        to that type.
-    </dd>
-    <dt>Wider grabber for resizing columns</dt>
-    <dd>
-        This is an accessibility tweak. When enabled, the region you must
-        click inside in order to resize columns will be twice as wide.
-        Enable this if you frequently sort or reorder columns by accident
-        when trying to resize them.
+    </dd><dd>
+        <b>Default export for unsaved images:</b>
+        when enabled, pressing the Quick Export action in the file menu 
+        or toolbar for an as-yet unsaved image will perform as though 
+        you had pressed the normal export button. Otherwise, the Quick 
+        Export configuration dialog will appear.
+    </dd><dd>
+        <b>Load thumbnails &amp; Show thumbnail for selected:</b>
+        if enabled, preview thumbnails will be retrieved from files. If 
+        the file doesn't exist or can't be opened, a cross will be 
+        shown in the row instead.
+    </dd><dd>
+        <b>Autosave on dialog close:</b>
+        when enabled, any changes you have made in the dialog will be
+        saved when it closes. Otherwise you will be asked to save
+        unsaved changes.
+    </dd><dd>
+        <b id="visible-file-types">Visible file types submenu:</b>
+        this is a list of all file types that Quick Export can export to.
+        Here you can select a subset of these to show in the file type
+        dropdown.
     </dd>
 </dl>
+
+<h3 id="configuration-dialog/save-revert">Saving & Reverting settings <a class="back-to-top" href="#contents">↥</a></h3>
+<p>
+    Located in the bottom-right of the dialog are the <b>revert 
+    changes</b> and <b>save changes</b> buttons. These will be greyed 
+    out if there are no changes to save.
+</p><p>
+    Note that you can interact with Krita as normal while the dialog is
+    open. During this time, any changes made in the dialog will apply
+    immediately. You can, for example, temporarily switch a project's
+    export type to another format, export to it, then revert back to the
+    previous export type.
+</p>
 </body>
 </html>
