@@ -45,24 +45,19 @@ The settings for each image are saved in Krita's config file (kritarc) and will 
 - can't automatically export a chain of dependent images (eg. when exporting a texture atlas, first update file layers)
 
 #### History
-<details><summary>v0.1.0</summary>
 
-Feature: new dialog design: compact, non-modal, drag-n-drop, revert changes without restart
+- [v0.1.1](https://github.com/tom-jk/krita-quick-export/releases/tag/v0.1.1) (Latest)
+- v0.1.0
+  - Feature: new dialog design: compact, non-modal, drag-n-drop, revert changes without restart
+  - Feature: configs on folders, inherited by projects in folder
+  - Improvement: export as any type, native Krita settings dialogs
+  - Removed: set export print resolution
+  - Removed: individual settings for version files of project
+  - Removed: non-.kra files as projects
 
-Feature: configs on folders, inherited by projects in folder
+<details><summary>older</summary>
 
-Improvement: export as any type, native Krita settings dialogs
-
-Removed: set export print resolution
-
-Removed: individual settings for version files of project
-
-Removed: non-.kra files as projects
-
-</details>
-
-<details><summary>v0.0.2</summary>
-
+- v0.0.2
 ![krita_quickexport_githubimage4](https://github.com/user-attachments/assets/f635ee93-d2e4-4da4-b782-118e6e277ef4)
 
 </details>
