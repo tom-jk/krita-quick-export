@@ -639,7 +639,7 @@ def export_image(settings_path, document=None):
                 set_export_failed_msg(f"The export folder '{export_path.parent}' doesn't exist.")
                 return False
         
-        print("Creating missing folders...")
+        logger.info("Creating missing folders...")
         try:
             export_path.parent.mkdir(parents=True)
         except PermissionError:
@@ -713,7 +713,7 @@ def export_image(settings_path, document=None):
         doc_copy.setBatchmode(False)
 
         if doc_copy.close() == False:
-            print("Export copy of document didn't close?")
+            logger.error("Export copy of document didn't close?")
 
     else:
 
@@ -790,7 +790,7 @@ def base_stem_and_version_number_for_versioned_file(file_path, unversioned_versi
 # https://stackoverflow.com/a/16204023
 def open_folder_in_file_browser(path):
     if not (path.exists() and path.is_dir()):
-        print(f"Folder not found at {path}")
+        logger.info(f"Folder not found at {path}")
         QMessageBox.critical(dialog, "Krita", f"Folder {path} does not exist.")
         return
     
@@ -821,7 +821,7 @@ def find_layers(root_node, name, name_is_regex, respect_locks, colour_labels, ba
         try:
             pattern = re.compile(name)
         except re.error as e:
-            print("Bad regular expression:", e)
+            logger.debug("Bad regular expression:", e)
             return e if bad_regex_return_error else []
         nodes = root_node.findChildNodes("", True, True, "", 0)
         nodes = list(filter(lambda node: pattern.match(node.name()), nodes))
@@ -835,9 +835,9 @@ def find_layers(root_node, name, name_is_regex, respect_locks, colour_labels, ba
     if isinstance(colour_labels, list) and any(label==True for label in colour_labels):
         nodes = list(filter(lambda node: colour_labels[node.colorLabel()], nodes))
 
-    print("find_layers results:")
+    logger.debug("find_layers results:")
     for node in nodes:
-        print(f" - {node.name()}")
+        logger.debug(f" - {node.name()}")
 
     return nodes
 

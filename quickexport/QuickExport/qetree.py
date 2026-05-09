@@ -8,6 +8,10 @@ import zipfile
 from copy import deepcopy
 from pathlib import Path
 from krita import Krita, InfoObject, FileDialog
+
+import logging
+logger = logging.getLogger("tomjk_quickexport")
+
 from .utils import *
 app = Krita.instance()
 app_notifier = app.notifier()
@@ -35,7 +39,7 @@ def _make_thumbnail_for_file(path):
     except FileNotFoundError:
         pass#print(f"file '{path}' not found.")
     except Exception as e:
-        print(f"error trying to read file '{path}'. the error is:\n{type(e).__name__}: {e}")
+        logger.warning(f"error trying to read file '{path}'. the error is:\n{type(e).__name__}: {e}")
 
     if thumbnail.isNull():
         # TODO: make and return only one copy of the not-found icon.
@@ -325,11 +329,11 @@ class ItemDelegate(QStyledItemDelegate):
         
         if item_type == QEItemType.FOLDER:
             if str(Path(new_text).resolve()) != new_text:
-                print("tried to set folder path containing '.' or '..' parts, or which was not an absolute path, which isn't allowed.")
+                logger.info("tried to set folder path containing '.' or '..' parts, or which was not an absolute path, which isn't allowed.")
                 return
         else:
             if len(Path(new_text).parts) > 1:
-                print("tried to set project name to a path, which isn't allowed.")
+                logger.info("tried to set project name to a path, which isn't allowed.")
                 return
         
         self.commitItemRename.emit(source_index, item, new_text)
@@ -675,7 +679,7 @@ class QETree(QTreeView):
             
         elif result == ac_add_all_projects_in_folder:
             if not folder_path.exists():
-                print(f"Folder not found at {path}")
+                logger.info(f"Folder not found at {path}")
                 return
 
             sorted_list = sorted(folder_path.glob("*.kra"), key = lambda file: Path(file).stat().st_mtime)

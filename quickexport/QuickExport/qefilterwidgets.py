@@ -6,6 +6,9 @@ from PyQt5.QtGui import QFontMetrics, QPainter
 from pathlib import Path
 import krita
 
+import logging
+logger = logging.getLogger("tomjk_quickexport")
+
 app = Krita.instance()
 
 class CheckBox(QCheckBox):
@@ -166,7 +169,7 @@ class FolderFilterButton(QPushButton):
                 self.included_folders.pop(self.included_folders.index(item))
                 #print(f"removed {item.data(0, self.TextRole)}")
             except ValueError as e:
-                print(f"item {item.data(0, self.TextRole)}:", e)
+                logger.warning(f"item {item.data(0, self.TextRole)}:", e)
     
         stack = [item]
         numloops = 0
@@ -192,8 +195,8 @@ class FolderFilterButton(QPushButton):
                     self.included_folders.pop(self.included_folders.index(item_))
                     #print(f"removed {item_.data(0, self.TextRole)}")
                 except ValueError as e:
-                    print(f"item {item.data(0, self.TextRole)}:", e)
-        if numloops==9999: print("bailed at numloops==9999")
+                    logger.warning(f"item {item.data(0, self.TextRole)}:", e)
+        if numloops==9999: logger.error("bailed at numloops==9999")
     
         self.tree_item_checkbox_state_changed_recursing = False
         

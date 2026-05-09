@@ -9,6 +9,10 @@ from PyQt5.QtGui import QPixmap
 import zipfile
 from pathlib import Path
 import krita
+
+import logging
+logger = logging.getLogger("tomjk_quickexport")
+
 from .utils import *
 from .qewidgets import QEMenu, ResizingPixmapLabel
 from .qefilterwidgets import FolderFilterButton
@@ -1128,7 +1132,7 @@ def _make_thumbnail_for_file(path):
     except FileNotFoundError:
         pass#print(f"file '{path}' not found.")
     except Exception as e:
-        print(f"error trying to read file '{path}'. the error is:\n{type(e).__name__}: {e}")
+        logger.warning(f"error trying to read file '{path}'. the error is:\n{type(e).__name__}: {e}")
 
     if thumbnail.isNull():
         # TODO: make and return only one copy of the not-found icon.

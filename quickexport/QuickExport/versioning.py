@@ -161,10 +161,10 @@ def load_0_0_2_settings_from_config():
             if len(token_stack) == 2:
                 settings_kvpairs.append([token_prefix + token_stack.pop(-2), token_stack.pop()])
     
-    print()
+    logger.info("")
     
     for file_kvpairs in settings_per_file:
-        print("found file settings", file_kvpairs)
+        logger.info("found file settings", file_kvpairs)
         settings = default_settings(Path(), store=True)
         output_string = ""
         for k,v in file_kvpairs:
@@ -221,17 +221,17 @@ def load_0_0_2_settings_from_config():
                 settings["jpeg_metadata"]         = flag2bool(v[9])
                 settings["jpeg_author"]           = flag2bool(v[10])
             else:
-                print(f" unrecognised parameter name '{k}'")
+                logger.warning(f" unrecognised parameter name '{k}'")
                 continue
-            print(f" found {k}:{v}")
+            logger.info(f" found {k}:{v}")
         if output_string:
             output = deserialize_stored_output_string(settings["path"].parent, output_string)
-            print(f" output: is_abs:{output[0]}, abs_dir:'{output[1]}', name:'{output[2]}'")
+            logger.info(f" output: is_abs:{output[0]}, abs_dir:'{output[1]}', name:'{output[2]}'")
             settings["output_is_abs"] = output[0]
             settings["output_abs_dir"] = output[1]
             settings["output_name"] = output[2]
         intermediate_settings.append(settings)
-        print()
+        logger.info()
     
     base_paths = {}
     
@@ -246,13 +246,13 @@ def load_0_0_2_settings_from_config():
         path = settings["path"]
         if path.suffix != ".kra":
             used_non_kra_projects = True
-            print(" - NON-KRITA PROJECT FILE")
+            logger.info(" - NON-KRITA PROJECT FILE")
         base, version = base_stem_and_version_number_for_versioned_file(path)
         base_path = path.with_name(base)
-        print(f"Inspecting 0.0.2 settings for '{path}' ...")
+        logger.info(f"Inspecting 0.0.2 settings for '{path}' ...")
         if base_path in base_paths:
             used_multiple_per_path = True
-            print(f" - DUPLICATED PROJECT SETTING: '{base_path}' is used by another setting.")
+            logger.info(f" - DUPLICATED PROJECT SETTING: '{base_path}' is used by another setting.")
             if not base_paths[base_path]["group"]:
                 base_paths[base_path]["group"] = QButtonGroup()
             if version > base_paths[base_path]["latest_version"]:
@@ -263,10 +263,10 @@ def load_0_0_2_settings_from_config():
             base_paths[base_path] = {"group":None, "latest_version":version, "latest_path":path, "latest_idx":idx}
         if settings["versions"] != "all":
             used_project_versions = True
-            print(" - UNSUPPORTED: single and all-forward versions modes.")
+            logger.info(" - UNSUPPORTED: single and all-forward versions modes.")
         if "scale_res" in settings and settings["scale_res"] != -1:
             used_scale_res = True
-            print(" - UNSUPPORTED: scale print resolution.")
+            logger.info(" - UNSUPPORTED: scale print resolution.")
     
     used_unsupported_features = used_project_versions or used_non_kra_projects or used_multiple_per_path or used_scale_res
     
@@ -353,21 +353,21 @@ def load_0_0_2_settings_from_config():
     msgBox.exec()
     
     if msgBox.result() != msgBox.Accepted:
-        print("v0.0.2 settings upgrade cancelled.")
+        logger.info("v0.0.2 settings upgrade cancelled.")
         return False
     
     if not msgBtns_clicked_save:
-        print("v0.0.2 settings not upgraded.")
+        logger.info("v0.0.2 settings not upgraded.")
         return True
     
-    print("v0.0.2 settings upgrade started...")
+    logger.info("v0.0.2 settings upgrade started...")
     
     for base_path, base_path_info in base_paths.items():
         if base_path_info["group"]:
             i = base_path_info["group"].checkedId()
         else:
             i = base_path_info["latest_idx"]
-        print(f"Settings for {base_path} will come from {intermediate_settings[i]['path']}.")
+        logger.info(f"Settings for {base_path} will come from {intermediate_settings[i]['path']}.")
             
         src = intermediate_settings[i]
         settings = default_settings(base_path, node_type=QEItemType.PROJECT)
@@ -438,5 +438,5 @@ def load_0_0_2_settings_from_config():
         
         qe_settings[base_path] = settings
     
-    print("v0.0.2 settings upgrade finished.")
+    logger.info("v0.0.2 settings upgrade finished.")
     return True

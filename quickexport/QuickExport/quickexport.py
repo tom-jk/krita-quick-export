@@ -3,6 +3,9 @@ from functools import partial
 from pathlib import Path
 from krita import *
 
+import logging
+logger = logging.getLogger("tomjk_quickexport")
+
 from .utils import *
 from .qedialog import QEDialog
 
@@ -17,12 +20,12 @@ class QuickExportExtension(Extension):
 
     def __init__(self, parent):
         super().__init__(parent)
-        print("QuickExport init.")
+        logger.info("QuickExport init.")
         
         set_extension(self)
 
     def setup(self):
-        print("QE: setup")
+        logger.info("QE: setup")
         
         plugin_dir = Path(app.getAppDataLocation()) / "pykrita" / "QuickExport"
         icons_dir = plugin_dir / "icons"
@@ -104,7 +107,7 @@ class QuickExportExtension(Extension):
         self.themeChanged.emit()
     
     def createActions(self, window):
-        print("QE: createActions")
+        logger.info("QE: createActions")
         
         qe_action = window.createAction("tomjk_quick_export", "Quick export", "file")
         qe_action.setEnabled(False)
@@ -120,7 +123,7 @@ class QuickExportExtension(Extension):
         move_partial.func(*move_partial.args)
         
         theme_menu_action = next(
-            (a for a in app.actions() if a.objectName() == "theme_menu"), None
+            (a for a in qwindow.actions() if a.objectName() == "theme_menu"), None
         )
         
         for theme_action in theme_menu_action.menu().actions():
@@ -132,7 +135,7 @@ class QuickExportExtension(Extension):
         
         window = next((w for w in app.windows() if w.qwindow() == qwindow), None)
         if not window:
-            print(f"Couldn't find window assocated with qwindow '{qwindow.objectName()}'.")
+            logger.error(f"Couldn't find window assocated with qwindow '{qwindow.objectName()}'.")
             return
         known_windows.append({"window":window, "qe_action":qe_action, "qec_action":qec_action})
         
@@ -214,7 +217,7 @@ class QuickExportExtension(Extension):
     def _on_quick_export_triggered(self):
         doc = app.activeDocument()
         if not doc:
-            print("QE: no document to export.")
+            logger.info("no document to export.")
             return
         
         if doc.fileName() == "":
@@ -238,11 +241,11 @@ class QuickExportExtension(Extension):
         
         if not result:
             failed_msg = export_failed_msg()
-            print(f"QE: Export failed! {failed_msg}")
+            logger.warning(f"QE: Export failed! {failed_msg}")
             app.activeWindow().activeView().showFloatingMessage(f"Export failed! {failed_msg}", app.icon('warning'), 5000, 0)
         else:
             export_path = export_file_path(qe_settings[file_settings_path], path)
-            print(f"QE: Exported to '{str(export_path)}'")
+            logger.info(f"QE: Exported to '{str(export_path)}'")
             app.activeWindow().activeView().showFloatingMessage(f"Exported to '{str(export_path)}'", app.icon('document-export'), 5000, 1)
     
     def _on_quick_export_configuration_triggered(self):
@@ -270,4 +273,7 @@ class QuickExportExtension(Extension):
         #from .qemacrobuilder import QEMacroBuilder
 
 # And add the extension to Krita's list of extensions:
-app.addExtension(QuickExportExtension(app))
+if len(app.windows()) > 0:
+    logger.warning("QE: Activated mid-Krita sesson. Please restart Krita.")
+else:
+    app.addExtension(QuickExportExtension(app))
